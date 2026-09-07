@@ -97,7 +97,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Protocol                                 | ✓        | contracts and JSON guard   |
 | Config                                   | ✓        | YAML loader and validation |
 | SDK                                      | ✓        | scaffolded                 |
-| OpenAI                                   | ✓        | adapter scaffolded         |
+| OpenAI                                   | ✓        | planner/reviewer adapter   |
 | Codex                                    | ✓        | adapter scaffolded         |
 | Claude / Claude Code / Gemini / OpenCode | ✓        | planned                    |
 
@@ -151,6 +151,8 @@ The [runtime reference](docs/RUNTIME.md) covers local command execution, output 
 The [verification reference](docs/VERIFICATION.md) describes sequential command checks, aggregate results, and verification events.
 
 The [state reference](docs/STATE.md) documents local snapshots, event history, recovery errors, and the single-writer boundary.
+
+The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
 
 ## Current milestone
 

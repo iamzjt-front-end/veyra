@@ -462,23 +462,25 @@ Verified 41 Core persistence/event tests: complete layout, atomic snapshot visib
 
 ## M1.7 — Implement OpenAI reasoning adapter
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.3
 
 **Primary area:** `plugins/openai`
 
 ### Requirements
 
-- [ ] Use the official OpenAI SDK and the current Responses API.
-- [ ] API key is read from standard environment/config indirection; never stored in `.veyra` state.
-- [ ] Model is configurable; do not hard-code a single model as an architectural dependency.
-- [ ] Implement `AgentAdapter.run()` for planner/reviewer roles.
-- [ ] Build a role-aware system/developer instruction boundary that includes goal, current step, relevant prior artifacts/results, and explicit requested output shape.
-- [ ] Prefer structured output / JSON schema where supported so planner/reviewer outcomes are parseable.
-- [ ] Normalize provider output into `AgentResult`.
-- [ ] Capture optional token/usage metadata.
-- [ ] Add timeout/cancellation support where SDK allows.
-- [ ] Redact secrets from errors/logs.
-- [ ] Unit tests use a mocked SDK/client; no network in normal test suite.
+- [x] Use the official OpenAI SDK and the current Responses API.
+- [x] API key is read from standard environment/config indirection; never stored in `.veyra` state.
+- [x] Model is configurable; do not hard-code a single model as an architectural dependency.
+- [x] Implement `AgentAdapter.run()` for planner/reviewer roles.
+- [x] Build a role-aware system/developer instruction boundary that includes goal, current step, relevant prior artifacts/results, and explicit requested output shape.
+- [x] Prefer structured output / JSON schema where supported so planner/reviewer outcomes are parseable.
+- [x] Normalize provider output into `AgentResult`.
+- [x] Capture optional token/usage metadata.
+- [x] Add timeout/cancellation support where SDK allows.
+- [x] Redact secrets from errors/logs.
+- [x] Unit tests use a mocked SDK/client; no network in normal test suite.
 
 ### Planner output should minimally express
 
@@ -497,6 +499,8 @@ Verified 41 Core persistence/event tests: complete layout, atomic snapshot visib
 ### Acceptance criteria
 
 With a mocked OpenAI client, planner and reviewer inputs produce validated, normalized `AgentResult` objects. A real integration smoke test can be run manually when credentials are present.
+
+Verified 36 adapter tests, including the official SDK with mocked HTTP, planner/reviewer schemas and artifact references, refusal/incomplete handling, cancellation/timeout, usage, options validation, and redacted diagnostics. Frozen install and all five baseline commands passed (250 tests). SDK 6.49.0 preserves Node 20 compatibility while using the documented Responses API. The opt-in command `pnpm --filter @veyra/openai smoke -- <model>` is implemented and excluded from CI; its missing-key preflight returned exit 2 with setup guidance. `OPENAI_API_KEY` is unavailable in this environment, so no live API success is claimed; the task's required mocked acceptance passes. See `docs/OPENAI.md`.
 
 ---
 
@@ -1504,4 +1508,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.7 — Implement OpenAI reasoning adapter.**
+**Start with M1.8 — Implement Codex CLI executor adapter.**

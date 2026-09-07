@@ -6,12 +6,14 @@
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@veyra/protocol": "workspace:*"
+    "@veyra/protocol": "workspace:*",
+    "openai": "6.49.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
+    "smoke": "tsx test/manual-smoke.ts",
     "clean": "rm -rf dist"
   }
 }
