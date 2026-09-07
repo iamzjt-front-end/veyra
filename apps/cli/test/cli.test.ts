@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -20,6 +21,7 @@ describe("repository CLI entry point", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("Veyra Doctor");
     expect(result.stdout).toContain(`Node:     ${process.version}`);
+    expect(result.stdout).toContain(`CWD:      ${resolve(repositoryRoot)}`);
   });
 
   it("returns a failure for an unknown command after the separator", () => {

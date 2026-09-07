@@ -17,7 +17,7 @@
     "check": "turbo check && tsc -p tsconfig.test.json",
     "test": "turbo test && vitest run --config vitest.config.ts",
     "clean": "turbo clean && rm -rf node_modules",
-    "ve": "pnpm --filter @veyra/cli dev"
+    "ve": "tsx apps/cli/src/index.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

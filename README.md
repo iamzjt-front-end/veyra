@@ -67,7 +67,7 @@ veyra/
 └── README.md
 ```
 
-## Planned user experience
+## CLI workflow
 
 The project is **Veyra**; the public CLI command is intentionally short: **`ve`**.
 
@@ -79,7 +79,7 @@ ve review
 ve resume
 ```
 
-Running `ve` without arguments will eventually open the TUI. The Web dashboard is a later management surface built on the same core event stream.
+In this checkout use `pnpm ve -- <command>` after building. The commands above work; see the [CLI reference](docs/CLI.md) for provider setup, flags, exit codes, and approval handling. Running `ve` without arguments will eventually open the TUI. The Web dashboard is a later management surface built on the same core event stream.
 
 ## Architecture vs implementation
 
@@ -87,7 +87,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 
 | Area                                     | Scaffold | Current status             |
 | ---------------------------------------- | -------- | -------------------------- |
-| CLI                                      | ✓        | scaffolded                 |
+| CLI                                      | ✓        | headless workflow commands |
 | TUI                                      | ✓        | scaffolded                 |
 | Dashboard                                | ✓        | planned                    |
 | Core                                     | ✓        | persisted workflow loop    |
@@ -140,7 +140,7 @@ CI runs the same five checks for pull requests and pushes to `main`, using Node.
 
 See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
 
-The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The programmatic Core loop and first adapters work; CLI workflow commands remain planned.
+The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The Core loop, first adapters, and headless CLI commands work; live provider runs require the corresponding accounts and credentials.
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.
 

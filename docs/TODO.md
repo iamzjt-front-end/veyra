@@ -648,6 +648,8 @@ Verified ten approval integration tests, including explicit approve/resume, reje
 
 ## M1.12 — Implement CLI application commands
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.1–M1.11
 
 **Primary area:** `apps/cli`
@@ -656,52 +658,54 @@ The public executable is **`ve`**.
 
 ### `ve init`
 
-- [ ] Detect existing `veyra.yaml` and avoid destructive overwrite without confirmation/flag.
-- [ ] Generate a minimal working `veyra.yaml`.
-- [ ] Ensure `.veyra/` runtime directories are ignored appropriately without blindly modifying unrelated ignore rules.
-- [ ] Print next-step instructions.
+- [x] Detect existing `veyra.yaml` and avoid destructive overwrite without confirmation/flag.
+- [x] Generate a minimal working `veyra.yaml`.
+- [x] Ensure `.veyra/` runtime directories are ignored appropriately without blindly modifying unrelated ignore rules.
+- [x] Print next-step instructions.
 
 ### `ve run <goal>`
 
-- [ ] Require or intelligently load a workflow.
-- [ ] Load config, workflow, providers, state store.
-- [ ] Start a new run.
-- [ ] Print concise live events in headless CLI mode.
-- [ ] Return meaningful process exit code.
-- [ ] Support at least `--workflow`, `--config`, and `--non-interactive` if needed by implementation.
+- [x] Require or intelligently load a workflow.
+- [x] Load config, workflow, providers, state store.
+- [x] Start a new run.
+- [x] Print concise live events in headless CLI mode.
+- [x] Return meaningful process exit code.
+- [x] Support at least `--workflow`, `--config`, and `--non-interactive` if needed by implementation.
 
 ### `ve status`
 
-- [ ] Show active/latest run ID, status, current step, retry count, start/update times.
-- [ ] Support a run ID argument/flag.
+- [x] Show active/latest run ID, status, current step, retry count, start/update times.
+- [x] Support a run ID argument/flag.
 
 ### `ve review`
 
-- [ ] Show the latest reviewer result and relevant verification summary/artifact references.
-- [ ] Do not require rerunning an agent.
+- [x] Show the latest reviewer result and relevant verification summary/artifact references.
+- [x] Do not require rerunning an agent.
 
 ### `ve resume`
 
-- [ ] Load a paused/interrupted run and continue from persisted state.
-- [ ] Handle no resumable run gracefully.
+- [x] Load a paused/interrupted run and continue from persisted state.
+- [x] Handle no resumable run gracefully.
 
 ### `ve doctor`
 
-- [ ] Node/pnpm/platform information.
-- [ ] Config validity when inside a Veyra project.
-- [ ] provider readiness: OpenAI env presence (without printing key), Codex executable/version, working directory permissions.
-- [ ] Clearly distinguish required vs optional provider readiness.
+- [x] Node/pnpm/platform information.
+- [x] Config validity when inside a Veyra project.
+- [x] provider readiness: OpenAI env presence (without printing key), Codex executable/version, working directory permissions.
+- [x] Clearly distinguish required vs optional provider readiness.
 
 ### CLI UX rules
 
-- [ ] Human-readable output by default.
-- [ ] Reserve/plan a machine-readable `--json` mode; implement in v0.1 if low-cost.
-- [ ] No ANSI assumptions when stdout is non-TTY.
-- [ ] Good error messages and non-zero exit codes.
+- [x] Human-readable output by default.
+- [x] Reserve/plan a machine-readable `--json` mode; implement in v0.1 if low-cost.
+- [x] No ANSI assumptions when stdout is non-TTY.
+- [x] Good error messages and non-zero exit codes.
 
 ### Acceptance criteria
 
 The complete mock vertical slice can be driven using only `ve` commands.
+
+Verified 14 CLI tests: command-handler-only mocked plan/gate/execute/verify/review flow; explicit approval and saved inspection; guarded init; config/argument failures; required/optional readiness; and a real command-only fixture through the public CLI process. Root `pnpm ve` now preserves the project working directory. Two Core child-process tests prove explicit recovery after a completed checkpoint without repeating its mutation, and refusal to rerun an unknown interrupted attempt. This narrow Core primitive is required for CLI interrupted resume; general crash recovery and locking remain later hardening work. Frozen install and all five baseline commands passed (358 tests). See `docs/CLI.md`.
 
 ---
 
@@ -1524,4 +1528,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.12 — Implement CLI application commands.**
+**Start with M1.13 — Add deterministic end-to-end tests.**

@@ -7,7 +7,14 @@
     "ve": "./dist/index.js"
   },
   "dependencies": {
-    "@veyra/core": "workspace:*"
+    "@veyra/core": "workspace:*",
+    "@veyra/config": "workspace:*",
+    "@veyra/protocol": "workspace:*",
+    "@veyra/runtime": "workspace:*",
+    "@veyra/workflow": "workspace:*",
+    "@veyra/codex": "workspace:*",
+    "@veyra/openai": "workspace:*",
+    "yaml": "2.9.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

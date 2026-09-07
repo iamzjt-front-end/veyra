@@ -50,6 +50,8 @@ export interface ResumeRequest extends AgentRunOptions {
   runId: string;
   config: VeyraConfig;
   agents: Record<string, AgentAdapter>;
+  /** Caller confirms the old owner stopped; only completed scheduling boundaries are recoverable. */
+  recoverInterrupted?: boolean;
 }
 
 export interface VeyraEngineOptions {
@@ -93,6 +95,42 @@ export class VeyraEngine {
   async resume(request: ResumeRequest): Promise<RunResult> {
     const store = this.#store(request);
     const run = await store.loadRun(request.runId);
+    if (run.state.status === "running" && request.recoverInterrupted) {
+      const history = await store.readEvents(request.runId);
+      const last = history.at(-1);
+      let next: string | undefined;
+      if (last?.type === "run.started" && run.state.currentStep === run.input.workflow.start)
+        next = run.state.currentStep;
+      if (
+        last?.type === "step.completed" &&
+        last.outcome &&
+        !["failure", "fail", "needs_input"].includes(last.outcome)
+      ) {
+        const step = run.input.workflow.steps[last.stepId];
+        if (step && step.type !== "human") {
+          const target = resolveNextStep(step, { status: last.outcome });
+          if (run.state.currentStep === last.stepId || run.state.currentStep === target)
+            next = target;
+        }
+      }
+      if (!next || pendingApproval(history))
+        throw new RunControlError(
+          "interrupted_attempt",
+          "The interrupted run has no proven completed checkpoint. Its last attempt may have changed files; inspect the workspace and events before starting new work.",
+        );
+      run.state = await store.updateRun(request.runId, {
+        status: "paused",
+        currentStep: next,
+        ...(last?.type === "step.completed" && last.outcome ? { lastOutcome: last.outcome } : {}),
+      });
+      await store.appendEvent(request.runId, {
+        type: "run.paused",
+        runId: request.runId,
+        stepId: next,
+        reason: "recovered_completed_checkpoint",
+        at: now(),
+      });
+    }
     if (run.state.status !== "paused")
       throw new RunControlError(
         "run_not_paused",

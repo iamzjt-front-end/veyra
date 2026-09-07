@@ -35,9 +35,30 @@ importers:
 
   apps/cli:
     dependencies:
+      '@veyra/codex':
+        specifier: workspace:*
+        version: link:../../plugins/codex
+      '@veyra/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@veyra/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@veyra/openai':
+        specifier: workspace:*
+        version: link:../../plugins/openai
+      '@veyra/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+      '@veyra/workflow':
+        specifier: workspace:*
+        version: link:../../packages/workflow
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
 
   apps/tui: {}
 
