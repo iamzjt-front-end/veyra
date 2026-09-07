@@ -19,6 +19,7 @@ export function analyzeWorkflow(definition: WorkflowDefinition): WorkflowAnalysi
     // parseWorkflow has checked the start and every destination against this immutable copy.
     const step = workflow.steps[id] as WorkflowStep;
     pending.push(...Object.values(step.on ?? {}));
+    if (step.type === "parallel") pending.push(...(step.children ?? []));
     if (step.next) pending.push(step.next);
   }
   const ids = Object.keys(workflow.steps);

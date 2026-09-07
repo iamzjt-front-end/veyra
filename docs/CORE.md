@@ -29,6 +29,7 @@ Core saves the goal, working directory, and workflow snapshot before starting. E
 - `agent`: invoke the registered adapter through the runtime. Successful provider completion uses `result.outcome` when present (including reviewer `pass`/`fail`); otherwise it uses `success`. A provider `failure` cannot be overridden by a claimed successful outcome. `needs_input` pauses at the current step.
 - `command`: call the deterministic verifier with the configured command list and convert its aggregate result into `success`/`failure`. Core emits verification events; an injected verifier should not independently append duplicate events to the same run.
 - `human`: persist `approval.required` with an approval ID, message/context, and pause at the gate. The [approval API](APPROVALS.md) records explicit decisions before resume.
+- `parallel`: schedule independent agent/command children up to the saved concurrency limit, propagate cancellation, persist each child independently, then join in declaration order. The [parallel contract](WORKFLOWS.md#parallel-groups) defines wait-all/fail-fast behavior and paused-child resume.
 - `end`: complete the step, save terminal state, and emit `run.completed`.
 
 Transitions are resolved by `@veyra/workflow`. Failures require an explicit matching `on.failure` or `on.fail` recovery transition; they cannot silently fall through `next` to completion. A branch with no matching outcome and no fallback fails with an actionable error. A successful leaf with no transitions completes the run. Results report `completed`, `failed`, or `paused` plus the run ID and last step.
@@ -46,6 +47,8 @@ Agent/verification result events are capped at 1 MiB each. Verifier command outp
 ## Resuming a paused agent
 
 `engine.resume({ runId, config, agents, cwd?, signal?, timeoutMs? })` reloads the original goal, workflow, working directory, retry counters, and bounded context reconstructed from saved result events. It emits `run.resumed` and continues the paused step with a new attempt. Successful preceding steps are not rerun. Current provider instances and execution controls are supplied by the caller; effective retry limits stay frozen in the workflow snapshot. `cwd` locates the state directory when no store is injected; execution always uses the saved working directory.
+
+For a paused parallel group, resume retains the parent attempt and successful child results. Only unfinished children execute, with separate child retry accounting. Their contexts are reconstructed from the original persisted group-start boundary. A new process can resume that boundary without rerunning successful children. Joined output/context order is stable across replay, and active child work drains before a pause or cancellation returns.
 
 Normally only a fully recorded `paused` run can resume. A human gate remains blocked until its exact pending approval is explicitly resolved through `resolveApproval()`. Completed/failed runs are refused. Runs created before effective retry limits were saved are refused with `missing_retry_snapshot`, without rewriting old state. Resuming after a resolved gate starts its saved successor; an unresolved gate cannot be bypassed by a plain resume.
 

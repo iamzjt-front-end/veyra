@@ -63,7 +63,7 @@ describe("parseWorkflow", () => {
     ).toThrow(`steps.plan.${String(field)}`);
   });
 
-  it.each(["parallel", "router", "subworkflow"])("keeps %s reserved and unsupported", (type) => {
+  it.each(["router", "subworkflow"])("keeps %s reserved and unsupported", (type) => {
     expect(() => parseWorkflow({ ...minimal(), steps: { plan: { type } } })).toThrow(
       `${type} is reserved and unsupported in v0.1`,
     );

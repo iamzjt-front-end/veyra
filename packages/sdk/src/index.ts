@@ -12,6 +12,7 @@ export type {
   ExecutionTiming,
   JsonObject,
   JsonValue,
+  ParallelChildResult,
   SerializedError,
   StepOutput,
   UsageMetadata,

@@ -35,6 +35,9 @@
           },
           {
             "$ref": "#/definitions/end"
+          },
+          {
+            "$ref": "#/definitions/parallel"
           }
         ]
       }
@@ -190,6 +193,45 @@
             "maxLength": 1024,
             "pattern": "^(?:/(?:[^~/]|~[01])*){0,32}(?![\\s\\S])"
           }
+        }
+      }
+    },
+    "parallel": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "children"],
+      "properties": {
+        "type": {
+          "const": "parallel"
+        },
+        "children": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/text"
+          }
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "failurePolicy": {
+          "enum": ["wait-all", "fail-fast"]
+        },
+        "next": {
+          "$ref": "#/definitions/text"
+        },
+        "on": {
+          "$ref": "#/definitions/on"
+        },
+        "retry": {
+          "$ref": "#/definitions/retry"
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
         }
       }
     }

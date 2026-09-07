@@ -14,6 +14,32 @@ export class RunContext {
     this.#referencedSteps = new Set(referencedSteps);
   }
 
+  /** Replay joined child outputs in declaration order, independent of completion timing. */
+  restore(events: readonly VeyraEvent[]): void {
+    const byId = new Map(events.map((event) => [event.eventId, event]));
+    for (const event of events) {
+      if ("parentStepId" in event && event.parentStepId !== undefined) continue;
+      if (event.type === "parallel.completed" || event.type === "parallel.paused") {
+        for (const child of event.results) {
+          const output = child.outputEventId ? byId.get(child.outputEventId) : undefined;
+          if (output) this.addEvent(output);
+        }
+      }
+      this.addEvent(event);
+    }
+  }
+
+  fork(): RunContext {
+    const copy = new RunContext(this.#referencedSteps);
+    // Values are private immutable snapshots; input() clones before exposing them.
+    for (const [key, value] of this.#steps) copy.#steps.set(key, value);
+    for (const [key, value] of this.#outputs) copy.#outputs.set(key, value);
+    for (const [key, value] of this.#artifacts) copy.#artifacts.set(key, value);
+    copy.#omittedSteps = this.#omittedSteps;
+    copy.#omittedArtifacts = this.#omittedArtifacts;
+    return copy;
+  }
+
   addEvent(event: VeyraEvent) {
     if (event.type === "agent.completed") {
       const result = event.result;
@@ -36,6 +62,13 @@ export class RunContext {
         artifacts: event.results.flatMap((item) => item.artifacts ?? []),
       };
       this.add(event.stepId, output as unknown as JsonObject, output.artifacts);
+    } else if (event.type === "parallel.completed") {
+      const output: StepOutput = {
+        type: "parallel",
+        outcome: event.success ? "success" : "failure",
+        results: event.results,
+      };
+      this.add(event.stepId, output as unknown as JsonObject);
     } else if (event.type === "approval.resolved") {
       this.add(event.stepId, {
         type: "human",

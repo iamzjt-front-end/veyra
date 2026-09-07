@@ -56,7 +56,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Versioned DSL schema
 - [x] Typed context/step outputs
 - [x] Branching
-- [ ] Parallel steps
+- [x] Parallel steps
 - [ ] Routers
 - [ ] Subworkflows
 - [ ] Consensus/judge nodes

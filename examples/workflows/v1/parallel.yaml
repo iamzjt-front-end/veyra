@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: parallel-checks
+version: 1
+start: checks
+steps:
+  checks:
+    type: parallel
+    children: [syntax, tests]
+    concurrency: 2
+    failurePolicy: wait-all
+    next: done
+  syntax:
+    type: command
+    run: ["node --check src/message.js"]
+  tests:
+    type: command
+    run: ["node --test"]
+  done:
+    type: end

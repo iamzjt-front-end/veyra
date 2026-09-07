@@ -12,6 +12,7 @@ export interface ExecutionMetadata {
   stepId: string;
   attemptId?: string;
   attempt?: number;
+  parentStepId?: string;
 }
 
 export interface ExecutionTiming {
@@ -114,7 +115,19 @@ export type StepOutput =
       results: VerificationResult[];
       artifacts?: ArtifactRef[];
     }
-  | { type: "human"; outcome: ApprovalDecision; comment?: string };
+  | { type: "human"; outcome: ApprovalDecision; comment?: string }
+  | { type: "parallel"; outcome: "success" | "failure"; results: ParallelChildResult[] };
+
+export interface ParallelChildResult {
+  stepId: string;
+  status: "pending" | "success" | "failure" | "needs_input" | "cancelled" | "skipped";
+  attemptId?: string;
+  attempt?: number;
+  outcome?: string;
+  /** References the persisted result/failure event in this run; avoids duplicating large output. */
+  outputEventId?: string;
+  error?: SerializedError;
+}
 
 export interface EventMetadata {
   runId: string;
@@ -127,6 +140,7 @@ interface StepEventMetadata {
   stepId: string;
   attemptId?: string;
   attempt?: number;
+  parentStepId?: string;
 }
 
 interface AgentEventMetadata extends StepEventMetadata {
@@ -148,6 +162,23 @@ export type VeyraEvent = EventMetadata &
     | (StepEventMetadata & { type: "step.retrying"; retryCount: number; maxRetries: number })
     | (StepEventMetadata & { type: "step.completed"; outcome?: string; artifacts?: ArtifactRef[] })
     | (StepEventMetadata & { type: "step.failed"; message: string; error?: SerializedError })
+    | (StepEventMetadata & {
+        type: "parallel.started";
+        children: string[];
+        concurrency: number;
+        failurePolicy: "wait-all" | "fail-fast";
+      })
+    | (StepEventMetadata & {
+        type: "parallel.child.completed";
+        parentStepId: string;
+        result: ParallelChildResult;
+      })
+    | (StepEventMetadata & {
+        type: "parallel.completed";
+        success: boolean;
+        results: ParallelChildResult[];
+      })
+    | (StepEventMetadata & { type: "parallel.paused"; results: ParallelChildResult[] })
     | (AgentEventMetadata & { type: "agent.started" })
     | (AgentEventMetadata & { type: "agent.input"; input: AgentInput })
     | (AgentEventMetadata & { type: "agent.completed"; result: AgentResult })

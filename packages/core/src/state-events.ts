@@ -22,6 +22,7 @@ function execution(value: RecordValue) {
     string(value.runId) &&
     string(value.stepId) &&
     optional(value.attemptId, string) &&
+    optional(value.parentStepId, string) &&
     optional(value.attempt, integer)
   );
 }
@@ -92,6 +93,7 @@ function agentInput(value: unknown, event: RecordValue): boolean {
     value.stepId === event.stepId &&
     value.attemptId === event.attemptId &&
     value.attempt === event.attempt &&
+    value.parentStepId === event.parentStepId &&
     string(value.role) &&
     string(value.goal) &&
     optional(value.instructions, string) &&
@@ -103,6 +105,7 @@ function agentInput(value: unknown, event: RecordValue): boolean {
         "stepId",
         "attemptId",
         "attempt",
+        "parentStepId",
         "role",
         "goal",
         "instructions",
@@ -129,6 +132,32 @@ function verification(value: unknown): boolean {
     optional(value.error, error) &&
     optional(value.artifacts, (items) => array(items, artifact)) &&
     optional(value.execution, (item) => record(item) && execution(item))
+  );
+}
+
+function parallelChild(value: unknown): boolean {
+  return (
+    record(value) &&
+    string(value.stepId) &&
+    string(value.status) &&
+    ["pending", "success", "failure", "needs_input", "cancelled", "skipped"].includes(
+      value.status,
+    ) &&
+    optional(value.attemptId, string) &&
+    optional(value.attempt, integer) &&
+    optional(value.outcome, string) &&
+    optional(value.outputEventId, string) &&
+    optional(value.error, error)
+  );
+}
+
+function parallelResults(value: unknown): value is RecordValue[] {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.length <= 32 &&
+    value.every(parallelChild) &&
+    new Set(value.map((row) => row.stepId)).size === value.length
   );
 }
 
@@ -159,6 +188,47 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
   switch (value.type) {
     case "step.started":
       return true;
+    case "parallel.started":
+      return (
+        array(value.children, string) &&
+        (value.children as unknown[]).length > 0 &&
+        (value.children as unknown[]).length <= 32 &&
+        new Set(value.children as unknown[]).size === (value.children as unknown[]).length &&
+        integer(value.concurrency) &&
+        (value.concurrency as number) >= 1 &&
+        (value.concurrency as number) <= 32 &&
+        ["wait-all", "fail-fast"].includes(value.failurePolicy as string)
+      );
+    case "parallel.child.completed":
+      return (
+        string(value.parentStepId) &&
+        parallelChild(value.result) &&
+        record(value.result) &&
+        value.result.stepId === value.stepId &&
+        value.result.status !== "pending" &&
+        value.result.attemptId === value.attemptId &&
+        value.result.attempt === value.attempt
+      );
+    case "parallel.completed":
+      return (
+        boolean(value.success) &&
+        parallelResults(value.results) &&
+        value.success === value.results.every((result) => result.status === "success") &&
+        (value.success ||
+          value.results.some((result) =>
+            ["failure", "cancelled", "skipped"].includes(result.status as string),
+          ))
+      );
+    case "parallel.paused":
+      return (
+        parallelResults(value.results) &&
+        value.results.every((result) =>
+          ["success", "needs_input", "pending"].includes(result.status as string),
+        ) &&
+        value.results.some(
+          (result) => result.status === "needs_input" || result.status === "pending",
+        )
+      );
     case "step.retrying":
       return integer(value.retryCount) && integer(value.maxRetries);
     case "step.completed":

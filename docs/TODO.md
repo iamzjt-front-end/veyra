@@ -947,13 +947,17 @@ The existing exact `on` outcome branches and `next` fallback cover current workf
 
 ## M3.4 — Parallel steps
 
-- [ ] execute independent child steps concurrently
-- [ ] define fail-fast vs wait-all policy
-- [ ] cancellation propagation
-- [ ] deterministic result aggregation order
-- [ ] concurrency limit
-- [ ] persist child states independently
-- [ ] TUI-compatible events
+**Status:** [x] Complete and verified.
+
+- [x] execute independent child steps concurrently
+- [x] define fail-fast vs wait-all policy
+- [x] cancellation propagation
+- [x] deterministic result aggregation order
+- [x] concurrency limit
+- [x] persist child states independently
+- [x] TUI-compatible events
+
+Verified 22 parallel graph tests, the schema-backed parallel example, nine Core integration scenarios, and new event validation cases. Tests demonstrate real overlap with a two-child limit, stable joins/context after reversed completion and replay, independent command evidence, wait-all and fail-fast behavior, cancellation and actual subprocess exit, retained successful children across a new-process resume, child retry exhaustion, and cleanup after subscriber/store failure. All five baseline commands passed (502 tests). Parallel groups accept 1–32 independent agent/command leaves, preserve their initial input context, and publish child identities/states to the shared event model. Nested groups/human children, unknown interrupted-attempt recovery, and per-child worktree isolation remain outside this implementation; documented gates can surround a group.
 
 ---
 
@@ -1552,4 +1556,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.4 — Parallel steps.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.5 — Router nodes.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

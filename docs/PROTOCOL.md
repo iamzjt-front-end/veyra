@@ -4,13 +4,13 @@
 
 ## Persisted data and execution controls
 
-`AgentInput` contains the goal, role, instructions, context, artifacts, and execution identity. `ExecutionMetadata` identifies a run and step, with optional attempt ID and one-based attempt number for retries. The coordinating engine owns these identities. Adapters can echo the same identity in `AgentResult.execution`; persistence must associate every result with its authoritative run/step/attempt.
+`AgentInput` contains the goal, role, instructions, context, artifacts, and execution identity. `ExecutionMetadata` identifies a run and step, with optional attempt ID and one-based attempt number for retries, and `parentStepId` for an owned parallel child. The coordinating engine owns these identities. Adapters can echo the same identity in `AgentResult.execution`; persistence must associate every result with its authoritative run/step/attempt.
 
 `AgentRunOptions` is the separate, ephemeral second argument to `AgentAdapter.run`: working directory, abort signal, and timeout. These controls must never be serialized into an agent input or event. This task defines the control contract; runtime and provider tasks implement its behavior.
 
 Context, result data, artifact metadata, and structured error details use `JsonObject`/`JsonValue`. Omit unknown optional fields. `isJsonValue(value)` checks runtime data for finite numbers, plain objects, dense arrays, and serializable nested values; it rejects functions, undefined, native errors, dates, maps, cycles, accessors, and custom serialization methods. Shared references are allowed when they are not cyclic. This guard validates shape, not content redaction or output size.
 
-`StepOutput` describes the normalized agent, command or human output used by workflow references. `AgentInput.context.inputs` contains the named JSON values selected by the saved workflow, while `context.steps` is bounded recent context. [Workflow inputs](WORKFLOWS.md#named-inputs-and-step-outputs) define their selection, size limits and missing-value behavior.
+`StepOutput` describes the normalized agent, command, human or parallel output used by workflow references. Parallel output contains a declaration-ordered array of `ParallelChildResult`: child ID, status, optional attempt identity, outcome, evidence event ID and normalized error. Full agent and deterministic verifier evidence remains in its own event. `AgentInput.context.inputs` contains the named JSON values selected by the saved workflow, while `context.steps` is bounded recent context. [Workflow inputs](WORKFLOWS.md#named-inputs-and-step-outputs) define their selection, size limits and missing-value behavior.
 
 ## Results, artifacts, and usage
 
@@ -30,6 +30,7 @@ All events carry a run ID and ISO timestamp. Persistence can add an event ID and
 
 - Run started/completed/failed/paused/resumed.
 - Step started/completed/failed and `step.retrying`, including its used count, maximum, and attempt identity.
+- Parallel started/paused/completed and independently persisted `parallel.child.completed`. Start records child IDs, concurrency and failure policy; joins record ordered child states. Child events include `parentStepId` so surfaces can track active children while the run's current step stays the group.
 - Agent input/started/completed/failed. `agent.input` records the resolved redacted `AgentInput` before invocation, with matching run/step/attempt identity and no ephemeral execution controls. Result/error events retain their existing meaning.
 - Verification started/completed, with deterministic command results.
 - Approval required/resolved, with explicit `approved`/`rejected` decisions.

@@ -20,6 +20,9 @@ export interface WorkflowStep {
   message?: string;
   /** Named, explicit references delivered as AgentInput.context.inputs or gate context.inputs. */
   inputs?: Record<string, StepInputReference>;
+  children?: string[];
+  concurrency?: number;
+  failurePolicy?: "wait-all" | "fail-fast";
   metadata?: Record<string, unknown>;
 }
 

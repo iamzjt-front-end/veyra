@@ -11,14 +11,15 @@
 
 Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step ID, and a `steps` object. Step IDs and transition outcome keys must be non-empty strings. The start step and every `next`/`on` destination must exist as actual entries in the step map.
 
-| Node type | Fields specific to this type                                    |
-| --------- | --------------------------------------------------------------- |
-| `agent`   | Required non-empty `agent`, referencing a configured agent name |
-| `command` | Required non-empty `run` array of non-empty command strings     |
-| `human`   | Optional non-empty `message`                                    |
-| `end`     | Terminal node; no transitions or retry settings                 |
+| Node type  | Fields specific to this type                                        |
+| ---------- | ------------------------------------------------------------------- |
+| `agent`    | Required non-empty `agent`, referencing a configured agent name     |
+| `command`  | Required non-empty `run` array of non-empty command strings         |
+| `human`    | Optional non-empty `message`                                        |
+| `parallel` | Required `children` IDs; optional `concurrency` and `failurePolicy` |
+| `end`      | Terminal node; no transitions or retry settings                     |
 
-Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected. `parallel`, `router`, and `subworkflow` remain in the type vocabulary but are explicitly unsupported in v0.1.
+Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected. `router` and `subworkflow` remain in the type vocabulary but are explicitly unsupported until their implementation milestones.
 
 Agent and human nodes also support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
 
@@ -33,6 +34,7 @@ For a YAML language server, select the schema with a comment containing its rela
 | [minimal.yaml](../examples/workflows/v1/minimal.yaml)         | A command-only workflow with no configured providers required.                                                                              |
 | [approval.yaml](../examples/workflows/v1/approval.yaml)       | An explicit approved/rejected branch before a read-only command.                                                                            |
 | [review-loop.yaml](../examples/workflows/v1/review-loop.yaml) | Executor, deterministic test, reviewer and a single allowed repair; requires configured executor/reviewer agents and a project test script. |
+| [parallel.yaml](../examples/workflows/v1/parallel.yaml)       | Independent syntax and test commands for the disposable fixture project, with a bounded join.                                               |
 
 Schema validation covers data shape, exact supported node types, required fields, unknown fields, non-blank strings, and retry integer bounds. `parseWorkflow`/`loadWorkflow` additionally check actual start/transition destinations and reject non-JSON in-memory metadata and YAML alias problems. A schema-valid object is not necessarily a valid graph, and validation never grants permission to execute commands. Always use the runtime loader before execution. Tests validate every preset/example and compare invalid structural cases through both validators; Ajv is a development-only dependency, not another runtime parser.
 
@@ -67,11 +69,12 @@ The source IDs must exist in the workflow, and their outputs must already be ava
 
 The provider-neutral `StepOutput` contract defines selectable fields:
 
-| Source event / step      | Output fields                                                                                                               |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `agent.completed`        | `type: agent`, `outcome`, `summary`, optional `data` and `artifacts`. A normalized provider failure uses outcome `failure`. |
-| `verification.completed` | `type: command`, `outcome: success/failure`, `results` and artifact references.                                             |
-| `approval.resolved`      | `type: human`, `outcome: approved/rejected`, optional `comment`.                                                            |
+| Source event / step      | Output fields                                                                                                                      |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `agent.completed`        | `type: agent`, `outcome`, `summary`, optional `data` and `artifacts`. A normalized provider failure uses outcome `failure`.        |
+| `verification.completed` | `type: command`, `outcome: success/failure`, `results` and artifact references.                                                    |
+| `approval.resolved`      | `type: human`, `outcome: approved/rejected`, optional `comment`.                                                                   |
+| `parallel.completed`     | `type: parallel`, `outcome: success/failure`, declaration-ordered `results` containing child states and evidence event references. |
 
 `path` is an [RFC 6901 JSON Pointer](https://www.rfc-editor.org/info/rfc6901/): empty selects the whole normalized output; `/data/instructions` selects a property; `/results/0/exitCode` selects an array element. Escape a property-name `/` as `~1` and `~` as `~0`. Only own JSON properties and existing canonical array indices are read. No code, expression, wildcard, environment lookup, URI fragment or filesystem read is evaluated. Strings remain literal strings, and numbers, booleans, arrays, objects and null retain their JSON types.
 
@@ -118,11 +121,46 @@ The current presets and explicit agent outcomes are covered by exact `on` branch
 | Agent `needs_input`                        | Pauses before any branch executes.                                                                                                                                          |
 | Human decision                             | Uses the explicit Core approval API; rejected decisions require an explicit rejected branch and never fall through to an approved action.                                   |
 
-`analyzeWorkflow(definition)` first runs the same strict parser and checks every destination, including destinations inside unreachable branches. It returns `reachableSteps` and `unreachableSteps` in definition order. Reachability follows all possible `on` targets and `next` edges from `start`, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors, because a definition can intentionally retain unused steps. Execution safety still comes from Core's bounded retry policy.
+`analyzeWorkflow(definition)` first runs the same strict parser and checks every destination, including destinations inside unreachable branches. It returns `reachableSteps` and `unreachableSteps` in definition order. Reachability follows all possible `on` targets, `next` edges and parallel children from `start`, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors, because a definition can intentionally retain unused steps. Execution safety still comes from Core's bounded retry policy.
+
+## Parallel groups
+
+The M3.4 implementation in the `0.1.0` development checkout adds parallel groups to version 1. Use this implementation and its matching schema; earlier scaffold checkouts reject this node.
+
+```yaml
+checks:
+  type: parallel
+  children: [syntax, tests]
+  concurrency: 2
+  failurePolicy: wait-all
+  next: done
+syntax:
+  type: command
+  run: ["node --check src/message.js"]
+tests:
+  type: command
+  run: ["node --test"]
+done:
+  type: end
+```
+
+A group lists 1–32 unique child IDs. Each child must be an `agent` or `command` leaf without `next`/`on`, owned by exactly one group. Start and ordinary branches enter the group, never an owned child. Human gates and nested groups are outside this first parallel implementation. Put approval before or after the group. Explicit child inputs must refer to outputs outside that group; sibling/self/group references are rejected as dependencies between supposedly independent children. The runtime parser checks these graph rules in addition to the editor's structural schema.
+
+`concurrency` is an integer from 1–32 and defaults to the smaller of four and the child count. The scheduler starts children in declaration order as slots become available. All children share the persisted pre-group input context, including queued children and children resumed later. Outputs from the current batch never leak into a sibling's input based on timing. Full audited inputs and results retain each child's identity. Child output references become available to later steps after the group joins.
+
+`failurePolicy` defaults to `wait-all`: every child can finish, then any failure makes the group outcome `failure`. `fail-fast` aborts active peers when the first child failure is persisted, starts no further queued children, and records those queued children as `skipped`. Both policies await active runtime cleanup before completing the group. The parent requires an explicit `on.failure` to continue after failure; `next` is only a success fallback. Failures include provider errors, review `fail`, verification failure, invalid/missing input and exhausted child retry budgets.
+
+External cancellation aborts all active children, drains them, records ordered results, and fails the run with `run_cancelled`. Adapters must honor the provided abort signal; the scheduler cannot terminate arbitrary third-party JavaScript that ignores it. Local process termination remains the runtime's responsibility.
+
+An agent's `needs_input` stops new queued work while active peers finish. If no child failed, the group and run pause. Resume keeps successful children, reruns only `needs_input` children with new attempts, and starts pending children. The same parent group attempt, initial input snapshot and saved retry limits are retained. A child failure takes precedence over a pause. An interrupted group without a fully persisted pause is not replayed automatically; unknown in-flight effects still require the later crash-recovery work.
+
+`parallel.started`, `parallel.child.completed`, `parallel.paused` and `parallel.completed` expose the same provider-neutral state to every surface. Child attempt/start/result events carry `parentStepId`; the run's `currentStep` remains the parent group. Child states are `pending`, `success`, `failure`, `needs_input`, `cancelled` or `skipped`. Each result references its evidence event through `outputEventId`, avoiding copies of large provider/verifier payloads. Aggregation and restored downstream context use child declaration order even when completion events arrive in another order.
+
+Parallel children use the same configured working directory. Authors must choose independent commands/agents and avoid concurrent edits to the same files. Per-child worktree isolation remains M6.1; parallel scheduling does not bypass native provider permissions or create isolated worktrees.
 
 ## v0.1 retry policy
 
-Each executable step (`agent` or `command`) has an independent repair budget. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits in the saved run snapshot. Resume uses that snapshot even if the current config changes.
+Each executable step (`agent`, `command` or `parallel`) has an independent repair budget. Parallel children also have individual budgets; resuming an unfinished group retains the parent attempt while retried children spend their own budgets. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits in the saved run snapshot. Resume uses that snapshot even if the current config changes.
 
 `nextRetry()` evaluates the next execution without mutating state:
 
@@ -133,6 +171,6 @@ Each executable step (`agent` or `command`) has an independent repair budget. It
 
 For default `dev`, `fix.retry.max: 3` allows exactly three fix calls after the initial executor call. The repeated verifier has its own default budget: one initial check plus three repeats. A step override changes only that step; raising a whole loop's limit may require adjusting other repeated steps too. Human and end nodes do not consume repair budgets. A fixed 1000-step lifetime backstop, retained across resume, additionally bounds very large configured limits.
 
-Exhaustion fails the run with `retry_exhausted` and identifies the step and used/maximum counts. A step may instead provide `on.retry_exhausted` pointing directly to a `human` gate; Core follows that explicit gate and pauses. An ordinary `next` or a non-human exhaustion target cannot turn exhausted retries into success. Approval does not reset budgets.
+Exhaustion fails the run with `retry_exhausted` and identifies the step and used/maximum counts. A standalone step or parent group may instead provide `on.retry_exhausted` pointing directly to a `human` gate; Core follows that explicit gate and pauses. An owned parallel child's exhaustion is persisted in its failure result and makes the parent group fail. An ordinary `next` or a non-human exhaustion target cannot turn exhausted retries into success. Approval does not reset budgets.
 
 `retryCounts` stores the per-step used counts. `step.retrying` reports the count, maximum, and attempt identity when a repair starts. Attempt numbers count actual invocations and are distinct from repair counts: the first `fix` call can be attempt `1` and repair count `1`.

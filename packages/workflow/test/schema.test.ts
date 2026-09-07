@@ -54,7 +54,7 @@ describe("published version 1 workflow schema", () => {
     },
   );
 
-  it.each(["minimal", "approval", "review-loop", "inputs"])(
+  it.each(["minimal", "approval", "review-loop", "inputs", "parallel"])(
     "validates the documented %s example and editor schema path",
     async (name) => {
       const file = fileURLToPath(

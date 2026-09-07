@@ -58,11 +58,17 @@ function json(value: unknown, field: string, parents = new Set<object>()): unkno
 function parseStep(value: unknown, field: string): WorkflowStep {
   const raw = object(value, field);
   const type = text(raw.type, `${field}.type`);
-  if (["parallel", "router", "subworkflow"].includes(type)) {
+  if (["router", "subworkflow"].includes(type)) {
     throw new WorkflowError(`${field}.type`, `${type} is reserved and unsupported in v0.1`);
   }
-  if (type !== "agent" && type !== "command" && type !== "human" && type !== "end") {
-    throw new WorkflowError(`${field}.type`, "expected agent, command, human, or end");
+  if (
+    type !== "agent" &&
+    type !== "command" &&
+    type !== "human" &&
+    type !== "parallel" &&
+    type !== "end"
+  ) {
+    throw new WorkflowError(`${field}.type`, "expected agent, command, human, parallel, or end");
   }
   const common = ["type", "metadata", "next", "on", "retry"];
   const keys =
@@ -70,11 +76,36 @@ function parseStep(value: unknown, field: string): WorkflowStep {
       ? ["type", "metadata"]
       : [
           ...common,
-          type === "agent" ? "agent" : type === "command" ? "run" : "message",
+          ...(type === "parallel"
+            ? ["children", "concurrency", "failurePolicy"]
+            : [type === "agent" ? "agent" : type === "command" ? "run" : "message"]),
           ...(type === "agent" || type === "human" ? ["inputs"] : []),
         ];
   object(raw, field, keys);
   const step: WorkflowStep = { type };
+  if (type === "parallel") {
+    if (!Array.isArray(raw.children) || raw.children.length < 1 || raw.children.length > 32)
+      throw new WorkflowError(`${field}.children`, "must list 1 to 32 independent child step IDs");
+    step.children = raw.children.map((id, index) => text(id, `${field}.children[${index}]`));
+    if (new Set(step.children).size !== step.children.length)
+      throw new WorkflowError(`${field}.children`, "child step IDs must be unique");
+    if (
+      raw.concurrency !== undefined &&
+      (typeof raw.concurrency !== "number" ||
+        !Number.isSafeInteger(raw.concurrency) ||
+        raw.concurrency < 1 ||
+        raw.concurrency > 32)
+    )
+      throw new WorkflowError(`${field}.concurrency`, "must be an integer from 1 to 32");
+    if (
+      raw.failurePolicy !== undefined &&
+      raw.failurePolicy !== "wait-all" &&
+      raw.failurePolicy !== "fail-fast"
+    )
+      throw new WorkflowError(`${field}.failurePolicy`, "expected wait-all or fail-fast");
+    step.concurrency = (raw.concurrency as number | undefined) ?? Math.min(4, step.children.length);
+    step.failurePolicy = (raw.failurePolicy as "wait-all" | "fail-fast" | undefined) ?? "wait-all";
+  }
   if (type === "agent") step.agent = text(raw.agent, `${field}.agent`);
   if (type === "command") {
     if (!Array.isArray(raw.run) || raw.run.length === 0)
@@ -152,7 +183,7 @@ export function parseWorkflow(value: unknown): WorkflowDefinition {
       if (!Object.hasOwn(steps, reference.from) || steps[reference.from]?.type === "end")
         throw new WorkflowError(
           `steps.${id}.inputs.${name}.from`,
-          "must reference an agent, command, or human step in this workflow",
+          "must reference a non-terminal output step in this workflow",
         );
     }
     const targets = Object.entries(step.on ?? {}).map(([outcome, target]): [string, string] => [
@@ -165,6 +196,50 @@ export function parseWorkflow(value: unknown): WorkflowDefinition {
         throw new WorkflowError(field, `target step '${target}' does not exist`);
       }
     }
+  }
+  const owners = new Map<string, string>();
+  for (const [id, step] of Object.entries(steps)) {
+    if (step.type !== "parallel") continue;
+    for (const [index, childId] of (step.children ?? []).entries()) {
+      const child = Object.hasOwn(steps, childId) ? steps[childId] : undefined;
+      const field = `steps.${id}.children[${index}]`;
+      if (
+        !child ||
+        (child.type !== "agent" && child.type !== "command") ||
+        child.next !== undefined ||
+        child.on !== undefined
+      )
+        throw new WorkflowError(
+          field,
+          "must reference an agent or command leaf without next/on transitions",
+        );
+      if (owners.has(childId))
+        throw new WorkflowError(field, "a child may belong to only one parallel group");
+      if (
+        Object.values(child.inputs ?? {}).some(
+          (input) => input.from === id || step.children?.includes(input.from),
+        )
+      )
+        throw new WorkflowError(
+          field,
+          "parallel children must select inputs from outside their group",
+        );
+      owners.set(childId, id);
+    }
+  }
+  if (owners.has(start))
+    throw new WorkflowError("start", "enter the owning parallel group instead of a child");
+  for (const [id, step] of Object.entries(steps)) {
+    const targets = [
+      ...Object.entries(step.on ?? {}).map(([label, target]) => [`on.${label}`, target]),
+      ...(step.next ? [["next", step.next]] : []),
+    ];
+    for (const [field, target] of targets)
+      if (target && owners.has(target))
+        throw new WorkflowError(
+          `steps.${id}.${field}`,
+          "enter the owning parallel group instead of a child",
+        );
   }
   return { name, version: 1, start, steps };
 }

@@ -1,18 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { VeyraConfig } from "@veyra/config";
-import {
-  type AgentAdapter,
-  type AgentResult,
-  type AgentRunOptions,
-  type EventSink,
-  type ExecutionMetadata,
-  isJsonValue,
-  type SerializedError,
-  type VeyraEvent,
+import type {
+  AgentAdapter,
+  AgentRunOptions,
+  EventSink,
+  ExecutionMetadata,
+  SerializedError,
+  VeyraEvent,
 } from "@veyra/protocol";
 import { type AgentRuntime, LocalAgentRuntime } from "@veyra/runtime";
-import { ShellVerifier, type VerificationReport, type Verifier } from "@veyra/verifier";
+import { ShellVerifier, type Verifier } from "@veyra/verifier";
 import {
   nextRetry,
   InputResolutionError,
@@ -29,7 +27,9 @@ import {
 } from "./approval.js";
 import { RunControlError } from "./control-error.js";
 import { RunContext } from "./context.js";
-import { isStoredEvent } from "./state-events.js";
+import { ExecutionError } from "./execution-error.js";
+import { executeLeaf } from "./leaf.js";
+import { executeParallel, pendingParallel } from "./parallel.js";
 import { LocalRunStore, StateStoreError, type StoredRun } from "./state.js";
 
 export interface RunRequest extends AgentRunOptions {
@@ -62,15 +62,6 @@ export interface VeyraEngineOptions {
   verifier?: Verifier;
   /** Known secret values, passed to a default run store; configure injected stores directly. */
   redactValues?: readonly string[];
-}
-
-class ExecutionError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-  }
 }
 
 export class VeyraEngine {
@@ -139,7 +130,9 @@ export class VeyraEngine {
       );
     if (
       Object.values(run.input.workflow.steps).some(
-        (step) => (step.type === "agent" || step.type === "command") && step.retry === undefined,
+        (step) =>
+          (step.type === "agent" || step.type === "command" || step.type === "parallel") &&
+          step.retry === undefined,
       )
     )
       throw new RunControlError(
@@ -222,8 +215,9 @@ export class VeyraEngine {
       ),
     );
     const attempts = new Map<string, number>();
+    const eventLog = [...history];
+    context.restore(history);
     for (const event of history) {
-      context.addEvent(event);
       if (event.type === "step.started")
         attempts.set(event.stepId, (attempts.get(event.stepId) ?? 0) + 1);
     }
@@ -239,6 +233,7 @@ export class VeyraEngine {
       propagateListenerError = true,
     ): Promise<VeyraEvent> => {
       const saved = await store.appendEvent(runId, event);
+      eventLog.push(saved);
       if (!listenerFailed && this.#options.emit) {
         try {
           await this.#options.emit(structuredClone(saved));
@@ -290,7 +285,11 @@ export class VeyraEngine {
         const step = steps[stepId];
         if (!step)
           throw new ExecutionError("missing_step", `Workflow step '${stepId}' is missing.`);
-        if (step.type === "agent" || step.type === "command") {
+        const batch = step.type === "parallel" ? pendingParallel(eventLog, stepId) : undefined;
+        if (
+          !batch &&
+          (step.type === "agent" || step.type === "command" || step.type === "parallel")
+        ) {
           const decision = nextRetry(
             step,
             Object.hasOwn(retryCounts, stepId) ? retryCounts[stepId] : undefined,
@@ -322,14 +321,14 @@ export class VeyraEngine {
           }
           retryCounts = { ...retryCounts, [stepId]: decision.retryCount };
         }
-        const attempt = (attempts.get(stepId) ?? 0) + 1;
-        attempts.set(stepId, attempt);
-        active = { runId, stepId, attemptId: randomUUID(), attempt };
+        const attempt = batch?.attempt ?? (attempts.get(stepId) ?? 0) + 1;
+        if (!batch) attempts.set(stepId, attempt);
+        active = { runId, stepId, attemptId: batch?.attemptId ?? randomUUID(), attempt };
         stepSettled = false;
         await store.updateRun(runId, { status: "running", currentStep: stepId, retryCounts });
-        await record({ type: "step.started", ...active, at: now() });
+        if (!batch) await record({ type: "step.started", ...active, at: now() });
         const retryCount = retryCounts[stepId] ?? 0;
-        if (retryCount > 0 && step.retry)
+        if (!batch && retryCount > 0 && step.retry)
           await record({
             type: "step.retrying",
             ...active,
@@ -355,142 +354,69 @@ export class VeyraEngine {
           return await pause("human_approval");
         }
 
-        let outcome: string;
-        let failureMessage: string | undefined;
-        if (step.type === "agent") {
-          const key = step.agent as string;
-          const adapter = Object.hasOwn(agents, key) ? agents[key] : undefined;
-          if (!adapter)
-            throw new ExecutionError(
-              "missing_adapter",
-              `Agent '${key}' for step '${stepId}' is not registered; inject its adapter before running.`,
-            );
-          const metadata = {
-            ...active,
-            agentId: adapter.id,
-            provider: adapter.provider,
-            role: key,
-          };
-          const input = {
-            ...active,
-            role: key,
-            goal,
-            instructions: `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, and any explicitly selected values in context.inputs. Preserve project instructions.`,
-            ...context.input(step.inputs),
-          };
-          if (Buffer.byteLength(JSON.stringify(input)) > 256 * 1024)
-            throw new ExecutionError(
-              "input_too_large",
-              "Resolved agent input exceeds 256 KiB; reduce the goal/context or use artifact references.",
-            );
-          const savedInput = await record({ type: "agent.input", ...metadata, input, at: now() });
-          if (savedInput.type !== "agent.input")
-            throw new ExecutionError("invalid_event", "Stored agent input event type changed.");
-          if (Buffer.byteLength(JSON.stringify(savedInput.input)) > 256 * 1024)
-            throw new ExecutionError(
-              "input_too_large",
-              "Redacted agent input exceeds 256 KiB; reduce the goal/context or use artifact references.",
-            );
-          await record({ type: "agent.started", ...metadata, at: now() });
-          let result: AgentResult;
-          try {
-            result = await this.#runtime.runAgent(adapter, savedInput.input, { ...controls });
-          } catch (error) {
-            const detail =
-              error instanceof Error
-                ? error.message.slice(0, 2048)
-                : "The provider threw a non-Error value.";
-            const failure = {
-              code: "agent_execution_failed",
-              message: `Agent '${key}' at step '${stepId}' threw: ${detail}`,
-            };
-            await record({ type: "agent.failed", ...metadata, error: failure, at: now() });
-            throw new ExecutionError(failure.code, failure.message);
-          }
-          const event = { type: "agent.completed" as const, ...metadata, result, at: now() };
-          if (!isStoredEvent(event) || Buffer.byteLength(JSON.stringify(event)) > 1024 * 1024)
-            throw new ExecutionError(
-              "invalid_agent_result",
-              `Agent '${key}' returned an invalid or oversized result; expected the serializable AgentResult contract within 1 MiB.`,
-            );
-          result = { ...structuredClone(result), execution: { ...active } };
-          const saved = await record({ ...event, result });
-          if (saved.type !== "agent.completed")
-            throw new ExecutionError("invalid_event", "Stored agent event type changed.");
-          result = saved.result;
-          outcome = result.status === "success" ? (result.outcome ?? "success") : result.status;
-          context.addEvent(saved);
-          if (controls.signal?.aborted)
-            throw new ExecutionError("run_cancelled", "Run was cancelled.");
-          if (result.status === "needs_input") return await pause(result.summary);
-          if (result.status === "failure" || outcome === "fail" || outcome === "failure")
-            failureMessage = result.summary || `Agent '${key}' reported a failure.`;
-        } else if (step.type === "command") {
-          const commands = [...(step.run ?? [])];
-          await record({
-            type: "verification.started",
-            ...active,
-            commands: [...commands],
-            at: now(),
-          });
-          let report: VerificationReport;
-          try {
-            report = await this.#verifier.verify({
-              commands: [...commands],
-              ...controls,
-              execution: { ...active },
-              maxOutputBytes: 64 * 1024,
-            });
-          } catch (error) {
-            const detail =
-              error instanceof Error
-                ? error.message.slice(0, 2048)
-                : "The verifier threw a non-Error value.";
-            throw new ExecutionError(
-              "verifier_execution_failed",
-              `Verification at step '${stepId}' threw: ${detail}`,
-            );
-          }
-          const event = {
-            type: "verification.completed" as const,
-            ...active,
-            success: report.success,
-            results: report.results,
-            at: now(),
-          };
-          if (
-            !isJsonValue(report) ||
-            !isStoredEvent(event) ||
-            Buffer.byteLength(JSON.stringify(event)) > 1024 * 1024 ||
-            report.results.length === 0 ||
-            report.results.length > commands.length ||
-            report.success !== report.results.every((item) => item.success) ||
-            (report.success && report.results.length !== commands.length) ||
-            report.results.some((item, index) => item.command !== commands[index])
-          )
-            throw new ExecutionError(
-              "invalid_verification_result",
-              `Verifier at step '${stepId}' returned an invalid or oversized report.`,
-            );
-          const saved = await record({
-            ...event,
-            results: report.results.map((item) => ({
-              ...item,
-              execution: { ...active } as ExecutionMetadata,
-            })),
-          });
-          if (saved.type !== "verification.completed")
-            throw new ExecutionError("invalid_event", "Stored verification event type changed.");
-          outcome = saved.success ? "success" : "failure";
-          context.addEvent(saved);
-          if (!saved.success)
-            failureMessage = `Deterministic verification failed at step '${stepId}'.`;
-        } else {
-          throw new ExecutionError(
-            "unsupported_step",
-            `Step type '${step.type}' cannot execute in v0.1.`,
-          );
-        }
+        const leafOptions = {
+          step,
+          execution: active,
+          agents,
+          goal,
+          context,
+          controls,
+          record,
+          runtime: this.#runtime,
+          verifier: this.#verifier,
+        };
+        const leaf =
+          step.type === "parallel"
+            ? await executeParallel({
+                ...leafOptions,
+                steps,
+                events: eventLog,
+                batch,
+                startChild: async (childId) => {
+                  if (++transitions > 1000)
+                    throw new ExecutionError(
+                      "transition_limit",
+                      "Run exceeded the 1000-step execution safety limit.",
+                    );
+                  const child = steps[childId];
+                  if (!child)
+                    throw new ExecutionError("missing_step", "Parallel child step is missing.");
+                  const decision = nextRetry(
+                    child,
+                    Object.hasOwn(retryCounts, childId) ? retryCounts[childId] : undefined,
+                    incomingOutcome,
+                  );
+                  if (!decision.allowed)
+                    throw new ExecutionError(
+                      "retry_exhausted",
+                      `Retry budget exhausted at parallel child '${childId}': ${decision.retryCount} of ${decision.maxRetries} repairs used.`,
+                    );
+                  retryCounts = { ...retryCounts, [childId]: decision.retryCount };
+                  const childAttempt = (attempts.get(childId) ?? 0) + 1;
+                  attempts.set(childId, childAttempt);
+                  const execution = {
+                    runId,
+                    stepId: childId,
+                    parentStepId: stepId as string,
+                    attemptId: randomUUID(),
+                    attempt: childAttempt,
+                  };
+                  await store.updateRun(runId, { retryCounts });
+                  await record({ type: "step.started", ...execution, at: now() });
+                  if (decision.retryCount > 0)
+                    await record({
+                      type: "step.retrying",
+                      ...execution,
+                      retryCount: decision.retryCount,
+                      maxRetries: decision.maxRetries,
+                      at: now(),
+                    });
+                  return execution;
+                },
+              })
+            : await executeLeaf(leafOptions);
+        if (leaf.pauseReason !== undefined) return await pause(leaf.pauseReason);
+        const { outcome, failureMessage } = leaf;
         if (controls.signal?.aborted)
           throw new ExecutionError("run_cancelled", "Run was cancelled.");
         await store.updateRun(runId, { lastOutcome: outcome });
