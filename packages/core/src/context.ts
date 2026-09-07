@@ -5,6 +5,7 @@ import { resolveStepInputs, type StepInputReference } from "@veyra/workflow";
 export class RunContext {
   readonly #steps = new Map<string, JsonObject>();
   readonly #artifacts = new Map<string, ArtifactRef>();
+  readonly #artifactSteps = new Map<string, string>();
   #omittedSteps = 0;
   #omittedArtifacts = 0;
   readonly #referencedSteps: Set<string>;
@@ -28,16 +29,25 @@ export class RunContext {
           if (output) this.addEvent(output);
         }
       }
+      if (event.type === "consensus.completed" && event.judge?.outputEventId) {
+        const output = byId.get(event.judge.outputEventId);
+        if (output) this.addEvent(output);
+      }
       this.addEvent(event);
     }
   }
 
-  fork(): RunContext {
+  fork(excludedSteps: readonly string[] = []): RunContext {
+    const excluded = new Set(excludedSteps);
     const copy = new RunContext(this.#referencedSteps, this.#workflowInputs);
     // Values are private immutable snapshots; input() clones before exposing them.
-    for (const [key, value] of this.#steps) copy.#steps.set(key, value);
-    for (const [key, value] of this.#outputs) copy.#outputs.set(key, value);
-    for (const [key, value] of this.#artifacts) copy.#artifacts.set(key, value);
+    for (const [key, value] of this.#steps) if (!excluded.has(key)) copy.#steps.set(key, value);
+    for (const [key, value] of this.#outputs) if (!excluded.has(key)) copy.#outputs.set(key, value);
+    for (const [key, value] of this.#artifacts)
+      if (!excluded.has(this.#artifactSteps.get(key) ?? "")) {
+        copy.#artifacts.set(key, value);
+        copy.#artifactSteps.set(key, this.#artifactSteps.get(key) as string);
+      }
     copy.#omittedSteps = this.#omittedSteps;
     copy.#omittedArtifacts = this.#omittedArtifacts;
     return copy;
@@ -65,6 +75,17 @@ export class RunContext {
         artifacts: event.results.flatMap((item) => item.artifacts ?? []),
       };
       this.add(event.stepId, output as unknown as JsonObject, output.artifacts);
+    } else if (event.type === "consensus.completed") {
+      this.add(event.stepId, {
+        type: "consensus",
+        outcome: event.outcome,
+        mode: event.mode,
+        ...(event.quorum !== undefined ? { quorum: event.quorum } : {}),
+        reviews: event.reviews as unknown as JsonValue[],
+        verification: event.verification as unknown as JsonValue[],
+        ...(event.judge ? { judge: event.judge as unknown as JsonObject } : {}),
+        ...(event.reason ? { reason: event.reason } : {}),
+      });
     } else if (event.type === "subworkflow.completed") {
       this.add(event.stepId, {
         type: "subworkflow",
@@ -111,8 +132,11 @@ export class RunContext {
       }
       this.#artifacts.delete(artifact.id);
       this.#artifacts.set(artifact.id, structuredClone(artifact));
+      this.#artifactSteps.set(artifact.id, stepId);
       while (this.#artifacts.size > 16) {
-        this.#artifacts.delete(this.#artifacts.keys().next().value as string);
+        const oldest = this.#artifacts.keys().next().value as string;
+        this.#artifacts.delete(oldest);
+        this.#artifactSteps.delete(oldest);
         this.#omittedArtifacts++;
       }
     }

@@ -1,8 +1,10 @@
 import type {
   AgentAdapter,
+  AgentRole,
   AgentResult,
   AgentRunOptions,
   ExecutionMetadata,
+  JsonObject,
   VeyraEvent,
 } from "@veyra/protocol";
 import { isJsonValue } from "@veyra/protocol";
@@ -33,6 +35,9 @@ export interface LeafOptions {
   record: RecordEvent;
   runtime: AgentRuntime;
   verifier: Verifier;
+  role?: AgentRole;
+  instructions?: string;
+  extraContext?: JsonObject;
 }
 
 /** Shared agent/command invocation for sequential and parallel scheduling. */
@@ -64,14 +69,18 @@ export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
       ...active,
       agentId: adapter.id,
       provider: adapter.provider,
-      role: key,
+      role: options.role ?? key,
     };
+    const resolved = context.input(step.inputs);
     const input = {
       ...active,
-      role: key,
+      role: options.role ?? key,
       goal,
-      instructions: `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, explicitly selected values in context.inputs, and any subworkflow parameters in context.workflowInputs. Preserve project instructions.`,
-      ...context.input(step.inputs),
+      instructions:
+        options.instructions ??
+        `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, explicitly selected values in context.inputs, and any subworkflow parameters in context.workflowInputs. Preserve project instructions.`,
+      ...resolved,
+      context: { ...resolved.context, ...options.extraContext },
     };
     if (Buffer.byteLength(JSON.stringify(input)) > 256 * 1024)
       throw new ExecutionError(

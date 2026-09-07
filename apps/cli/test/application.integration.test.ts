@@ -39,6 +39,55 @@ function commands(cwd: string, dependencies: CliServices = {}) {
 }
 
 describe("CLI application commands", () => {
+  it("discovers consensus reviewers and judge and renders the persisted decision", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const constructed: string[] = [];
+      const agents = new Map<string, FakeAgent>();
+      const ve = commands(path, {
+        createAgent: (name) => {
+          constructed.push(name);
+          const agent = new FakeAgent({ status: "success", outcome: "pass", summary: name });
+          agents.set(name, agent);
+          return agent;
+        },
+      });
+      await writeFile(
+        join(path, "veyra.yaml"),
+        JSON.stringify({
+          version: 1,
+          agents: {
+            one: { provider: "fixture", model: "a" },
+            two: { provider: "fixture", model: "b" },
+            arbiter: { provider: "fixture", model: "c" },
+          },
+          workflow: { use: "reviews.yaml" },
+        }),
+      );
+      const definition: WorkflowDefinition = {
+        name: "reviews",
+        version: 1,
+        start: "decision",
+        steps: {
+          decision: {
+            type: "consensus",
+            reviewers: ["review-one", "review-two"],
+            mode: "judge",
+            judge: "judge",
+          },
+          "review-one": { type: "agent", agent: "one" },
+          "review-two": { type: "agent", agent: "two" },
+          judge: { type: "agent", agent: "arbiter" },
+        },
+      };
+      await writeFile(join(path, "reviews.yaml"), JSON.stringify(definition));
+      const result = await ve(["run", "Independent decisions"]);
+      expect(result.code, result.stderr).toBe(0);
+      expect(constructed).toEqual(["one", "two", "arbiter"]);
+      expect(result.stdout).toContain("consensus.completed");
+      expect(result.stdout).toContain("pass (judge)");
+      expect(agents.get("arbiter")?.calls[0]?.role).toBe("judge");
+    });
+  });
   it("discovers child providers and resumes a nested human gate through the shared CLI state model", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const worker = new FakeAgent({ status: "success", summary: "Nested provider completed" });

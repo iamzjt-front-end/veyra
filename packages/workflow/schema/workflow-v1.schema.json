@@ -44,6 +44,9 @@
           },
           {
             "$ref": "#/definitions/subworkflow"
+          },
+          {
+            "$ref": "#/definitions/consensus"
           }
         ]
       }
@@ -284,6 +287,105 @@
           "$ref": "#/definitions/metadata"
         }
       }
+    },
+    "consensus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "reviewers"],
+      "properties": {
+        "type": {
+          "const": "consensus"
+        },
+        "reviewers": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/text"
+          }
+        },
+        "mode": {
+          "enum": ["all-pass", "quorum", "judge"]
+        },
+        "quorum": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "judge": {
+          "$ref": "#/definitions/text"
+        },
+        "verification": {
+          "type": "array",
+          "maxItems": 16,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/text"
+          }
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "next": {
+          "$ref": "#/definitions/text"
+        },
+        "on": {
+          "$ref": "#/definitions/on"
+        },
+        "retry": {
+          "$ref": "#/definitions/retry"
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["mode"],
+            "properties": {
+              "mode": {
+                "const": "quorum"
+              }
+            }
+          },
+          "then": {
+            "required": ["quorum"],
+            "properties": {
+              "quorum": {}
+            }
+          },
+          "else": {
+            "properties": {
+              "quorum": false
+            }
+          }
+        },
+        {
+          "if": {
+            "required": ["mode"],
+            "properties": {
+              "mode": {
+                "const": "judge"
+              }
+            }
+          },
+          "then": {
+            "required": ["judge"],
+            "properties": {
+              "judge": {}
+            }
+          },
+          "else": {
+            "properties": {
+              "judge": false
+            }
+          }
+        }
+      ]
     }
   }
 }

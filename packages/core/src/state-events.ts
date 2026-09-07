@@ -161,6 +161,52 @@ function parallelResults(value: unknown): value is RecordValue[] {
   );
 }
 
+function reviewVote(value: unknown): value is RecordValue {
+  return (
+    record(value) &&
+    string(value.stepId) &&
+    ["pass", "fail", "error"].includes(value.verdict as string) &&
+    optional(value.outputEventId, string) &&
+    optional(value.attemptId, string) &&
+    optional(value.attempt, integer) &&
+    optional(value.error, error) &&
+    (value.verdict === "error"
+      ? error(value.error)
+      : value.error === undefined && string(value.outputEventId))
+  );
+}
+function verificationEvidence(value: unknown): value is RecordValue[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= 16 &&
+    value.every(
+      (check) =>
+        record(check) &&
+        string(check.stepId) &&
+        boolean(check.success) &&
+        optional(check.outputEventId, string) &&
+        (!check.success || string(check.outputEventId)),
+    ) &&
+    new Set(value.map((check) => check.stepId)).size === value.length
+  );
+}
+function reviewVotes(value: unknown): value is RecordValue[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= 32 &&
+    value.every(reviewVote) &&
+    new Set(value.map((review) => review.stepId)).size === value.length
+  );
+}
+function consensusMode(value: RecordValue, count: number): boolean {
+  return (
+    ["all-pass", "quorum", "judge"].includes(value.mode as string) &&
+    (value.mode === "quorum"
+      ? integer(value.quorum) && (value.quorum as number) >= 1 && (value.quorum as number) <= count
+      : value.quorum === undefined)
+  );
+}
+
 /** Validate persisted event payloads before returning the public union to consumers. */
 export function isStoredEvent(value: unknown): value is VeyraEvent {
   if (
@@ -188,6 +234,46 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
   switch (value.type) {
     case "step.started":
       return true;
+    case "consensus.started":
+      return (
+        Array.isArray(value.reviewers) &&
+        value.reviewers.length >= 2 &&
+        value.reviewers.length <= 32 &&
+        value.reviewers.every(string) &&
+        new Set(value.reviewers).size === value.reviewers.length &&
+        consensusMode(value, value.reviewers.length) &&
+        (value.mode === "judge"
+          ? string(value.judge) && !value.reviewers.includes(value.judge)
+          : value.judge === undefined) &&
+        verificationEvidence(value.verification)
+      );
+    case "consensus.paused":
+      return ["reviewers", "judge"].includes(value.phase as string);
+    case "consensus.completed": {
+      if (
+        !reviewVotes(value.reviews) ||
+        !consensusMode(value, value.reviews.length || 32) ||
+        !verificationEvidence(value.verification) ||
+        !["pass", "fail"].includes(value.outcome as string) ||
+        !optional(value.judge, reviewVote) ||
+        (value.mode !== "judge" && value.judge !== undefined) ||
+        !optional(value.reason, string)
+      )
+        return false;
+      if (value.outcome === "fail") return string(value.reason);
+      return (
+        value.reason === undefined &&
+        value.reviews.length >= 2 &&
+        value.reviews.every((review) => review.verdict !== "error") &&
+        value.verification.every((check) => check.success) &&
+        (value.mode === "all-pass"
+          ? value.reviews.every((review) => review.verdict === "pass")
+          : value.mode === "quorum"
+            ? value.reviews.filter((review) => review.verdict === "pass").length >=
+              (value.quorum as number)
+            : record(value.judge) && value.judge.verdict === "pass")
+      );
+    }
     case "subworkflow.started":
       return string(value.workflowName) && string(value.childStepId) && record(value.inputs);
     case "subworkflow.completed":

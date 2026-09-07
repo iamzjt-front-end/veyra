@@ -23,6 +23,7 @@ import type { RunResult } from "./engine.js";
 import { ExecutionError } from "./execution-error.js";
 import { executeLeaf, type LeafResult } from "./leaf.js";
 import { executeParallel, pendingParallel } from "./parallel.js";
+import { executeConsensus, pendingConsensus } from "./consensus.js";
 import { executeRouter } from "./router.js";
 import { StateStoreError, type LocalRunStore, type StoredRun } from "./state.js";
 
@@ -190,10 +191,12 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
           );
         const batch = step.type === "parallel" ? pendingParallel(eventLog, stepId) : undefined;
         const sub = step.type === "subworkflow" ? pendingSubworkflow(eventLog, stepId) : undefined;
-        const pending = batch ?? sub;
+        const consensus =
+          step.type === "consensus" ? pendingConsensus(eventLog, stepId) : undefined;
+        const pending = batch ?? sub ?? consensus;
         if (
           !pending &&
-          ["agent", "command", "parallel", "router", "subworkflow"].includes(step.type)
+          ["agent", "command", "parallel", "router", "subworkflow", "consensus"].includes(step.type)
         ) {
           const decision = nextRetry(
             step,
@@ -326,12 +329,14 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
               ? { failureMessage: `Subworkflow '${stepId}' failed: ${child.error.message}` }
               : {}),
           };
-        } else if (step.type === "parallel") {
-          leaf = await executeParallel({
+        } else if (step.type === "parallel" || step.type === "consensus") {
+          leaf = await (step.type === "parallel" ? executeParallel : executeConsensus)({
             ...leafOptions,
             steps,
             events: eventLog,
             batch,
+            consensus,
+            scopeSequence: boundary?.sequence,
             contextBefore,
             startChild: async (childId) => {
               tick();

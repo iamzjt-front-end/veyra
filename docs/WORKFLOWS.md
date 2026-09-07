@@ -11,15 +11,16 @@
 
 Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step ID, and a `steps` object. Step IDs and transition outcome keys must be non-empty strings. The start step and every `next`/`on` destination must exist as actual entries in the step map.
 
-| Node type     | Fields specific to this type                                                            |
-| ------------- | --------------------------------------------------------------------------------------- |
-| `agent`       | Required non-empty `agent`, referencing a configured agent name                         |
-| `command`     | Required non-empty `run` array of non-empty command strings                             |
-| `human`       | Optional non-empty `message`                                                            |
-| `parallel`    | Required `children` IDs; optional `concurrency` and `failurePolicy`                     |
-| `router`      | Required `route` label/reference and `on` map; optional `next` fallback                 |
-| `subworkflow` | Required `use` reference or inline `workflow`; optional `inputs` and `outputs` mappings |
-| `end`         | Terminal node; no transitions or retry settings                                         |
+| Node type     | Fields specific to this type                                                                |
+| ------------- | ------------------------------------------------------------------------------------------- |
+| `agent`       | Required non-empty `agent`, referencing a configured agent name                             |
+| `command`     | Required non-empty `run` array of non-empty command strings                                 |
+| `human`       | Optional non-empty `message`                                                                |
+| `parallel`    | Required `children` IDs; optional `concurrency` and `failurePolicy`                         |
+| `router`      | Required `route` label/reference and `on` map; optional `next` fallback                     |
+| `subworkflow` | Required `use` reference or inline `workflow`; optional `inputs` and `outputs` mappings     |
+| `consensus`   | Required `reviewers` IDs; optional `mode`, `quorum`, `judge`, `verification`, `concurrency` |
+| `end`         | Terminal node; no transitions or retry settings                                             |
 
 Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected.
 
@@ -127,7 +128,7 @@ The current presets and explicit agent outcomes are covered by exact `on` branch
 | Agent `needs_input`                        | Pauses before any branch executes.                                                                                                                                          |
 | Human decision                             | Uses the explicit Core approval API; rejected decisions require an explicit rejected branch and never fall through to an approved action.                                   |
 
-`analyzeWorkflow(definition)` builds the validated execution graph and checks every destination, including destinations inside unreachable branches. Resolve child references through `loadWorkflow` first. It returns `reachableSteps` and `unreachableSteps` in definition order, inserting namespaced child nodes after their call. Reachability follows all possible `on` targets, `next` edges, parallel children and subworkflow starts, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors. Execution safety still comes from Core's bounded retry policy.
+`analyzeWorkflow(definition)` builds the validated execution graph and checks every destination, including destinations inside unreachable branches. Resolve child references through `loadWorkflow` first. It returns `reachableSteps` and `unreachableSteps` in definition order, inserting namespaced child nodes after their call. Reachability follows all possible `on` targets, `next` edges, parallel/consensus children, judges and subworkflow starts, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors. Execution safety still comes from Core's bounded retry policy.
 
 ## Router nodes
 
@@ -219,9 +220,53 @@ Human gates, agent input pauses and parallel pauses inside children propagate to
 
 Explicit interrupted recovery also recognizes proven completed child leaf/end checkpoints and returns through their enclosing calls without repeating effects. Unknown in-flight work and partially written boundaries remain refused. Children share the run's configured working directory and provider instances; context namespacing is not filesystem isolation. Per-child worktrees remain M6.1. A child workflow may contain parallel leaf groups; subworkflow nodes are not themselves parallel children in this implementation.
 
+## Consensus and judge
+
+The version 1 `consensus` node collects 2–32 independent reviewer leaf steps. Each reviewer has its own configured agent name, which may use the same provider/model or a different injected adapter. Reviewer and judge nodes must be `agent` leaves without `next`/`on`; each belongs to only one parallel or consensus group. Start and transitions enter the group. Explicit child inputs must select outputs outside the group. See [the complete example](../examples/workflows/v1/consensus.yaml).
+
+```yaml
+decision:
+  type: consensus
+  reviewers: [correctness, maintainability]
+  mode: judge
+  judge: arbitrate
+  verification: [verify]
+  concurrency: 2
+  on:
+    pass: done
+    fail: inspect
+correctness:
+  type: agent
+  agent: correctness-reviewer
+maintainability:
+  type: agent
+  agent: maintainability-reviewer
+arbitrate:
+  type: agent
+  agent: review-judge
+```
+
+This excerpt also requires `verify` (a command step executed before `decision`), `done` and `inspect` steps. Configure the named agents in `veyra.yaml`. Core injects role `reviewer` for independent reviews and `judge` for arbitration; adapter names remain arbitrary. The OpenAI adapter supports both roles using its strict pass/fail output schema. Cross-model review is optional; no provider/model selection is hardcoded in Core.
+
+| Mode                 | Decision                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| `all-pass` (default) | Every reviewer must explicitly pass.                                                             |
+| `quorum`             | At least the configured integer `quorum` (1 through reviewer count) must pass.                   |
+| `judge`              | After every reviewer completes, the distinct `judge` agent returns the final pass/fail decision. |
+
+Every review must have `status: success` and explicit `outcome: pass` or `fail`. A completed negative review remains a valid vote. Missing/arbitrary verdicts, malformed results, provider exceptions, or exhausted child retries produce a technical `error` vote and fail the aggregate, including in quorum/judge mode. A judge cannot turn missing reviews into success. Group outcome is `pass`/`fail`; failure requires `on.fail` to recover. An ordinary `next` cannot hide a failed decision.
+
+`verification` optionally names up to 16 unique command steps. Listing a step makes its successful completion mandatory before reviewer/judge invocation. Core checks the most recent attempt's persisted verifier result within the current scope, then freezes its event reference. Missing or failed evidence fails the group with `verification_failed` before any reviewer or judge runs. Omitting the list allows review without mandatory command checks. Command evidence is never counted as a vote or replaced by a model's claim. Authors must place checks after the changes they intend to verify; listing evidence does not run a command or infer whether later changes invalidated it.
+
+Review collection uses wait-all scheduling with concurrency 1–32 (default min(4, reviewer count)). Each reviewer sees the same pre-collection context, excluding this group's previous review/judge outputs and artifacts even after a retry. Queued and resumed reviewers do not receive peer conclusions. Their results are independently persisted before a declaration-ordered join. `needs_input` pauses after active work drains; completed positive and negative reviews are retained. A technical error fails the group even if another reviewer needs input. A paused judge resumes with retained reviews instead of invoking reviewers again. Review and judge retries spend their own saved budgets; resuming keeps the parent attempt.
+
+Judge input includes every review and the separate command evidence under `context.consensus`. Each entry references its full persisted event. Evidence up to 4 KiB is supplied directly; larger entries are explicitly marked with a bounded preview. The complete agent envelope remains limited to 256 KiB. Agents can select outside-group values through ordinary `inputs`; commands never interpolate model output. All reviewers share the configured working directory and adapter instances. This is input independence, not filesystem or provider-session isolation (M6.1).
+
+`consensus.started/paused/completed` exposes the saved policy, pause phase and final outcome to every surface. The final `StepOutput` has type `consensus`, mode/threshold, ordered `reviews`, optional `judge`, separate `verification`, and a failure reason when applicable. Each vote identifies the child step/attempt and an `outputEventId`; full review text and data remain in their own redacted `agent.completed` events. Downstream named inputs may select this output or an individual reviewer/judge output.
+
 ## v0.1 retry policy
 
-Each executable step (`agent`, `command`, `parallel`, `router` or `subworkflow`) has an independent repair budget. Parallel children and namespaced child workflow steps also have individual budgets. Resuming an unfinished group/call retains its parent attempt while retried children spend their own budgets; a fresh child scope starts with normal entry semantics. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits throughout the saved tree. Resume uses that snapshot even if the current config changes.
+Each executable step (`agent`, `command`, `parallel`, `router`, `subworkflow` or `consensus`) has an independent repair budget. Parallel children and namespaced child workflow steps also have individual budgets. Resuming an unfinished group/call retains its parent attempt while retried children spend their own budgets; a fresh child scope starts with normal entry semantics. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits throughout the saved tree. Resume uses that snapshot even if the current config changes.
 
 `nextRetry()` evaluates the next execution without mutating state:
 

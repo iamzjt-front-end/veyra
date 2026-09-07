@@ -17,7 +17,39 @@ const artifact = {
   createdAt: metadata.at,
   producer: { runId: "run", stepId: "step", attempt: 1 },
 };
+const votes = [
+  { stepId: "first", verdict: "pass" as const, outputEventId: "first-result" },
+  { stepId: "second", verdict: "fail" as const, outputEventId: "second-result" },
+];
+const consensus = {
+  ...metadata,
+  type: "consensus.completed" as const,
+  mode: "quorum" as const,
+  quorum: 1,
+  outcome: "pass" as const,
+  reviews: votes,
+  verification: [{ stepId: "verify", success: true, outputEventId: "check-result" }],
+};
 const events: VeyraEvent[] = [
+  consensus,
+  {
+    ...metadata,
+    type: "consensus.started",
+    reviewers: ["first", "second"],
+    mode: "judge",
+    judge: "judge",
+    verification: [],
+  },
+  {
+    ...metadata,
+    type: "consensus.completed",
+    mode: "all-pass",
+    outcome: "fail",
+    reason: "review_error",
+    reviews: [{ stepId: "first", verdict: "error", error }],
+    verification: [],
+  },
+  { ...metadata, type: "consensus.paused", phase: "judge" },
   { ...metadata, type: "run.started", goal: "fixture" },
   {
     ...metadata,
@@ -129,6 +161,32 @@ describe("persisted event validation", () => {
   });
 
   it.each([
+    { ...consensus, mode: "all-pass", quorum: undefined },
+    { ...consensus, quorum: 2 },
+    { ...consensus, mode: "judge", quorum: undefined },
+    { ...consensus, reviews: [{ ...votes[0], verdict: "maybe" }] },
+    { ...consensus, reviews: [votes[0], votes[0]] },
+    { ...consensus, reviews: [{ stepId: "first", verdict: "pass" }, votes[1]] },
+    { ...consensus, reviews: [{ stepId: "first", verdict: "error", error }, votes[0]] },
+    { ...consensus, verification: [{ stepId: "verify", success: false }] },
+    { ...consensus, verification: [{ stepId: "verify", success: true }] },
+    { ...consensus, outcome: "fail" },
+    {
+      ...metadata,
+      type: "consensus.started",
+      reviewers: ["first", "second"],
+      mode: "judge",
+      judge: "first",
+      verification: [],
+    },
+    {
+      ...metadata,
+      type: "consensus.started",
+      reviewers: ["first"],
+      mode: "all-pass",
+      verification: [],
+    },
+    { ...metadata, type: "consensus.paused", phase: "command" },
     { ...metadata, type: "future.unsupported" },
     {
       ...metadata,

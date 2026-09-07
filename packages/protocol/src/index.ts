@@ -118,6 +118,16 @@ export type StepOutput =
   | { type: "human"; outcome: ApprovalDecision; comment?: string }
   | { type: "router"; outcome: string; target: string; selection: "static" | "input" }
   | {
+      type: "consensus";
+      outcome: "pass" | "fail";
+      mode: "all-pass" | "quorum" | "judge";
+      quorum?: number;
+      reviews: ReviewVote[];
+      judge?: ReviewVote;
+      verification: VerificationEvidence[];
+      reason?: string;
+    }
+  | {
       type: "subworkflow";
       outcome: "success" | "failure";
       outputs?: JsonObject;
@@ -134,6 +144,22 @@ export interface ParallelChildResult {
   /** References the persisted result/failure event in this run; avoids duplicating large output. */
   outputEventId?: string;
   error?: SerializedError;
+}
+
+/** A vote references a separately persisted agent result; summaries/data remain in that event. */
+export interface ReviewVote {
+  stepId: string;
+  verdict: "pass" | "fail" | "error";
+  outputEventId?: string;
+  attemptId?: string;
+  attempt?: number;
+  error?: SerializedError;
+}
+
+export interface VerificationEvidence {
+  stepId: string;
+  success: boolean;
+  outputEventId?: string;
 }
 
 export interface EventMetadata {
@@ -189,6 +215,25 @@ export type VeyraEvent = EventMetadata &
         error?: SerializedError;
       })
     | (StepEventMetadata & { type: "subworkflow.paused"; childStepId: string; reason: string })
+    | (StepEventMetadata & {
+        type: "consensus.started";
+        reviewers: string[];
+        mode: "all-pass" | "quorum" | "judge";
+        quorum?: number;
+        judge?: string;
+        verification: VerificationEvidence[];
+      })
+    | (StepEventMetadata & {
+        type: "consensus.completed";
+        outcome: "pass" | "fail";
+        mode: "all-pass" | "quorum" | "judge";
+        quorum?: number;
+        reviews: ReviewVote[];
+        judge?: ReviewVote;
+        verification: VerificationEvidence[];
+        reason?: string;
+      })
+    | (StepEventMetadata & { type: "consensus.paused"; phase: "reviewers" | "judge" })
     | (StepEventMetadata & {
         type: "parallel.started";
         children: string[];

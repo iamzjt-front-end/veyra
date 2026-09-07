@@ -20,6 +20,8 @@ export function analyzeWorkflow(definition: WorkflowDefinition): WorkflowAnalysi
     const step = graph.steps[id] as WorkflowStep;
     pending.push(...Object.values(step.on ?? {}));
     if (step.type === "parallel") pending.push(...(step.children ?? []));
+    if (step.type === "consensus")
+      pending.push(...(step.reviewers ?? []), ...(step.judge ? [step.judge] : []));
     if (step.type === "subworkflow") pending.push(graph.scopes.get(id)?.start as string);
     if (step.next) pending.push(step.next);
   }

@@ -990,11 +990,15 @@ Verified all five baseline commands (589 tests total). Thirteen workflow tests c
 
 ## M3.7 — Consensus / Judge nodes
 
-- [ ] support multiple independent reviewers
-- [ ] aggregation modes such as all-pass, quorum, explicit judge
-- [ ] deterministic verifier evidence remains separate and may be mandatory
-- [ ] cross-model review is supported but not required
-- [ ] persist each review independently
+**Status:** [x] Complete and verified.
+
+- [x] support multiple independent reviewers
+- [x] aggregation modes such as all-pass, quorum, explicit judge
+- [x] deterministic verifier evidence remains separate and may be mandatory
+- [x] cross-model review is supported but not required
+- [x] persist each review independently
+
+Verified all five baseline commands (673 tests total). Thirty-seven workflow tests plus schema/example checks cover policy validation, ownership, namespacing and pure aggregation. Twenty-five Core integration cases cover all modes, independent inputs across providers/retries, explicit verdicts, required verifier evidence, bounded/redacted judge context, reviewer/judge pause-resume, fresh-process child recovery, retry limits and cancellation/storage/subscriber failures. CLI discovery/rendering, event validation and OpenAI judge normalization also pass without live credentials. A hosted CI run for the preceding commit exposed the existing four-process CLI test's 5-second outer timeout; its assertions and process limits are preserved with a 60-second test timeout in a separate supporting commit.
 
 ---
 
@@ -1564,4 +1568,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.7 — Consensus / Judge nodes.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.8 — Workflow-level execution policies.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

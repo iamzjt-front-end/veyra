@@ -132,6 +132,35 @@ describe("OpenAI reasoning adapter", () => {
     expect((await instance.run({ ...input, role: "architect" })).status).toBe("success");
   });
 
+  it.each(["pass", "fail"] as const)(
+    "normalizes an explicit judge %s using the review schema",
+    async (outcome) => {
+      const { adapter: instance, create } = adapter(
+        fixture({
+          outcome,
+          summary: "Arbitrated",
+          requiredFixes: outcome === "pass" ? [] : ["Fix the bug"],
+          evidenceArtifactIds: [],
+        }),
+      );
+      const result = await instance.run({
+        ...input,
+        role: "judge",
+        context: {
+          consensus: { reviews: [{ verdict: "pass" }, { verdict: "fail" }], verification: [] },
+        },
+      });
+      expect(result).toMatchObject({ status: "success", outcome });
+      expect(create.mock.calls[0]?.[0].text?.format).toMatchObject({
+        name: "veyra_judge",
+        strict: true,
+      });
+      expect(JSON.stringify(create.mock.calls[0]?.[0].input)).toContain(
+        "cannot override required deterministic checks",
+      );
+    },
+  );
+
   it.each([
     {},
     { ...plan, acceptanceCriteria: [] },

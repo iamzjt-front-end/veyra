@@ -65,11 +65,12 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
     type !== "parallel" &&
     type !== "router" &&
     type !== "subworkflow" &&
+    type !== "consensus" &&
     type !== "end"
   ) {
     throw new WorkflowError(
       `${field}.type`,
-      "expected agent, command, human, parallel, router, subworkflow, or end",
+      "expected agent, command, human, parallel, router, subworkflow, consensus, or end",
     );
   }
   const common = ["type", "metadata", "next", "on", "retry"];
@@ -78,23 +79,69 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
       ? ["type", "metadata"]
       : [
           ...common,
-          ...(type === "subworkflow"
-            ? ["use", "workflow", "outputs"]
-            : type === "parallel"
-              ? ["children", "concurrency", "failurePolicy"]
-              : [
-                  type === "router"
-                    ? "route"
-                    : type === "agent"
-                      ? "agent"
-                      : type === "command"
-                        ? "run"
-                        : "message",
-                ]),
+          ...(type === "consensus"
+            ? ["reviewers", "mode", "quorum", "judge", "verification", "concurrency"]
+            : type === "subworkflow"
+              ? ["use", "workflow", "outputs"]
+              : type === "parallel"
+                ? ["children", "concurrency", "failurePolicy"]
+                : [
+                    type === "router"
+                      ? "route"
+                      : type === "agent"
+                        ? "agent"
+                        : type === "command"
+                          ? "run"
+                          : "message",
+                  ]),
           ...(type === "agent" || type === "human" || type === "subworkflow" ? ["inputs"] : []),
         ];
   object(raw, field, keys);
   const step: WorkflowStep = { type };
+  if (type === "consensus") {
+    if (!Array.isArray(raw.reviewers) || raw.reviewers.length < 2 || raw.reviewers.length > 32)
+      throw new WorkflowError(
+        `${field}.reviewers`,
+        "must list 2 to 32 independent reviewer step IDs",
+      );
+    step.reviewers = raw.reviewers.map((id, index) => text(id, `${field}.reviewers[${index}]`));
+    if (new Set(step.reviewers).size !== step.reviewers.length)
+      throw new WorkflowError(`${field}.reviewers`, "reviewer step IDs must be unique");
+    if (raw.mode !== undefined && !["all-pass", "quorum", "judge"].includes(raw.mode as string))
+      throw new WorkflowError(`${field}.mode`, "expected all-pass, quorum, or judge");
+    step.mode = (raw.mode as WorkflowStep["mode"]) ?? "all-pass";
+    if (step.mode === "quorum") {
+      if (
+        typeof raw.quorum !== "number" ||
+        !Number.isSafeInteger(raw.quorum) ||
+        raw.quorum < 1 ||
+        raw.quorum > step.reviewers.length
+      )
+        throw new WorkflowError(
+          `${field}.quorum`,
+          "must be an integer from 1 to the reviewer count",
+        );
+      step.quorum = raw.quorum;
+    } else if (raw.quorum !== undefined)
+      throw new WorkflowError(`${field}.quorum`, "only allowed in quorum mode");
+    if (step.mode === "judge") step.judge = text(raw.judge, `${field}.judge`);
+    else if (raw.judge !== undefined)
+      throw new WorkflowError(`${field}.judge`, "only allowed in judge mode");
+    if (step.judge && step.reviewers.includes(step.judge))
+      throw new WorkflowError(`${field}.judge`, "judge must be distinct from every reviewer step");
+    if (raw.verification !== undefined) {
+      if (!Array.isArray(raw.verification) || raw.verification.length > 16)
+        throw new WorkflowError(
+          `${field}.verification`,
+          "must list up to 16 required command step IDs",
+        );
+      step.verification = raw.verification.map((id, index) =>
+        text(id, `${field}.verification[${index}]`),
+      );
+      if (new Set(step.verification).size !== step.verification.length)
+        throw new WorkflowError(`${field}.verification`, "command step IDs must be unique");
+    }
+  }
   if (type === "subworkflow") {
     if (raw.use !== undefined) step.use = text(raw.use, `${field}.use`);
     if (raw.workflow !== undefined) {
@@ -127,6 +174,8 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
     step.children = raw.children.map((id, index) => text(id, `${field}.children[${index}]`));
     if (new Set(step.children).size !== step.children.length)
       throw new WorkflowError(`${field}.children`, "child step IDs must be unique");
+  }
+  if (type === "parallel" || type === "consensus") {
     if (
       raw.concurrency !== undefined &&
       (typeof raw.concurrency !== "number" ||
@@ -135,13 +184,17 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
         raw.concurrency > 32)
     )
       throw new WorkflowError(`${field}.concurrency`, "must be an integer from 1 to 32");
+    step.concurrency =
+      (raw.concurrency as number | undefined) ??
+      Math.min(4, (step.children ?? step.reviewers ?? []).length);
+  }
+  if (type === "parallel") {
     if (
       raw.failurePolicy !== undefined &&
       raw.failurePolicy !== "wait-all" &&
       raw.failurePolicy !== "fail-fast"
     )
       throw new WorkflowError(`${field}.failurePolicy`, "expected wait-all or fail-fast");
-    step.concurrency = (raw.concurrency as number | undefined) ?? Math.min(4, step.children.length);
     step.failurePolicy = (raw.failurePolicy as "wait-all" | "fail-fast" | undefined) ?? "wait-all";
   }
   if (type === "agent") step.agent = text(raw.agent, `${field}.agent`);
@@ -252,6 +305,13 @@ function parseDefinition(value: unknown, depth: number): WorkflowDefinition {
   if (!Object.hasOwn(steps, start))
     throw new WorkflowError("start", `step '${start}' does not exist`);
   for (const [id, step] of Object.entries(steps)) {
+    for (const [index, check] of (step.verification ?? []).entries()) {
+      if (!Object.hasOwn(steps, check) || steps[check]?.type !== "command")
+        throw new WorkflowError(
+          `steps.${id}.verification[${index}]`,
+          "must reference a command verifier step in this workflow",
+        );
+    }
     if (
       step.route &&
       typeof step.route !== "string" &&
@@ -283,36 +343,48 @@ function parseDefinition(value: unknown, depth: number): WorkflowDefinition {
   }
   const owners = new Map<string, string>();
   for (const [id, step] of Object.entries(steps)) {
-    if (step.type !== "parallel") continue;
-    for (const [index, childId] of (step.children ?? []).entries()) {
+    if (step.type !== "parallel" && step.type !== "consensus") continue;
+    const children =
+      step.type === "parallel"
+        ? (step.children ?? [])
+        : [...(step.reviewers ?? []), ...(step.judge ? [step.judge] : [])];
+    for (const [index, childId] of children.entries()) {
       const child = Object.hasOwn(steps, childId) ? steps[childId] : undefined;
-      const field = `steps.${id}.children[${index}]`;
+      const field = `steps.${id}.${step.type === "parallel" ? `children[${index}]` : childId === step.judge ? "judge" : `reviewers[${index}]`}`;
       if (
         !child ||
-        (child.type !== "agent" && child.type !== "command") ||
+        (child.type !== "agent" && (step.type === "consensus" || child.type !== "command")) ||
         child.next !== undefined ||
         child.on !== undefined
       )
         throw new WorkflowError(
           field,
-          "must reference an agent or command leaf without next/on transitions",
+          step.type === "consensus"
+            ? "must reference an agent leaf without next/on transitions"
+            : "must reference an agent or command leaf without next/on transitions",
         );
       if (owners.has(childId))
-        throw new WorkflowError(field, "a child may belong to only one parallel group");
+        throw new WorkflowError(
+          field,
+          "a child may belong to only one parallel or consensus group",
+        );
       if (
         Object.values(child.inputs ?? {}).some(
-          (input) => input.from === id || step.children?.includes(input.from),
+          (input) => input.from === id || children.includes(input.from),
         )
       )
         throw new WorkflowError(
           field,
-          "parallel children must select inputs from outside their group",
+          "parallel/consensus children must select inputs from outside their group",
         );
       owners.set(childId, id);
     }
   }
   if (owners.has(start))
-    throw new WorkflowError("start", "enter the owning parallel group instead of a child");
+    throw new WorkflowError(
+      "start",
+      "enter the owning parallel or consensus group instead of a child",
+    );
   for (const [id, step] of Object.entries(steps)) {
     const targets = [
       ...Object.entries(step.on ?? {}).map(([label, target]) => [`on.${label}`, target]),
@@ -322,7 +394,7 @@ function parseDefinition(value: unknown, depth: number): WorkflowDefinition {
       if (target && owners.has(target))
         throw new WorkflowError(
           `steps.${id}.${field}`,
-          "enter the owning parallel group instead of a child",
+          "enter the owning parallel or consensus group instead of a child",
         );
   }
   return { name, version: 1, start, steps };

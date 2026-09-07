@@ -21,6 +21,38 @@ const minimal = () => ({
 });
 
 describe("published version 1 workflow schema", () => {
+  it("validates consensus policy fields and requires mode-specific quorum or judge", () => {
+    const base = {
+      ...minimal(),
+      start: "group",
+      steps: {
+        ...minimal().steps,
+        group: { type: "consensus", reviewers: ["a", "b"] },
+        a: { type: "agent", agent: "a" },
+        b: { type: "agent", agent: "b" },
+        judge: { type: "agent", agent: "judge" },
+      },
+    };
+    for (const patch of [{}, { mode: "quorum", quorum: 1 }, { mode: "judge", judge: "judge" }]) {
+      const value = { ...base, steps: { ...base.steps, group: { ...base.steps.group, ...patch } } };
+      expect(validate(value), JSON.stringify(validate.errors)).toBe(true);
+      expect(() => parseWorkflow(value)).not.toThrow();
+    }
+    for (const patch of [
+      { reviewers: ["a"] },
+      { reviewers: ["a", "a"] },
+      { mode: "quorum" },
+      { mode: "judge" },
+      { quorum: 1 },
+      { judge: "judge" },
+      { mode: "quorum", quorum: 0 },
+      { failurePolicy: "ignore" },
+    ]) {
+      const value = { ...base, steps: { ...base.steps, group: { ...base.steps.group, ...patch } } };
+      expect(validate(value), JSON.stringify(value)).toBe(false);
+      expect(() => parseWorkflow(value)).toThrow();
+    }
+  });
   it("validates named input bindings and rejects invalid pointer syntax/limits in both validators", () => {
     const make = (path: string) => ({
       ...minimal(),
@@ -63,6 +95,7 @@ describe("published version 1 workflow schema", () => {
     "router",
     "subworkflow",
     "subworkflow-child",
+    "consensus",
   ])("validates the documented %s example and editor schema path", async (name) => {
     const file = fileURLToPath(
       new URL(`../../../examples/workflows/v1/${name}.yaml`, import.meta.url),

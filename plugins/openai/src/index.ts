@@ -27,7 +27,7 @@ export interface OpenAIResponsesClient {
 export interface OpenAIAdapterOptions {
   model: string;
   id?: string;
-  role?: "planner" | "reviewer";
+  role?: "planner" | "reviewer" | "judge";
   apiKeyEnv?: string;
   timeoutMs?: number;
   maxOutputTokens?: number;
@@ -54,8 +54,8 @@ export class OpenAIAdapter implements AgentAdapter {
       throw new Error("OpenAI adapter id must be a non-empty string.");
     if (typeof options.model !== "string" || !options.model.trim())
       throw new Error("OpenAI adapter requires a model.");
-    if (options.role !== undefined && !["planner", "reviewer"].includes(options.role))
-      throw new Error("OpenAI role must be planner or reviewer.");
+    if (options.role !== undefined && !["planner", "reviewer", "judge"].includes(options.role))
+      throw new Error("OpenAI role must be planner, reviewer, or judge.");
     if (options.apiKeyEnv !== undefined && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(options.apiKeyEnv))
       throw new Error("apiKeyEnv must name an environment variable, not contain a credential.");
     for (const [name, value] of [
@@ -100,10 +100,10 @@ export class OpenAIAdapter implements AgentAdapter {
       status: "failure" | "needs_input" = "failure",
     ) => finish({ status, summary: message, error: { code, message, retryable } });
     const role: string = this.#options.role ?? input.role;
-    if (role !== "planner" && role !== "reviewer")
+    if (role !== "planner" && role !== "reviewer" && role !== "judge")
       return failure(
         "openai_unsupported_role",
-        "OpenAI adapter supports planner and reviewer roles.",
+        "OpenAI adapter supports planner, reviewer, and judge roles.",
       );
     if (!isJsonValue(input) || typeof input.goal !== "string" || !input.goal.trim())
       return failure(

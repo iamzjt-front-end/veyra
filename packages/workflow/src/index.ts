@@ -1,5 +1,7 @@
 export type StepType =
-  "agent" | "command" | "human" | "parallel" | "router" | "subworkflow" | "end";
+  "agent" | "command" | "human" | "parallel" | "router" | "subworkflow" | "consensus" | "end";
+
+export type ConsensusMode = "all-pass" | "quorum" | "judge";
 
 export interface WorkflowDefinition {
   name: string;
@@ -30,6 +32,13 @@ export interface WorkflowStep {
   /** Resolved snapshot or an explicitly supplied inline definition. */
   workflow?: WorkflowDefinition;
   outputs?: Record<string, StepInputReference>;
+  /** Independently invoked agent leaf step IDs; these are owned by this consensus node. */
+  reviewers?: string[];
+  mode?: ConsensusMode;
+  quorum?: number;
+  judge?: string;
+  /** Every listed command step must have completed successfully before reviews begin. */
+  verification?: string[];
   metadata?: Record<string, unknown>;
 }
 
@@ -62,3 +71,4 @@ export { resolveStepInputs, InputResolutionError, MAX_RESOLVED_INPUT_BYTES } fro
 export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";
 export { resolveRoute, RouterError, type RouteDecision } from "./router.js";
 export { buildWorkflowGraph, type ExecutionGraph, type WorkflowScope } from "./graph.js";
+export { aggregateReviews } from "./consensus.js";

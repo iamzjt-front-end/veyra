@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: independent-reviews
+version: 1
+start: verify
+steps:
+  verify:
+    type: command
+    run: ["node --version"]
+    next: decision
+  decision:
+    type: consensus
+    reviewers: [correctness, maintainability]
+    mode: judge
+    judge: arbitrate
+    verification: [verify]
+    concurrency: 2
+    on:
+      pass: done
+      fail: inspect
+  correctness:
+    type: agent
+    agent: correctness-reviewer
+  maintainability:
+    type: agent
+    agent: maintainability-reviewer
+  arbitrate:
+    type: agent
+    agent: review-judge
+  inspect:
+    type: human
+    message: Inspect the individual reviews and deterministic verification evidence.
+    inputs:
+      decision: { from: decision, path: "" }
+    on:
+      approved: done
+  done:
+    type: end

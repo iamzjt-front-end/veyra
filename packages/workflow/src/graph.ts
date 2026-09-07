@@ -56,6 +56,13 @@ export function buildWorkflowGraph(definition: WorkflowDefinition): ExecutionGra
             }
           : {}),
         ...(step.children ? { children: step.children.map((child) => qualify(scope, child)) } : {}),
+        ...(step.reviewers
+          ? { reviewers: step.reviewers.map((child) => qualify(scope, child)) }
+          : {}),
+        ...(step.judge ? { judge: qualify(scope, step.judge) } : {}),
+        ...(step.verification
+          ? { verification: step.verification.map((child) => qualify(scope, child)) }
+          : {}),
         ...(step.inputs ? { inputs: references(step.inputs, scope) } : {}),
         ...(step.outputs ? { outputs: references(step.outputs, id) } : {}),
         ...(step.route && typeof step.route !== "string"

@@ -31,13 +31,14 @@ export function pendingParallel(
   return batch;
 }
 
-interface ParallelOptions extends LeafOptions {
+export interface ParallelOptions extends LeafOptions {
   steps: Record<string, WorkflowStep>;
   /** Live append-only ledger; record() adds each persisted event before notifying observers. */
   events: VeyraEvent[];
   batch?: ParallelBatch;
   startChild: (stepId: string) => Promise<ExecutionMetadata>;
   contextBefore: (sequence: number) => RunContext;
+  invoke?: (options: LeafOptions) => Promise<LeafResult>;
 }
 
 /** Execute independent leaves; persist each child before producing a declaration-ordered join. */
@@ -124,7 +125,7 @@ export async function executeParallel(options: ParallelOptions): Promise<LeafRes
             "parallel_cancelled",
             "Parallel child was cancelled before invocation.",
           );
-        const result = await executeLeaf({
+        const result = await (options.invoke ?? executeLeaf)({
           ...options,
           step: steps[childId] as WorkflowStep,
           execution: child,

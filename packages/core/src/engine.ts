@@ -131,6 +131,7 @@ export class VeyraEngine {
           (step.type === "agent" ||
             step.type === "command" ||
             step.type === "parallel" ||
+            step.type === "consensus" ||
             step.type === "router" ||
             step.type === "subworkflow") &&
           step.retry === undefined,
