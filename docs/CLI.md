@@ -20,6 +20,8 @@ Review the chosen workflow's verifier commands before running it in a project. T
 
 ## Inspect saved runs
 
+Workflow loading resolves and snapshots nested `subworkflow` references before constructing providers, including agents used only inside a child. Status/approval IDs use namespaced child steps such as `suite/gate`; the existing resume/approve commands handle them. Subworkflow boundary events appear in both text and JSON output. Resume executes the saved child definitions even if their source files change or disappear.
+
 ```bash
 pnpm ve -- status
 pnpm ve -- status <run-id> --json

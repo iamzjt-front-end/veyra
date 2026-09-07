@@ -6,7 +6,7 @@ import type {
   JsonObject,
   VeyraEvent,
 } from "@veyra/protocol";
-import { resolveNextStep } from "@veyra/workflow";
+import { resolveNextStep, buildWorkflowGraph } from "@veyra/workflow";
 import { RunControlError } from "./control-error.js";
 import type { RunResult } from "./engine.js";
 import type { LocalRunStore } from "./state.js";
@@ -67,7 +67,8 @@ export async function resolveApprovalDecision(
       "incomplete_pause",
       "Approval requires a completed pause boundary; inspect the run events before continuing.",
     );
-  const step = run.input.workflow.steps[pending.stepId];
+  const graph = buildWorkflowGraph(run.input.workflow);
+  const step = graph.steps[pending.stepId];
   if (step?.type !== "human")
     throw new RunControlError(
       "invalid_approval_step",
@@ -88,7 +89,8 @@ export async function resolveApprovalDecision(
               : "The human gate has no approved transition.",
         }
       : undefined;
-  const status = failure ? "failed" : next ? "paused" : "completed";
+  const nestedTerminal = Boolean(graph.scopeOf.get(pending.stepId)) && !next;
+  const status = nestedTerminal ? "paused" : failure ? "failed" : next ? "paused" : "completed";
   const execution: ExecutionMetadata = {
     runId: request.runId,
     stepId: pending.stepId,
@@ -122,7 +124,7 @@ export async function resolveApprovalDecision(
   saved.push(
     await store.appendEvent(
       request.runId,
-      failure
+      failure && !nestedTerminal
         ? {
             type: "run.failed",
             runId: request.runId,
@@ -130,11 +132,11 @@ export async function resolveApprovalDecision(
             error: failure,
             at: now(),
           }
-        : next
+        : next || nestedTerminal
           ? {
               type: "run.paused",
               runId: request.runId,
-              stepId: next,
+              stepId: next ?? pending.stepId,
               reason: "approval_resolved",
               at: now(),
             }

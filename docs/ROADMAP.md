@@ -58,7 +58,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Branching
 - [x] Parallel steps
 - [x] Routers
-- [ ] Subworkflows
+- [x] Subworkflows
 - [ ] Consensus/judge nodes
 - [ ] Execution policies/loop safety
 - [ ] Workflow preset hardening

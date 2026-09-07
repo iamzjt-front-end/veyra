@@ -2,7 +2,7 @@ import type { AgentConfig, VeyraConfig } from "@veyra/config";
 import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
 import { OpenAIAdapter, type OpenAIAdapterOptions } from "@veyra/openai";
 import type { AgentAdapter } from "@veyra/protocol";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { CliError } from "./arguments.js";
 
 export type AgentFactory = (name: string, config: AgentConfig) => AgentAdapter;
@@ -21,7 +21,7 @@ export const createAgent: AgentFactory = (name, config) => {
 export function requiredAgents(workflow: WorkflowDefinition): string[] {
   return [
     ...new Set(
-      Object.values(workflow.steps).flatMap((step) =>
+      Object.values(buildWorkflowGraph(workflow).steps).flatMap((step) =>
         step.type === "agent" && step.agent ? [step.agent] : [],
       ),
     ),

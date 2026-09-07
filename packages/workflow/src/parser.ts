@@ -55,23 +55,21 @@ function json(value: unknown, field: string, parents = new Set<object>()): unkno
   }
 }
 
-function parseStep(value: unknown, field: string): WorkflowStep {
+function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
   const raw = object(value, field);
   const type = text(raw.type, `${field}.type`);
-  if (type === "subworkflow") {
-    throw new WorkflowError(`${field}.type`, `${type} is reserved and unsupported in v0.1`);
-  }
   if (
     type !== "agent" &&
     type !== "command" &&
     type !== "human" &&
     type !== "parallel" &&
     type !== "router" &&
+    type !== "subworkflow" &&
     type !== "end"
   ) {
     throw new WorkflowError(
       `${field}.type`,
-      "expected agent, command, human, parallel, router, or end",
+      "expected agent, command, human, parallel, router, subworkflow, or end",
     );
   }
   const common = ["type", "metadata", "next", "on", "retry"];
@@ -80,21 +78,49 @@ function parseStep(value: unknown, field: string): WorkflowStep {
       ? ["type", "metadata"]
       : [
           ...common,
-          ...(type === "parallel"
-            ? ["children", "concurrency", "failurePolicy"]
-            : [
-                type === "router"
-                  ? "route"
-                  : type === "agent"
-                    ? "agent"
-                    : type === "command"
-                      ? "run"
-                      : "message",
-              ]),
-          ...(type === "agent" || type === "human" ? ["inputs"] : []),
+          ...(type === "subworkflow"
+            ? ["use", "workflow", "outputs"]
+            : type === "parallel"
+              ? ["children", "concurrency", "failurePolicy"]
+              : [
+                  type === "router"
+                    ? "route"
+                    : type === "agent"
+                      ? "agent"
+                      : type === "command"
+                        ? "run"
+                        : "message",
+                ]),
+          ...(type === "agent" || type === "human" || type === "subworkflow" ? ["inputs"] : []),
         ];
   object(raw, field, keys);
   const step: WorkflowStep = { type };
+  if (type === "subworkflow") {
+    if (raw.use !== undefined) step.use = text(raw.use, `${field}.use`);
+    if (raw.workflow !== undefined) {
+      try {
+        step.workflow = parseDefinition(raw.workflow, depth + 1);
+      } catch (error) {
+        if (error instanceof WorkflowError)
+          throw new WorkflowError(`${field}.workflow.${error.field}`, error.detail);
+        throw error;
+      }
+    }
+    if (!step.use && !step.workflow)
+      throw new WorkflowError(field, "subworkflow requires use or an inline workflow");
+    if (raw.outputs !== undefined) step.outputs = parseReferences(raw.outputs, `${field}.outputs`);
+    for (const [name, output] of Object.entries(step.outputs ?? {})) {
+      if (
+        step.workflow &&
+        (!Object.hasOwn(step.workflow.steps, output.from) ||
+          step.workflow.steps[output.from]?.type === "end")
+      )
+        throw new WorkflowError(
+          `${field}.outputs.${name}.from`,
+          "must reference a non-terminal output in the child workflow",
+        );
+    }
+  }
   if (type === "parallel") {
     if (!Array.isArray(raw.children) || raw.children.length < 1 || raw.children.length > 32)
       throw new WorkflowError(`${field}.children`, "must list 1 to 32 independent child step IDs");
@@ -141,20 +167,7 @@ function parseStep(value: unknown, field: string): WorkflowStep {
   }
   if (raw.message !== undefined) step.message = text(raw.message, `${field}.message`);
   if (raw.inputs !== undefined) {
-    const inputs = Object.entries(object(raw.inputs, `${field}.inputs`));
-    if (inputs.length > 16)
-      throw new WorkflowError(`${field}.inputs`, "at most 16 named inputs are allowed");
-    step.inputs = Object.fromEntries(
-      inputs.map(([name, value]): [string, StepInputReference] => {
-        text(name, `${field}.inputs key`);
-        if ([...name].length > 128)
-          throw new WorkflowError(
-            `${field}.inputs key`,
-            "input names must be at most 128 characters",
-          );
-        return [name, parseReference(value, `${field}.inputs.${name}`)];
-      }),
-    );
+    step.inputs = parseReferences(raw.inputs, `${field}.inputs`);
   }
   if (raw.next !== undefined) step.next = text(raw.next, `${field}.next`);
   if (raw.on !== undefined) {
@@ -205,8 +218,27 @@ function parseReference(value: unknown, field: string): StepInputReference {
   return { from, path: ref.path as string };
 }
 
+function parseReferences(value: unknown, field: string): Record<string, StepInputReference> {
+  const entries = Object.entries(object(value, field));
+  if (entries.length > 16) throw new WorkflowError(field, "at most 16 named inputs are allowed");
+  return Object.fromEntries(
+    entries.map(([name, reference]) => {
+      text(name, `${field} key`);
+      if ([...name].length > 128)
+        throw new WorkflowError(`${field} key`, "input names must be at most 128 characters");
+      return [name, parseReference(reference, `${field}.${name}`)];
+    }),
+  );
+}
+
 /** Parse provider-neutral graph data; no YAML, process, or agent execution occurs here. */
 export function parseWorkflow(value: unknown): WorkflowDefinition {
+  return parseDefinition(value, 0);
+}
+
+function parseDefinition(value: unknown, depth: number): WorkflowDefinition {
+  if (depth > 8)
+    throw new WorkflowError("workflow", "subworkflow nesting exceeds the maximum depth of 8");
   const root = object(value, "root", ["name", "version", "start", "steps"]);
   const name = text(root.name, "name");
   if (root.version !== 1) throw new WorkflowError("version", "expected schema version 1");
@@ -214,7 +246,7 @@ export function parseWorkflow(value: unknown): WorkflowDefinition {
   const steps = Object.fromEntries(
     Object.entries(object(root.steps, "steps")).map(([id, value]): [string, WorkflowStep] => [
       text(id, "steps key"),
-      parseStep(value, `steps.${id}`),
+      parseStep(value, `steps.${id}`, depth),
     ]),
   );
   if (!Object.hasOwn(steps, start))

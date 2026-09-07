@@ -54,22 +54,29 @@ describe("published version 1 workflow schema", () => {
     },
   );
 
-  it.each(["minimal", "approval", "review-loop", "inputs", "parallel", "router"])(
-    "validates the documented %s example and editor schema path",
-    async (name) => {
-      const file = fileURLToPath(
-        new URL(`../../../examples/workflows/v1/${name}.yaml`, import.meta.url),
-      );
-      const text = await readFile(file, "utf8");
-      expect(validate(parse(text)), JSON.stringify(validate.errors)).toBe(true);
-      expect(await loadWorkflow(file)).toEqual(parseWorkflow(parse(text)));
-      const schemaReference = text.split("$schema=")[1]?.split("\n")[0];
-      expect(schemaReference).toBeDefined();
-      expect(fileURLToPath(new URL(schemaReference as string, pathToFileURL(file)))).toBe(
-        schemaPath,
-      );
-    },
-  );
+  it.each([
+    "minimal",
+    "approval",
+    "review-loop",
+    "inputs",
+    "parallel",
+    "router",
+    "subworkflow",
+    "subworkflow-child",
+  ])("validates the documented %s example and editor schema path", async (name) => {
+    const file = fileURLToPath(
+      new URL(`../../../examples/workflows/v1/${name}.yaml`, import.meta.url),
+    );
+    const text = await readFile(file, "utf8");
+    expect(validate(parse(text)), JSON.stringify(validate.errors)).toBe(true);
+    const loaded = await loadWorkflow(file);
+    expect(validate(loaded), JSON.stringify(validate.errors)).toBe(true);
+    if (name !== "subworkflow") expect(loaded).toEqual(parseWorkflow(parse(text)));
+    else expect(loaded.steps.suite?.workflow?.name).toBe("reusable-checks");
+    const schemaReference = text.split("$schema=")[1]?.split("\n")[0];
+    expect(schemaReference).toBeDefined();
+    expect(fileURLToPath(new URL(schemaReference as string, pathToFileURL(file)))).toBe(schemaPath);
+  });
 
   it.each([
     { name: "future version", value: { ...minimal(), version: 2 } },

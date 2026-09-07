@@ -102,6 +102,11 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       else if (event.type === "parallel.completed")
         line += `: ${event.success ? "passed" : "failed"} (${event.results.length} children)`;
       else if (event.type === "router.selected") line += `: ${event.route} → ${event.target}`;
+      else if (event.type === "subworkflow.started")
+        line += `: ${event.workflowName} → ${event.childStepId}`;
+      else if (event.type === "subworkflow.completed")
+        line += `: ${event.success ? "passed" : "failed"}`;
+      else if (event.type === "subworkflow.paused") line += `: paused at ${event.childStepId}`;
       else if (event.type === "approval.required")
         line += `: ${event.message}\nApproval ID: ${event.approvalId}`;
       else if (event.type === "step.retrying")

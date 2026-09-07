@@ -976,11 +976,15 @@ Implemented static labels and bounded output-reference selection through a decla
 
 ## M3.6 — Subworkflows
 
-- [ ] reference built-in or user workflow
-- [ ] namespace child step IDs/run context
-- [ ] input/output mapping
-- [ ] error propagation policy
-- [ ] recursion/depth guard
+**Status:** [x] Complete and verified.
+
+- [x] reference built-in or user workflow
+- [x] namespace child step IDs/run context
+- [x] input/output mapping
+- [x] error propagation policy
+- [x] recursion/depth guard
+
+Verified all five baseline commands (589 tests total). Thirteen workflow tests cover reference resolution, scoped IDs and mappings, collisions, recursion, and depth limits. Seventeen Core integration cases cover context isolation, persisted mappings, failure propagation, cancellation, child approvals, parallel children, and fresh-process recovery without repeating completed effects. Schema/event tests and a CLI child-provider approval/resume case also pass. Resolved child definitions are stored with the run; references do not need to remain on disk to resume. Child scopes share the run's working directory; workspace isolation remains M6.1.
 
 ---
 
@@ -1560,4 +1564,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.6 — Subworkflows.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.7 — Consensus / Judge nodes.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

@@ -70,7 +70,7 @@ export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
       ...active,
       role: key,
       goal,
-      instructions: `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, and any explicitly selected values in context.inputs. Preserve project instructions.`,
+      instructions: `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, explicitly selected values in context.inputs, and any subworkflow parameters in context.workflowInputs. Preserve project instructions.`,
       ...context.input(step.inputs),
     };
     if (Buffer.byteLength(JSON.stringify(input)) > 256 * 1024)

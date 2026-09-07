@@ -5,7 +5,7 @@ import type {
   VeyraEvent,
 } from "@veyra/protocol";
 import { InputResolutionError, type WorkflowStep } from "@veyra/workflow";
-import { RunContext } from "./context.js";
+import type { RunContext } from "./context.js";
 import { ExecutionError } from "./execution-error.js";
 import { executeLeaf, type LeafOptions, type LeafResult } from "./leaf.js";
 import { StateStoreError } from "./state.js";
@@ -37,6 +37,7 @@ interface ParallelOptions extends LeafOptions {
   events: VeyraEvent[];
   batch?: ParallelBatch;
   startChild: (stepId: string) => Promise<ExecutionMetadata>;
+  contextBefore: (sequence: number) => RunContext;
 }
 
 /** Execute independent leaves; persist each child before producing a declaration-ordered join. */
@@ -79,15 +80,7 @@ export async function executeParallel(options: ParallelOptions): Promise<LeafRes
     )
       states.set(event.stepId, structuredClone(event.result));
   }
-  const seed = new RunContext(
-    Object.values(steps).flatMap((node) =>
-      [
-        ...Object.values(node.inputs ?? {}),
-        ...(node.route && typeof node.route !== "string" ? [node.route] : []),
-      ].map((input) => input.from),
-    ),
-  );
-  seed.restore(events.filter((event) => (event.sequence ?? 0) < (batch.sequence ?? 0)));
+  const seed = options.contextBefore(batch.sequence as number);
   const queued = batch.children.filter((id) =>
     ["pending", "needs_input"].includes(states.get(id)?.status ?? "pending"),
   );

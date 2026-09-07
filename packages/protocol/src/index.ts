@@ -117,6 +117,12 @@ export type StepOutput =
     }
   | { type: "human"; outcome: ApprovalDecision; comment?: string }
   | { type: "router"; outcome: string; target: string; selection: "static" | "input" }
+  | {
+      type: "subworkflow";
+      outcome: "success" | "failure";
+      outputs?: JsonObject;
+      error?: SerializedError;
+    }
   | { type: "parallel"; outcome: "success" | "failure"; results: ParallelChildResult[] };
 
 export interface ParallelChildResult {
@@ -170,6 +176,19 @@ export type VeyraEvent = EventMetadata &
         selection: "static" | "input";
         source?: { stepId: string; path: string };
       })
+    | (StepEventMetadata & {
+        type: "subworkflow.started";
+        workflowName: string;
+        childStepId: string;
+        inputs: JsonObject;
+      })
+    | (StepEventMetadata & {
+        type: "subworkflow.completed";
+        success: boolean;
+        outputs?: JsonObject;
+        error?: SerializedError;
+      })
+    | (StepEventMetadata & { type: "subworkflow.paused"; childStepId: string; reason: string })
     | (StepEventMetadata & {
         type: "parallel.started";
         children: string[];

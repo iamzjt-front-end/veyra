@@ -25,6 +25,11 @@ export interface WorkflowStep {
   failurePolicy?: "wait-all" | "fail-fast";
   /** A static route label or a reference selecting a label from a previous output. */
   route?: string | StepInputReference;
+  /** Subworkflow reference, resolved by loadWorkflow before execution. */
+  use?: string;
+  /** Resolved snapshot or an explicitly supplied inline definition. */
+  workflow?: WorkflowDefinition;
+  outputs?: Record<string, StepInputReference>;
   metadata?: Record<string, unknown>;
 }
 
@@ -56,3 +61,4 @@ export { withRetryDefaults, nextRetry, type RetryDecision } from "./retry.js";
 export { resolveStepInputs, InputResolutionError, MAX_RESOLVED_INPUT_BYTES } from "./inputs.js";
 export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";
 export { resolveRoute, RouterError, type RouteDecision } from "./router.js";
+export { buildWorkflowGraph, type ExecutionGraph, type WorkflowScope } from "./graph.js";

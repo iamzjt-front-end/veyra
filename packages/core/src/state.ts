@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readFile, readdir, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isJsonValue, type JsonValue, type VeyraEvent } from "@veyra/protocol";
-import { parseWorkflow, type WorkflowDefinition } from "@veyra/workflow";
+import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { isStoredEvent } from "./state-events.js";
 
 export type RunStatus = "running" | "paused" | "completed" | "failed";
@@ -98,6 +98,7 @@ export class LocalRunStore {
       let workflow: WorkflowDefinition;
       try {
         workflow = parseWorkflow(input.workflow);
+        buildWorkflowGraph(workflow);
       } catch {
         throw new StateStoreError(
           "invalid_input",
@@ -437,6 +438,7 @@ function parseInput(
   let workflow: WorkflowDefinition;
   try {
     workflow = parseWorkflow(value.workflow);
+    buildWorkflowGraph(workflow);
   } catch {
     throw new StateStoreError(
       code,
@@ -460,6 +462,7 @@ function parseState(
   path: string,
   code: "invalid_input" | "corrupt_state",
 ): StoredRunState {
+  const steps = buildWorkflowGraph(input.workflow).steps;
   if (
     !isJsonValue(value) ||
     !object(value) ||
@@ -486,15 +489,14 @@ function parseState(
     !object(value.retryCounts) ||
     Object.entries(value.retryCounts).some(
       ([step, count]) =>
-        !Object.hasOwn(input.workflow.steps, step) ||
+        !Object.hasOwn(steps, step) ||
         typeof count !== "number" ||
         !Number.isSafeInteger(count) ||
         count < 0,
     ) ||
     (value.lastOutcome !== undefined && typeof value.lastOutcome !== "string") ||
     (value.currentStep !== undefined &&
-      (typeof value.currentStep !== "string" ||
-        !Object.hasOwn(input.workflow.steps, value.currentStep))) ||
+      (typeof value.currentStep !== "string" || !Object.hasOwn(steps, value.currentStep))) ||
     ((value.status === "running" || value.status === "paused") && value.currentStep === undefined)
   ) {
     throw new StateStoreError(
@@ -519,13 +521,14 @@ function redact(value: JsonValue, secrets: readonly string[], path: string[] = [
   }
   if (Array.isArray(value)) return value.map((item) => redact(item, secrets, path));
   if (value && typeof value === "object") {
-    const structuralKeys =
-      path.join(".") === "workflow.steps" ||
-      path.join(".") === "retryCounts" ||
-      (path[0] === "workflow" &&
-        path[1] === "steps" &&
-        path.length === 4 &&
-        (path[3] === "on" || path[3] === "inputs"));
+    let structuralKeys = path.join(".") === "retryCounts";
+    for (let offset = 0; path[offset] === "workflow" && path[offset + 1] === "steps"; offset += 3) {
+      if (
+        path.length === offset + 2 ||
+        (path.length === offset + 4 && ["on", "inputs", "outputs"].includes(path[offset + 3] ?? ""))
+      )
+        structuralKeys = true;
+    }
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
         key,

@@ -50,6 +50,8 @@ Decisions are auditable through ID, run/step/attempt, decision, timestamp, and o
 
 ## Boundaries
 
+Gates inside subworkflows use qualified IDs such as `suite/gate` and the same approval API. Resolving a terminal child gate leaves the containing run paused; resume closes that child scope and follows the parent's success/failure branch. An unhandled child rejection becomes child failure and requires an explicit parent `on.failure` to recover. No provider executes during decision recording, and completed child work is retained across resume.
+
 The same Core API serves CLI, TUI, and Dashboard. `approval.requiredFor` remains configuration for later operation-policy work; it does not automatically classify arbitrary provider commands or insert gates. Use explicit `human` nodes for the implemented guarantee. Installed coding agents retain their own command/sandbox permission system.
 
 Competing decisions are serialized within one engine instance. The existing single-writer boundary still applies across engines/processes; project locking is a later hardening task. Decision events and the new state are persisted before subscriber notification. If notification fails, `approval_recorded_notification_failed` tells the caller that the decision is already saved; refresh state instead of resubmitting it.

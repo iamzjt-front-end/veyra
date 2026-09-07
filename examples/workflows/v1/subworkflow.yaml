@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: call-reusable-checks
+version: 1
+start: suite
+steps:
+  suite:
+    type: subworkflow
+    use: ./subworkflow-child.yaml
+    outputs:
+      exitCode: { from: check, path: /results/0/exitCode }
+    next: approve
+  approve:
+    type: human
+    message: Inspect the mapped child verification result.
+    inputs:
+      code: { from: suite, path: /outputs/exitCode }
+    next: done
+  done:
+    type: end

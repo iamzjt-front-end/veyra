@@ -188,6 +188,17 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
   switch (value.type) {
     case "step.started":
       return true;
+    case "subworkflow.started":
+      return string(value.workflowName) && string(value.childStepId) && record(value.inputs);
+    case "subworkflow.completed":
+      return (
+        boolean(value.success) &&
+        optional(value.outputs, record) &&
+        optional(value.error, error) &&
+        (value.success ? record(value.outputs) && value.error === undefined : error(value.error))
+      );
+    case "subworkflow.paused":
+      return string(value.childStepId) && string(value.reason);
     case "router.selected":
       return (
         typeof value.route === "string" &&

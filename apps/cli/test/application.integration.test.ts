@@ -39,6 +39,55 @@ function commands(cwd: string, dependencies: CliServices = {}) {
 }
 
 describe("CLI application commands", () => {
+  it("discovers child providers and resumes a nested human gate through the shared CLI state model", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const worker = new FakeAgent({ status: "success", summary: "Nested provider completed" });
+      const constructed: string[] = [];
+      const ve = commands(path, {
+        createAgent: (name) => {
+          constructed.push(name);
+          return worker;
+        },
+      });
+      await writeFile(
+        join(path, "veyra.yaml"),
+        JSON.stringify({
+          version: 1,
+          agents: { worker: { provider: "fixture" } },
+          workflow: { use: "parent.yaml" },
+        }),
+      );
+      const child: WorkflowDefinition = {
+        name: "child",
+        version: 1,
+        start: "gate",
+        steps: { gate: { type: "human", next: "work" }, work: { type: "agent", agent: "worker" } },
+      };
+      const definition: WorkflowDefinition = {
+        name: "parent",
+        version: 1,
+        start: "call",
+        steps: { call: { type: "subworkflow", use: "child.yaml" }, done: { type: "end" } },
+      };
+      await writeFile(join(path, "parent.yaml"), JSON.stringify(definition));
+      await writeFile(join(path, "child.yaml"), JSON.stringify(child));
+      const started = await ve(["run", "nested goal", "--json"]);
+      expect(started.code, started.stderr).toBe(3);
+      expect(constructed).toEqual(["worker"]);
+      expect(worker.calls).toHaveLength(0);
+      const runId = started.records().at(-1).runId as string;
+      const status = await ve(["status", runId, "--json"]);
+      expect(status.records()[0]).toMatchObject({
+        currentStep: "call/gate",
+        approval: { stepId: "call/gate" },
+      });
+      const resumed = await ve(["resume", "--run-id", runId, "--approve", "--json"]);
+      expect(resumed.code, resumed.stderr).toBe(0);
+      expect(worker.calls[0]?.stepId).toBe("call/work");
+      expect(resumed.records().some((event) => event.type === "subworkflow.completed")).toBe(true);
+    });
+  });
+
   it("drives the full mocked dev path and human gate using only CLI command handlers", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const registry: Record<string, FakeAgent> = {

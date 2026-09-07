@@ -1,20 +1,16 @@
-import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { VeyraConfig } from "@veyra/config";
 import type {
   AgentAdapter,
   AgentRunOptions,
   EventSink,
-  ExecutionMetadata,
   SerializedError,
   VeyraEvent,
 } from "@veyra/protocol";
 import { type AgentRuntime, LocalAgentRuntime } from "@veyra/runtime";
 import { ShellVerifier, type Verifier } from "@veyra/verifier";
 import {
-  nextRetry,
-  InputResolutionError,
-  RouterError,
+  buildWorkflowGraph,
   resolveNextStep,
   withRetryDefaults,
   type WorkflowDefinition,
@@ -27,12 +23,8 @@ import {
   type ResolveApprovalRequest,
 } from "./approval.js";
 import { RunControlError } from "./control-error.js";
-import { RunContext } from "./context.js";
-import { ExecutionError } from "./execution-error.js";
-import { executeLeaf } from "./leaf.js";
-import { executeParallel, pendingParallel } from "./parallel.js";
-import { executeRouter } from "./router.js";
-import { LocalRunStore, StateStoreError, type StoredRun } from "./state.js";
+import { executeRun } from "./execution.js";
+import { LocalRunStore, type StoredRun } from "./state.js";
 
 export interface RunRequest extends AgentRunOptions {
   goal: string;
@@ -80,6 +72,7 @@ export class VeyraEngine {
 
   async run(request: RunRequest): Promise<RunResult> {
     const workflow = withRetryDefaults(request.workflow, request.config.runtime.maxFixIterations);
+    buildWorkflowGraph(workflow);
     const cwd = resolve(request.cwd ?? process.cwd());
     const store = this.#store(request);
     const run = await store.createRun({ goal: request.goal, workflow, cwd });
@@ -89,6 +82,7 @@ export class VeyraEngine {
   async resume(request: ResumeRequest): Promise<RunResult> {
     const store = this.#store(request);
     const run = await store.loadRun(request.runId);
+    const graph = buildWorkflowGraph(run.input.workflow);
     if (run.state.status === "running" && request.recoverInterrupted) {
       const history = await store.readEvents(request.runId);
       const last = history.at(-1);
@@ -97,12 +91,13 @@ export class VeyraEngine {
         next = run.state.currentStep;
       if (
         last?.type === "step.completed" &&
-        last.outcome &&
-        !["failure", "fail", "needs_input"].includes(last.outcome)
+        (!last.outcome || !["failure", "fail", "needs_input"].includes(last.outcome))
       ) {
-        const step = run.input.workflow.steps[last.stepId];
+        const step = graph.steps[last.stepId];
         if (step && step.type !== "human") {
-          const target = resolveNextStep(step, { status: last.outcome });
+          const target =
+            resolveNextStep(step, { status: last.outcome ?? "success" }) ??
+            (graph.scopeOf.get(last.stepId) ? last.stepId : undefined);
           if (run.state.currentStep === last.stepId || run.state.currentStep === target)
             next = target;
         }
@@ -131,12 +126,13 @@ export class VeyraEngine {
         "Only a paused run can resume; do not replay an interrupted running attempt blindly.",
       );
     if (
-      Object.values(run.input.workflow.steps).some(
+      Object.values(graph.steps).some(
         (step) =>
           (step.type === "agent" ||
             step.type === "command" ||
             step.type === "parallel" ||
-            step.type === "router") &&
+            step.type === "router" ||
+            step.type === "subworkflow") &&
           step.retry === undefined,
       )
     )
@@ -204,300 +200,16 @@ export class VeyraEngine {
     run: StoredRun,
     history: VeyraEvent[],
   ): Promise<RunResult> {
-    const agents = Object.fromEntries(Object.entries(request.agents));
-    const controls: AgentRunOptions = {
-      cwd: run.input.cwd,
-      signal: request.signal,
-      timeoutMs: request.timeoutMs,
-    };
-    const runId = run.state.runId;
-    // Execute the validated, redacted snapshot that a later reader will see.
-    const goal = run.input.goal;
-    const steps = run.input.workflow.steps;
-    const context = new RunContext(
-      Object.values(steps).flatMap((step) =>
-        [
-          ...Object.values(step.inputs ?? {}),
-          ...(step.route && typeof step.route !== "string" ? [step.route] : []),
-        ].map((input) => input.from),
-      ),
-    );
-    const attempts = new Map<string, number>();
-    const eventLog = [...history];
-    context.restore(history);
-    for (const event of history) {
-      if (event.type === "step.started")
-        attempts.set(event.stepId, (attempts.get(event.stepId) ?? 0) + 1);
-    }
-    let retryCounts = { ...run.state.retryCounts };
-    let incomingOutcome = run.state.lastOutcome;
-    let stepId: string | undefined = run.state.currentStep;
-    let active: ExecutionMetadata | undefined;
-    let stepSettled = false;
-    let listenerFailed = false;
-
-    const record = async (
-      event: VeyraEvent,
-      propagateListenerError = true,
-    ): Promise<VeyraEvent> => {
-      const saved = await store.appendEvent(runId, event);
-      eventLog.push(saved);
-      if (!listenerFailed && this.#options.emit) {
-        try {
-          await this.#options.emit(structuredClone(saved));
-        } catch {
-          listenerFailed = true;
-          if (propagateListenerError)
-            throw new ExecutionError(
-              "event_sink_failed",
-              "Event subscriber failed; execution stopped after persisting the event.",
-            );
-        }
-      }
-      return saved;
-    };
-    const pause = async (reason: string): Promise<RunResult> => {
-      await store.updateRun(runId, { status: "paused" });
-      await record({ type: "run.paused", runId, stepId, reason, at: now() });
-      return { runId, status: "paused", lastStep: stepId };
-    };
-    const complete = async (): Promise<RunResult> => {
-      await store.updateRun(runId, { status: "completed", currentStep: null });
-      await record({ type: "run.completed", runId, at: now() });
-      return { runId, status: "completed", lastStep: stepId };
-    };
-
-    try {
-      if (history.length) {
-        await store.updateRun(runId, { status: "running" });
-        await record({ type: "run.resumed", runId, stepId, at: now() });
-      } else {
-        await record({
-          type: "run.started",
-          runId,
-          goal,
-          workflowName: run.input.workflow.name,
-          at: now(),
-        });
-      }
-      let transitions = history.filter((event) => event.type === "step.started").length;
-      while (stepId) {
-        if (controls.signal?.aborted)
-          throw new ExecutionError("run_cancelled", "Run was cancelled.");
-        // The lifetime backstop also bounds very large or misconfigured per-step limits.
-        if (++transitions > 1000)
-          throw new ExecutionError(
-            "transition_limit",
-            "Run exceeded the 1000-step execution safety limit.",
-          );
-        const step = steps[stepId];
-        if (!step)
-          throw new ExecutionError("missing_step", `Workflow step '${stepId}' is missing.`);
-        const batch = step.type === "parallel" ? pendingParallel(eventLog, stepId) : undefined;
-        if (
-          !batch &&
-          (step.type === "agent" ||
-            step.type === "command" ||
-            step.type === "parallel" ||
-            step.type === "router")
-        ) {
-          const decision = nextRetry(
-            step,
-            Object.hasOwn(retryCounts, stepId) ? retryCounts[stepId] : undefined,
-            incomingOutcome,
-          );
-          if (!decision.allowed) {
-            const message = `Retry budget exhausted at step '${stepId}': ${decision.retryCount} of ${decision.maxRetries} repairs used.`;
-            active = { runId, stepId };
-            stepSettled = false;
-            await store.updateRun(runId, { currentStep: stepId, lastOutcome: "retry_exhausted" });
-            const gate = Object.hasOwn(step.on ?? {}, "retry_exhausted")
-              ? resolveNextStep(step, { status: "retry_exhausted" })
-              : undefined;
-            if (gate && steps[gate]?.type === "human") {
-              await record({
-                type: "step.failed",
-                ...active,
-                message,
-                error: { code: "retry_exhausted", message },
-                at: now(),
-              });
-              await store.updateRun(runId, { currentStep: gate });
-              stepId = gate;
-              active = undefined;
-              incomingOutcome = "retry_exhausted";
-              continue;
-            }
-            throw new ExecutionError("retry_exhausted", message);
-          }
-          retryCounts = { ...retryCounts, [stepId]: decision.retryCount };
-        }
-        const attempt = batch?.attempt ?? (attempts.get(stepId) ?? 0) + 1;
-        if (!batch) attempts.set(stepId, attempt);
-        active = { runId, stepId, attemptId: batch?.attemptId ?? randomUUID(), attempt };
-        stepSettled = false;
-        await store.updateRun(runId, { status: "running", currentStep: stepId, retryCounts });
-        if (!batch) await record({ type: "step.started", ...active, at: now() });
-        const retryCount = retryCounts[stepId] ?? 0;
-        if (!batch && retryCount > 0 && step.retry)
-          await record({
-            type: "step.retrying",
-            ...active,
-            retryCount,
-            maxRetries: step.retry.max,
-            at: now(),
-          });
-
-        if (step.type === "end") {
-          await record({ type: "step.completed", ...active, at: now() });
-          stepSettled = true;
-          return await complete();
-        }
-        if (step.type === "human") {
-          await record({
-            type: "approval.required",
-            ...active,
-            message: step.message ?? "Human approval required.",
-            approvalId: randomUUID(),
-            context: context.input(step.inputs).context,
-            at: now(),
-          });
-          return await pause("human_approval");
-        }
-
-        const leafOptions = {
-          step,
-          execution: active,
-          agents,
-          goal,
-          context,
-          controls,
-          record,
-          runtime: this.#runtime,
-          verifier: this.#verifier,
-        };
-        const leaf =
-          step.type === "parallel"
-            ? await executeParallel({
-                ...leafOptions,
-                steps,
-                events: eventLog,
-                batch,
-                startChild: async (childId) => {
-                  if (++transitions > 1000)
-                    throw new ExecutionError(
-                      "transition_limit",
-                      "Run exceeded the 1000-step execution safety limit.",
-                    );
-                  const child = steps[childId];
-                  if (!child)
-                    throw new ExecutionError("missing_step", "Parallel child step is missing.");
-                  const decision = nextRetry(
-                    child,
-                    Object.hasOwn(retryCounts, childId) ? retryCounts[childId] : undefined,
-                    incomingOutcome,
-                  );
-                  if (!decision.allowed)
-                    throw new ExecutionError(
-                      "retry_exhausted",
-                      `Retry budget exhausted at parallel child '${childId}': ${decision.retryCount} of ${decision.maxRetries} repairs used.`,
-                    );
-                  retryCounts = { ...retryCounts, [childId]: decision.retryCount };
-                  const childAttempt = (attempts.get(childId) ?? 0) + 1;
-                  attempts.set(childId, childAttempt);
-                  const execution = {
-                    runId,
-                    stepId: childId,
-                    parentStepId: stepId as string,
-                    attemptId: randomUUID(),
-                    attempt: childAttempt,
-                  };
-                  await store.updateRun(runId, { retryCounts });
-                  await record({ type: "step.started", ...execution, at: now() });
-                  if (decision.retryCount > 0)
-                    await record({
-                      type: "step.retrying",
-                      ...execution,
-                      retryCount: decision.retryCount,
-                      maxRetries: decision.maxRetries,
-                      at: now(),
-                    });
-                  return execution;
-                },
-              })
-            : step.type === "router"
-              ? await executeRouter(leafOptions)
-              : await executeLeaf(leafOptions);
-        if (leaf.pauseReason !== undefined) return await pause(leaf.pauseReason);
-        const { outcome, failureMessage } = leaf;
-        if (controls.signal?.aborted)
-          throw new ExecutionError("run_cancelled", "Run was cancelled.");
-        await store.updateRun(runId, { lastOutcome: outcome });
-        incomingOutcome = outcome;
-        if (failureMessage) {
-          await record({ type: "step.failed", ...active, message: failureMessage, at: now() });
-        } else {
-          await record({ type: "step.completed", ...active, outcome, at: now() });
-        }
-        stepSettled = true;
-        if (failureMessage && !Object.hasOwn(step.on ?? {}, outcome))
-          throw new ExecutionError(
-            "unhandled_step_failure",
-            `${failureMessage} No explicit '${outcome}' transition is configured.`,
-          );
-        const next = resolveNextStep(step, { status: outcome });
-        if (!next && Object.keys(step.on ?? {}).length > 0)
-          throw new ExecutionError(
-            "unhandled_outcome",
-            `Step '${stepId}' has no transition for outcome '${outcome}'.`,
-          );
-        if (!next) return await complete();
-        await store.updateRun(runId, { currentStep: next });
-        stepId = next;
-        active = undefined;
-      }
-      return await complete();
-    } catch (error) {
-      // A broken store cannot truthfully claim a persisted failure; surface it to the caller.
-      if (error instanceof StateStoreError) throw error;
-      const failure: SerializedError =
-        error instanceof ExecutionError ||
-        error instanceof InputResolutionError ||
-        error instanceof RouterError
-          ? { code: error.code, message: error.message }
-          : {
-              code: "run_execution_failed",
-              message: `Workflow execution failed at step '${stepId ?? "start"}'.`,
-            };
-      await store.updateRun(runId, { status: "failed" });
-      if (active && !stepSettled)
-        await record(
-          {
-            type: "step.failed",
-            ...active,
-            message: failure.message,
-            error: failure,
-            at: now(),
-          },
-          false,
-        );
-      const saved = await record(
-        {
-          type: "run.failed",
-          runId,
-          message: failure.message,
-          error: failure,
-          at: now(),
-        },
-        false,
-      );
-      return {
-        runId,
-        status: "failed",
-        lastStep: stepId,
-        ...(saved.type === "run.failed" && saved.error ? { error: saved.error } : {}),
-      };
-    }
+    return executeRun({
+      run,
+      store,
+      history,
+      agents: request.agents,
+      controls: { signal: request.signal, timeoutMs: request.timeoutMs },
+      runtime: this.#runtime,
+      verifier: this.#verifier,
+      emit: this.#options.emit,
+    });
   }
 }
 

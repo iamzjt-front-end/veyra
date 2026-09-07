@@ -3,7 +3,7 @@
 `@veyra/workflow` owns YAML loading and graph validation. Core receives a `WorkflowDefinition` and does not parse YAML or import the config parser.
 
 - `loadWorkflow(reference, cwd?)` loads `dev`, `bugfix`, `review`, or `research` from the repository's built-in presets, independently of the project working directory. Other references are absolute paths or paths resolved relative to `cwd` (the current directory by default). Pass the config directory when resolving `workflow.use`.
-- `parseWorkflow(value)` validates in-memory data and returns an independent graph object.
+- `parseWorkflow(value)` validates in-memory data and returns an independent definition, including inline child definitions. It performs no file loading. `buildWorkflowGraph(definition)` requires resolved children and returns namespaced steps plus scope information for execution and state validation.
 - `assertWorkflow(definition)` checks the same schema and destinations for callers that already have a typed definition.
 - `WorkflowError` identifies the field and, when loading a file, its absolute path. YAML errors include a parser code and line/column without echoing source values.
 
@@ -11,18 +11,19 @@
 
 Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step ID, and a `steps` object. Step IDs and transition outcome keys must be non-empty strings. The start step and every `next`/`on` destination must exist as actual entries in the step map.
 
-| Node type  | Fields specific to this type                                            |
-| ---------- | ----------------------------------------------------------------------- |
-| `agent`    | Required non-empty `agent`, referencing a configured agent name         |
-| `command`  | Required non-empty `run` array of non-empty command strings             |
-| `human`    | Optional non-empty `message`                                            |
-| `parallel` | Required `children` IDs; optional `concurrency` and `failurePolicy`     |
-| `router`   | Required `route` label/reference and `on` map; optional `next` fallback |
-| `end`      | Terminal node; no transitions or retry settings                         |
+| Node type     | Fields specific to this type                                                            |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `agent`       | Required non-empty `agent`, referencing a configured agent name                         |
+| `command`     | Required non-empty `run` array of non-empty command strings                             |
+| `human`       | Optional non-empty `message`                                                            |
+| `parallel`    | Required `children` IDs; optional `concurrency` and `failurePolicy`                     |
+| `router`      | Required `route` label/reference and `on` map; optional `next` fallback                 |
+| `subworkflow` | Required `use` reference or inline `workflow`; optional `inputs` and `outputs` mappings |
+| `end`         | Terminal node; no transitions or retry settings                                         |
 
-Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected. `subworkflow` remains in the type vocabulary but is explicitly unsupported until its implementation milestone.
+Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected.
 
-Agent and human nodes also support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
+Agent, human and subworkflow nodes support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
 
 ## JSON Schema and compatibility
 
@@ -37,6 +38,7 @@ For a YAML language server, select the schema with a comment containing its rela
 | [review-loop.yaml](../examples/workflows/v1/review-loop.yaml) | Executor, deterministic test, reviewer and a single allowed repair; requires configured executor/reviewer agents and a project test script. |
 | [parallel.yaml](../examples/workflows/v1/parallel.yaml)       | Independent syntax and test commands for the disposable fixture project, with a bounded join.                                               |
 | [router.yaml](../examples/workflows/v1/router.yaml)           | Routes persisted verification success to completion and failure to a human gate.                                                            |
+| [subworkflow.yaml](../examples/workflows/v1/subworkflow.yaml) | Calls a reusable child file, maps its verification result, and presents it at a parent human gate.                                          |
 
 Schema validation covers data shape, exact supported node types, required fields, unknown fields, non-blank strings, and retry integer bounds. `parseWorkflow`/`loadWorkflow` additionally check actual start/transition destinations and reject non-JSON in-memory metadata and YAML alias problems. A schema-valid object is not necessarily a valid graph, and validation never grants permission to execute commands. Always use the runtime loader before execution. Tests validate every preset/example and compare invalid structural cases through both validators; Ajv is a development-only dependency, not another runtime parser.
 
@@ -78,6 +80,7 @@ The provider-neutral `StepOutput` contract defines selectable fields:
 | `approval.resolved`      | `type: human`, `outcome: approved/rejected`, optional `comment`.                                                                   |
 | `parallel.completed`     | `type: parallel`, `outcome: success/failure`, declaration-ordered `results` containing child states and evidence event references. |
 | `router.selected`        | `type: router`, `outcome` (the selected route label), `target` and `selection: static/input`.                                      |
+| `subworkflow.completed`  | `type: subworkflow`, `outcome: success/failure`, mapped `outputs` on success or a normalized `error` on failure.                   |
 
 `path` is an [RFC 6901 JSON Pointer](https://www.rfc-editor.org/info/rfc6901/): empty selects the whole normalized output; `/data/instructions` selects a property; `/results/0/exitCode` selects an array element. Escape a property-name `/` as `~1` and `~` as `~0`. Only own JSON properties and existing canonical array indices are read. No code, expression, wildcard, environment lookup, URI fragment or filesystem read is evaluated. Strings remain literal strings, and numbers, booleans, arrays, objects and null retain their JSON types.
 
@@ -124,7 +127,7 @@ The current presets and explicit agent outcomes are covered by exact `on` branch
 | Agent `needs_input`                        | Pauses before any branch executes.                                                                                                                                          |
 | Human decision                             | Uses the explicit Core approval API; rejected decisions require an explicit rejected branch and never fall through to an approved action.                                   |
 
-`analyzeWorkflow(definition)` first runs the same strict parser and checks every destination, including destinations inside unreachable branches. It returns `reachableSteps` and `unreachableSteps` in definition order. Reachability follows all possible `on` targets, `next` edges and parallel children from `start`, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors, because a definition can intentionally retain unused steps. Execution safety still comes from Core's bounded retry policy.
+`analyzeWorkflow(definition)` builds the validated execution graph and checks every destination, including destinations inside unreachable branches. Resolve child references through `loadWorkflow` first. It returns `reachableSteps` and `unreachableSteps` in definition order, inserting namespaced child nodes after their call. Reachability follows all possible `on` targets, `next` edges, parallel children and subworkflow starts, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors. Execution safety still comes from Core's bounded retry policy.
 
 ## Router nodes
 
@@ -183,9 +186,42 @@ An agent's `needs_input` stops new queued work while active peers finish. If no 
 
 Parallel children use the same configured working directory. Authors must choose independent commands/agents and avoid concurrent edits to the same files. Per-child worktree isolation remains M6.1; parallel scheduling does not bypass native provider permissions or create isolated worktrees.
 
+## Subworkflows
+
+The M3.6 implementation in the `0.1.0` development checkout supports reusable child workflows. Use its matching implementation and schema; earlier strict readers reject these definitions.
+
+```yaml
+suite:
+  type: subworkflow
+  use: ./checks.yaml
+  inputs:
+    plan: { from: planner, path: /data/instructions }
+  outputs:
+    report: { from: verify, path: /results }
+  on:
+    failure: inspect
+  next: continue
+```
+
+`use` selects a built-in preset or a file. File references are relative to the file declaring the call, including nested references. `loadWorkflow` resolves every reference before execution and embeds the resulting definition in the call's `workflow` field. An inline `workflow` can also be supplied directly; when present, that explicit snapshot is authoritative and `use` is only its reference label. Core and the store require resolved graphs and never load child YAML or contact providers to resolve them. Resume uses the saved tree even if the original files change or disappear.
+
+Recursive file references, including symlink aliases, are rejected. Inline/reference nesting is limited to eight calls below the root. Retry limits are frozen recursively into the saved tree. Finite cycles within a workflow retain the existing bounded retry and lifetime-step semantics; recursive call graphs are rejected.
+
+Each invocation is a scope inside the same run and event log. For a call named `suite`, its local `verify` step becomes `suite/verify`; deeper calls add another segment. Within child ID segments, `/` is escaped as `~1` and `~` as `~0`. Root IDs retain their spelling. Ambiguous collisions with author-supplied IDs are rejected before execution. Graph destinations and references are validated within their original scope and rewritten consistently; a child cannot branch into a parent or sibling workflow. Calling the same definition from two nodes creates distinct step identities, contexts and retry keys.
+
+`inputs` selects parent-scope outputs with the existing bounded reference format. The resolved, redacted map is saved in `subworkflow.started` before child execution and delivered to child agents and gates as `context.workflowInputs`. Each child scope otherwise starts with empty recent output context. Child node `inputs` and router references select previous outputs in that child scope. Parameters and selected output mappings each allow up to 16 names and 32 KiB combined JSON, with the same name/pointer limits as ordinary bindings. Commands do not interpolate these values.
+
+`outputs` selects child-scope outputs when the child completes. Missing/oversized mappings fail the call. A successful call exposes only that mapped object through its own `StepOutput.outputs`; it does not dump child context into the parent. Omitted mappings produce an empty output object. Full child evidence remains under namespaced step IDs in the event log. An outer caller accesses a deeper result through each intervening call's declared output mapping.
+
+An `end` or successful leaf finishes only its current scope. A child can handle a failure through its own explicit branch. Otherwise `subworkflow.completed` records the child error, and the caller receives outcome `failure`. The caller must provide `on.failure` to recover; `next` never hides child failure. Cancellation, broken persistence, event-subscriber failure and the lifetime execution limit stop the whole run and cannot be caught as ordinary child errors.
+
+Human gates, agent input pauses and parallel pauses inside children propagate to the containing run. The saved `currentStep` is the qualified child step; `subworkflow.paused` events expose the enclosing calls. Approval uses the same pending ID and Core/CLI APIs. Resume retains open call attempts and mapped parameters, restores each scope independently, and continues the actual child step. A terminal child approval stays paused after the decision until resume closes the child scope and follows the parent's branch. Completed child work is not repeated. A new invocation reached by a call retry starts a fresh context but retains lifetime per-child retry counters.
+
+Explicit interrupted recovery also recognizes proven completed child leaf/end checkpoints and returns through their enclosing calls without repeating effects. Unknown in-flight work and partially written boundaries remain refused. Children share the run's configured working directory and provider instances; context namespacing is not filesystem isolation. Per-child worktrees remain M6.1. A child workflow may contain parallel leaf groups; subworkflow nodes are not themselves parallel children in this implementation.
+
 ## v0.1 retry policy
 
-Each executable step (`agent`, `command`, `parallel` or `router`) has an independent repair budget. Parallel children also have individual budgets; resuming an unfinished group retains the parent attempt while retried children spend their own budgets. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits in the saved run snapshot. Resume uses that snapshot even if the current config changes.
+Each executable step (`agent`, `command`, `parallel`, `router` or `subworkflow`) has an independent repair budget. Parallel children and namespaced child workflow steps also have individual budgets. Resuming an unfinished group/call retains its parent attempt while retried children spend their own budgets; a fresh child scope starts with normal entry semantics. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits throughout the saved tree. Resume uses that snapshot even if the current config changes.
 
 `nextRetry()` evaluates the next execution without mutating state:
 

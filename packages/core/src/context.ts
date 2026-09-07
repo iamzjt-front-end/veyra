@@ -9,9 +9,12 @@ export class RunContext {
   #omittedArtifacts = 0;
   readonly #referencedSteps: Set<string>;
   readonly #outputs = new Map<string, JsonObject>();
+  readonly #workflowInputs?: JsonObject;
 
-  constructor(referencedSteps: Iterable<string> = []) {
+  constructor(referencedSteps: Iterable<string> = [], workflowInputs?: JsonObject) {
     this.#referencedSteps = new Set(referencedSteps);
+    this.#workflowInputs =
+      workflowInputs === undefined ? undefined : structuredClone(workflowInputs);
   }
 
   /** Replay joined child outputs in declaration order, independent of completion timing. */
@@ -30,7 +33,7 @@ export class RunContext {
   }
 
   fork(): RunContext {
-    const copy = new RunContext(this.#referencedSteps);
+    const copy = new RunContext(this.#referencedSteps, this.#workflowInputs);
     // Values are private immutable snapshots; input() clones before exposing them.
     for (const [key, value] of this.#steps) copy.#steps.set(key, value);
     for (const [key, value] of this.#outputs) copy.#outputs.set(key, value);
@@ -62,6 +65,13 @@ export class RunContext {
         artifacts: event.results.flatMap((item) => item.artifacts ?? []),
       };
       this.add(event.stepId, output as unknown as JsonObject, output.artifacts);
+    } else if (event.type === "subworkflow.completed") {
+      this.add(event.stepId, {
+        type: "subworkflow",
+        outcome: event.success ? "success" : "failure",
+        ...(event.outputs ? { outputs: event.outputs } : {}),
+        ...(event.error ? { error: event.error as unknown as JsonObject } : {}),
+      });
     } else if (event.type === "router.selected") {
       this.add(event.stepId, {
         type: "router",
@@ -122,6 +132,7 @@ export class RunContext {
         steps: Object.fromEntries(this.#steps),
         omittedSteps: this.#omittedSteps,
         omittedArtifacts: this.#omittedArtifacts,
+        ...(this.#workflowInputs !== undefined ? { workflowInputs: this.#workflowInputs } : {}),
         ...(references
           ? { inputs: resolveStepInputs(references, (id) => this.#outputs.get(id)) }
           : {}),

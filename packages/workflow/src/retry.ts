@@ -9,15 +9,20 @@ export function withRetryDefaults(
   if (!Number.isSafeInteger(defaultMax) || defaultMax < 0)
     throw new Error("Default repair limit must be a non-negative safe integer.");
   const copy = parseWorkflow(workflow);
-  for (const step of Object.values(copy.steps)) {
-    if (
-      step.type === "agent" ||
-      step.type === "command" ||
-      step.type === "parallel" ||
-      step.type === "router"
-    )
-      step.retry ??= { max: defaultMax };
-  }
+  const visit = (definition: WorkflowDefinition) => {
+    for (const step of Object.values(definition.steps)) {
+      if (
+        step.type === "agent" ||
+        step.type === "command" ||
+        step.type === "parallel" ||
+        step.type === "router" ||
+        step.type === "subworkflow"
+      )
+        step.retry ??= { max: defaultMax };
+      if (step.workflow) visit(step.workflow);
+    }
+  };
+  visit(copy);
   return copy;
 }
 

@@ -32,6 +32,16 @@ const events: VeyraEvent[] = [
   { ...metadata, type: "step.retrying", retryCount: 1, maxRetries: 3 },
   { ...metadata, type: "step.completed", artifacts: [artifact] },
   { ...metadata, type: "step.failed", message: "Failed", error },
+  {
+    ...metadata,
+    type: "subworkflow.started",
+    workflowName: "child",
+    childStepId: "call/work",
+    inputs: { value: [1, true] },
+  },
+  { ...metadata, type: "subworkflow.completed", success: true, outputs: { result: 2 } },
+  { ...metadata, type: "subworkflow.completed", success: false, error },
+  { ...metadata, type: "subworkflow.paused", childStepId: "call/gate", reason: "human_approval" },
   { ...metadata, type: "router.selected", route: "inspect", target: "done", selection: "static" },
   {
     ...metadata,
@@ -120,6 +130,18 @@ describe("persisted event validation", () => {
 
   it.each([
     { ...metadata, type: "future.unsupported" },
+    {
+      ...metadata,
+      type: "subworkflow.started",
+      workflowName: "child",
+      childStepId: "call/work",
+      inputs: [],
+    },
+    { ...metadata, type: "subworkflow.started", workflowName: "child", inputs: {} },
+    { ...metadata, type: "subworkflow.completed", success: true, error },
+    { ...metadata, type: "subworkflow.completed", success: false, outputs: {} },
+    { ...metadata, type: "subworkflow.completed", success: true, outputs: {}, error },
+    { ...metadata, type: "subworkflow.paused", childStepId: "call/gate" },
     { ...metadata, type: "router.selected", route: "", target: "done", selection: "static" },
     { ...metadata, type: "router.selected", route: "inspect", target: 1, selection: "static" },
     { ...metadata, type: "router.selected", route: "inspect", target: "done", selection: "input" },

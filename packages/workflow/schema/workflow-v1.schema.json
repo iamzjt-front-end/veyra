@@ -41,6 +41,9 @@
           },
           {
             "$ref": "#/definitions/router"
+          },
+          {
+            "$ref": "#/definitions/subworkflow"
           }
         ]
       }
@@ -197,6 +200,26 @@
             "pattern": "^(?:/(?:[^~/]|~[01])*){0,32}(?![\\s\\S])"
           }
         }
+      }
+    },
+    "subworkflow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "anyOf": [
+        { "required": ["use"], "properties": { "use": {} } },
+        { "required": ["workflow"], "properties": { "workflow": {} } }
+      ],
+      "properties": {
+        "type": { "const": "subworkflow" },
+        "use": { "$ref": "#/definitions/text" },
+        "workflow": { "$ref": "#" },
+        "inputs": { "$ref": "#/definitions/inputs" },
+        "outputs": { "$ref": "#/definitions/inputs" },
+        "next": { "$ref": "#/definitions/text" },
+        "on": { "$ref": "#/definitions/on" },
+        "retry": { "$ref": "#/definitions/retry" },
+        "metadata": { "$ref": "#/definitions/metadata" }
       }
     },
     "router": {
