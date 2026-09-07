@@ -34,6 +34,22 @@ The repository uses a complete architecture scaffold even when some modules are 
 10. Planned provider/dashboard directories may remain placeholders until their roadmap milestone; do not remove them as "unused".
 11. The product/brand name is `Veyra`, but the public CLI command is `ve`. Do not reintroduce `veyra` as the executable name. Brand-owned config/state names such as `veyra.yaml` and `.veyra/` remain unchanged unless explicitly redesigned.
 
+## Master implementation plan
+
+`docs/TODO.md` is the canonical detailed execution plan. `docs/ROADMAP.md` is only the milestone summary.
+
+When implementing roadmap work:
+
+1. Read `docs/TODO.md` before coding.
+2. Unless the user explicitly names a different task, take the first unchecked TODO whose dependencies are complete.
+3. Work on **one TODO item at a time** and do not start later items speculatively.
+4. Implement only the minimum supporting changes required for that TODO.
+5. Satisfy its acceptance criteria and tests before marking it complete.
+6. Update the TODO checkbox/status truthfully only after verification passes.
+7. Stop after the requested TODO and report results, blockers, and verification commands.
+
+Do not treat future/deferred TODO items as permission to expand the current task's scope.
+
 ## First implementation target
 
 Build a vertical slice for:
@@ -57,12 +73,16 @@ with a maximum retry count, persisted local state, and an optional human gate.
 
 ## Before completing a task
 
-Run:
+Run the task-specific checks in `docs/TODO.md` plus the repository baseline checks that currently exist.
+
+The intended baseline is:
 
 ```bash
+pnpm lint
+pnpm format:check
 pnpm check
 pnpm test
 pnpm build
 ```
 
-If a command cannot run, report the blocker instead of silently skipping it.
+`lint`/`format:check` become mandatory once M0.2 is implemented. If a command cannot run, report the blocker instead of silently skipping it.

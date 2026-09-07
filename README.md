@@ -101,6 +101,17 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Codex | ✓ | adapter scaffolded |
 | Claude / Claude Code / Gemini / OpenCode | ✓ | planned |
 
+## Implementation plan
+
+Development is intentionally executed one focused task at a time:
+
+- [`docs/TODO.md`](docs/TODO.md) — **canonical detailed implementation TODO**, including task order, dependencies, requirements, tests, and acceptance criteria.
+- [`docs/ROADMAP.md`](docs/ROADMAP.md) — milestone-level summary.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — stable package and responsibility boundaries.
+- [`AGENTS.md`](AGENTS.md) — rules for Codex and other coding agents contributing to the repository.
+
+The current next task is defined at the bottom of `docs/TODO.md`.
+
 ## Development
 
 Requirements:
@@ -117,9 +128,11 @@ pnpm build
 pnpm ve -- doctor
 ```
 
+Formatting/lint scripts are part of the repository baseline TODO and become mandatory once implemented.
+
 ## Current milestone
 
-The next milestone is the **v0.1 vertical slice**:
+The first product milestone is the **v0.1 vertical slice**:
 
 1. load `veyra.yaml`
 2. load a workflow preset
@@ -130,4 +143,4 @@ The next milestone is the **v0.1 vertical slice**:
 7. persist run state
 8. retry or stop at a human approval gate
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Start with [`docs/TODO.md`](docs/TODO.md), then consult [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md).
