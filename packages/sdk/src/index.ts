@@ -9,9 +9,4 @@ export type {
   VeyraEvent,
 } from "@veyra/protocol";
 
-export type {
-  StepOutcome,
-  StepType,
-  WorkflowDefinition,
-  WorkflowStep,
-} from "@veyra/workflow";
+export type { StepOutcome, StepType, WorkflowDefinition, WorkflowStep } from "@veyra/workflow";

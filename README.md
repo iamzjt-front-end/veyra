@@ -85,21 +85,21 @@ Running `ve` without arguments will eventually open the TUI. The Web dashboard i
 
 The **architecture scaffold is intentionally stable** while implementation lands incrementally:
 
-| Area | Scaffold | Current status |
-| --- | --- | --- |
-| CLI | ✓ | scaffolded |
-| TUI | ✓ | scaffolded |
-| Dashboard | ✓ | planned |
-| Core | ✓ | scaffolded |
-| Workflow | ✓ | scaffolded |
-| Runtime | ✓ | scaffolded |
-| Verifier | ✓ | scaffolded |
-| Protocol | ✓ | scaffolded |
-| Config | ✓ | scaffolded |
-| SDK | ✓ | scaffolded |
-| OpenAI | ✓ | adapter scaffolded |
-| Codex | ✓ | adapter scaffolded |
-| Claude / Claude Code / Gemini / OpenCode | ✓ | planned |
+| Area                                     | Scaffold | Current status     |
+| ---------------------------------------- | -------- | ------------------ |
+| CLI                                      | ✓        | scaffolded         |
+| TUI                                      | ✓        | scaffolded         |
+| Dashboard                                | ✓        | planned            |
+| Core                                     | ✓        | scaffolded         |
+| Workflow                                 | ✓        | scaffolded         |
+| Runtime                                  | ✓        | scaffolded         |
+| Verifier                                 | ✓        | scaffolded         |
+| Protocol                                 | ✓        | scaffolded         |
+| Config                                   | ✓        | scaffolded         |
+| SDK                                      | ✓        | scaffolded         |
+| OpenAI                                   | ✓        | adapter scaffolded |
+| Codex                                    | ✓        | adapter scaffolded |
+| Claude / Claude Code / Gemini / OpenCode | ✓        | planned            |
 
 ## Implementation plan
 
@@ -122,6 +122,8 @@ Requirements:
 ```bash
 corepack enable
 pnpm install
+pnpm lint
+pnpm format:check
 pnpm check
 pnpm test
 pnpm build
@@ -130,7 +132,7 @@ pnpm ve -- doctor
 
 If Corepack reports `Cannot find matching keyid`, [update Corepack](https://pnpm.io/10.x/installation#using-corepack) to a release compatible with your Node.js version, then retry. On Node.js 22.22.0, `npm install --global corepack@0.34.7` was verified with the pinned pnpm version.
 
-Formatting/lint scripts are part of the repository baseline TODO and become mandatory once implemented.
+Run `pnpm format` to format the repository. Prettier handles TypeScript, JSON, Markdown, and YAML; Biome supplies the recommended TypeScript/JSON lint rules. Two tools are used because Biome does not yet format Markdown or YAML. Generated build outputs, dependencies, coverage, Turbo cache, and local run state are excluded. TypeScript checking remains a separate `pnpm check` command.
 
 ## Current milestone
 

@@ -1,11 +1,5 @@
 export type StepType =
-  | "agent"
-  | "command"
-  | "human"
-  | "parallel"
-  | "router"
-  | "subworkflow"
-  | "end";
+  "agent" | "command" | "human" | "parallel" | "router" | "subworkflow" | "end";
 
 export interface WorkflowDefinition {
   name: string;
@@ -32,10 +26,7 @@ export interface StepOutcome {
   data?: Record<string, unknown>;
 }
 
-export function resolveNextStep(
-  step: WorkflowStep,
-  outcome: StepOutcome,
-): string | undefined {
+export function resolveNextStep(step: WorkflowStep, outcome: StepOutcome): string | undefined {
   return step.on?.[outcome.status] ?? step.next;
 }
 

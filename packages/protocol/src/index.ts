@@ -1,10 +1,5 @@
 export type AgentRole =
-  | "planner"
-  | "researcher"
-  | "executor"
-  | "reviewer"
-  | "judge"
-  | (string & {});
+  "planner" | "researcher" | "executor" | "reviewer" | "judge" | (string & {});
 
 export interface AgentInput {
   runId: string;

@@ -1,5 +1,10 @@
 import type { AgentAdapter, EventSink } from "@veyra/protocol";
-import { assertWorkflow, resolveNextStep, type StepOutcome, type WorkflowDefinition } from "@veyra/workflow";
+import {
+  assertWorkflow,
+  resolveNextStep,
+  type StepOutcome,
+  type WorkflowDefinition,
+} from "@veyra/workflow";
 
 export interface RunRequest {
   goal: string;
@@ -76,7 +81,9 @@ export class VeyraEngine {
             data: result.data,
           };
         } else {
-          throw new Error(`Step type '${step.type}' is defined but not implemented in v0.1 scaffold.`);
+          throw new Error(
+            `Step type '${step.type}' is defined but not implemented in v0.1 scaffold.`,
+          );
         }
 
         await this.#emit({ type: "step.completed", runId, stepId: currentStepId, at: now() });

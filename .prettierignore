@@ -1,0 +1,7 @@
+**/node_modules/**
+**/dist/**
+**/coverage/**
+**/.turbo/**
+**/.veyra/runs/**
+**/.veyra/state/**
+pnpm-lock.yaml

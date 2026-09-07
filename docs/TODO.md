@@ -94,17 +94,19 @@ Verified in a clean temporary Git worktree with Node.js 22.22.0, Corepack 0.34.7
 
 ## M0.2 — Add formatting and linting
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M0.1
 
 **Primary areas:** root tooling/config
 
 ### Requirements
 
-- [ ] Choose one lightweight formatter/linter setup for TypeScript/JSON/Markdown; prefer a single tool where practical.
-- [ ] Add root scripts: `lint`, `format`, `format:check`.
-- [ ] Do not replace TypeScript type-checking with linting; both remain separate.
-- [ ] Ignore generated directories (`dist`, `coverage`, `.turbo`, `.veyra/runs`, etc.).
-- [ ] Format the existing repository once.
+- [x] Choose one lightweight formatter/linter setup for TypeScript/JSON/Markdown; prefer a single tool where practical.
+- [x] Add root scripts: `lint`, `format`, `format:check`.
+- [x] Do not replace TypeScript type-checking with linting; both remain separate.
+- [x] Ignore generated directories (`dist`, `coverage`, `.turbo`, `.veyra/runs`, etc.).
+- [x] Format the existing repository once.
 
 ### Acceptance criteria
 
@@ -115,6 +117,8 @@ pnpm check
 ```
 
 All pass with no manual cleanup required.
+
+Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, and `pnpm build`. Biome 2.5.12 supplies lint rules; Prettier 3.9.6 supplies formatting including Markdown/YAML. Temporary negative probes confirmed unused code and unformatted TypeScript/JSON/Markdown fail, while generated directories are ignored by both tools. All probe files were removed.
 
 ---
 
@@ -911,15 +915,19 @@ Goal: turn the initial fixed loop into a general, declarative agent workflow eng
 ## M3.9 — Harden built-in presets
 
 ### `dev.yaml`
+
 - planner → executor → verify → reviewer → fix loop
 
 ### `bugfix.yaml`
+
 - reproduce/diagnose → fix → targeted verify → broader verify → review
 
 ### `review.yaml`
+
 - inspect/diff → deterministic checks → one or more reviewers → report; no mutation by default
 
 ### `research.yaml`
+
 - research/planning agents → synthesis/judge → human output; execution tools optional
 
 For each preset:
@@ -1458,4 +1466,4 @@ When finished:
 
 ## Next task
 
-**Start with M0.2 — Add formatting and linting.**
+**Start with M0.3 — Add CI for pull requests and main.**
