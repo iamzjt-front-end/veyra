@@ -106,6 +106,20 @@ steps:
 
 Loading validates data and does not run commands, call agents, or resolve approvals. Repair-loop cycles are intentionally accepted, including the loop in [`dev.yaml`](../workflows/dev.yaml). Core enforces the retry policy below; richer workflow policies remain planned.
 
+### Branch behavior and graph diagnostics
+
+The current presets and explicit agent outcomes are covered by exact `on` branches plus an optional `next` fallback; no richer condition language is required for these workflows. Conditions stay declarative and deterministic. Core applies execution-status rules before scheduling the selected destination:
+
+| Result                                     | Core behavior                                                                                                                                                               |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Successful agent with a matching outcome   | Uses that exact `on` target before `next`.                                                                                                                                  |
+| Successful agent with an unmatched outcome | Uses `next` if configured; a non-empty `on` map without a matching/default path fails with `unhandled_outcome`.                                                             |
+| Provider `failure` or reviewer `fail`      | Requires an explicit matching failure branch; `next` cannot silently convert failure into success. A provider failure cannot override its status with an outcome of `pass`. |
+| Agent `needs_input`                        | Pauses before any branch executes.                                                                                                                                          |
+| Human decision                             | Uses the explicit Core approval API; rejected decisions require an explicit rejected branch and never fall through to an approved action.                                   |
+
+`analyzeWorkflow(definition)` first runs the same strict parser and checks every destination, including destinations inside unreachable branches. It returns `reachableSteps` and `unreachableSteps` in definition order. Reachability follows all possible `on` targets and `next` edges from `start`, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors, because a definition can intentionally retain unused steps. Execution safety still comes from Core's bounded retry policy.
+
 ## v0.1 retry policy
 
 Each executable step (`agent` or `command`) has an independent repair budget. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits in the saved run snapshot. Resume uses that snapshot even if the current config changes.

@@ -49,3 +49,4 @@ export { loadWorkflow } from "./loader.js";
 export { parseWorkflow, WorkflowError } from "./parser.js";
 export { withRetryDefaults, nextRetry, type RetryDecision } from "./retry.js";
 export { resolveStepInputs, InputResolutionError, MAX_RESOLVED_INPUT_BYTES } from "./inputs.js";
+export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";

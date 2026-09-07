@@ -934,10 +934,14 @@ Verified named RFC 6901 references preserve JSON types, select bounded fields fr
 
 ## M3.3 — Conditional branching
 
-- [ ] richer outcome conditions beyond simple `on` string lookup if required
-- [ ] deterministic branch resolution
-- [ ] validation for unreachable/missing paths where feasible
-- [ ] tests for branch combinations
+**Status:** [x] Complete and verified.
+
+- [x] richer outcome conditions beyond simple `on` string lookup if required
+- [x] deterministic branch resolution
+- [x] validation for unreachable/missing paths where feasible
+- [x] tests for branch combinations
+
+The existing exact `on` outcome branches and `next` fallback cover current workflow requirements; no richer condition language was needed. Added `analyzeWorkflow` for deterministic reachability diagnostics and validation of every destination, including unreachable branches. Three graph-analysis tests cover branch/fallback edges, cycles, prototype-shaped IDs and invalid dead branches. Five Core integration cases create a marker for exactly the selected branch and verify persisted status, failure-status precedence and needs-input pausing. All five baseline commands passed (453 tests). See `docs/WORKFLOWS.md`.
 
 ---
 
@@ -1548,4 +1552,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.3 — Conditional branching.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.4 — Parallel steps.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
