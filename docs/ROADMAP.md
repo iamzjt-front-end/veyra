@@ -62,7 +62,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Consensus/judge nodes
 - [x] Execution policies/loop safety
 - [x] Workflow preset hardening
-- [ ] User-defined workflow UX
+- [x] User-defined workflow UX
 
 ## v0.4 — Provider ecosystem
 

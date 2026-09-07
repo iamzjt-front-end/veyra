@@ -1052,17 +1052,21 @@ Verified all five repository baseline commands (752 tests). Eleven Core preset t
 
 ## M3.10 — User-defined workflow UX
 
-- [ ] `ve run --workflow path/to/workflow.yaml`
-- [ ] workflow validation command, e.g. `ve workflow validate ...`
-- [ ] list built-in workflows
-- [ ] explain missing required agents/providers before execution
-- [ ] examples for simple, branching, parallel, and approval workflows
+**Status:** [x] Complete and verified.
+
+- [x] `ve run --workflow path/to/workflow.yaml`
+- [x] workflow validation command, e.g. `ve workflow validate ...`
+- [x] list built-in workflows
+- [x] explain missing required agents/providers before execution
+- [x] examples for simple, branching, parallel, and approval workflows
+
+Verified all five baseline commands (769 tests), plus `pnpm ve -- workflow list --json` and `pnpm ve -- workflow validate examples/workflows/v1/parallel.yaml --json` through the repository entry point. Sixteen CLI tests cover read-only validation without ambient config/provider/state work, combined missing nested bindings/unsupported providers, preflight before any adapter constructor, unreachable-node warnings, file overrides relative to an explicit config, malformed definitions, bounded cycle execution and argument/help behavior. A Workflow registry test confirms every listed built-in loads and callers cannot mutate the registry. The example gallery links the complete simple, branching, parallel, approval, router, child, consensus and policy definitions with execution prerequisites. Configuration validation checks bindings/provider support only; credentials/readiness remain doctor checks. User workflows are loaded, snapshotted and executed by the shared Workflow/Core model, with the already-tested persisted transition, group, scope, judge and approval semantics.
 
 ### v0.3 exit criteria
 
-- [ ] users can author workflows without changing TypeScript
-- [ ] sequential/branching/parallel/subworkflow/judge concepts are persisted and resumable
-- [ ] malformed/cyclic workflows cannot create uncontrolled execution
+- [x] users can author workflows without changing TypeScript
+- [x] sequential/branching/parallel/subworkflow/judge concepts are persisted and resumable
+- [x] malformed/cyclic workflows cannot create uncontrolled execution
 
 ---
 
@@ -1576,4 +1580,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.10 — User-defined workflow UX.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M4.1 — Provider capability model.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

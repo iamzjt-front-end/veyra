@@ -3,6 +3,7 @@
 `@veyra/workflow` owns YAML loading and graph validation. Core receives a `WorkflowDefinition` and does not parse YAML or import the config parser.
 
 - `loadWorkflow(reference, cwd?)` loads `dev`, `bugfix`, `review`, or `research` from the repository's built-in presets, independently of the project working directory. Other references are absolute paths or paths resolved relative to `cwd` (the current directory by default). Pass the config directory when resolving `workflow.use`.
+- `listBuiltinWorkflows()` returns an independent list of the preset names accepted by that loader. The CLI exposes this through `ve workflow list`; `ve workflow validate <name/path>` offers read-only DSL/graph validation and optional configuration binding checks.
 - `parseWorkflow(value)` validates in-memory data and returns an independent definition, including inline child definitions. It performs no file loading. `buildWorkflowGraph(definition)` requires resolved children and returns namespaced steps plus scope information for execution and state validation.
 - `assertWorkflow(definition)` checks the same schema and destinations for callers that already have a typed definition.
 - `WorkflowError` identifies the field and, when loading a file, its absolute path. YAML errors include a parser code and line/column without echoing source values.

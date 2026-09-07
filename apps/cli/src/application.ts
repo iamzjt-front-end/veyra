@@ -8,6 +8,7 @@ import { loadWorkflow } from "@veyra/workflow";
 import { argumentsFor, CliError, help } from "./arguments.js";
 import { inspectEnvironment } from "./doctor.js";
 import { initialize } from "./init.js";
+import { listWorkflows, validateWorkflow } from "./workflows.js";
 import { adaptersFor, type AgentFactory, createAgent, redact, secretValues } from "./providers.js";
 
 export interface CliServices {
@@ -47,6 +48,44 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     }
     const configPath = resolve(cwd, values.config ?? "veyra.yaml");
     const root = dirname(configPath);
+    if (command === "workflow") {
+      if (positionals[0] === "list") {
+        const result = await listWorkflows();
+        write(
+          result,
+          result.workflows
+            .map(
+              (workflow) =>
+                `${workflow.reference}: ${workflow.name} — agents: ${workflow.requiredAgents.join(", ") || "none"}`,
+            )
+            .join("\n"),
+        );
+        return 0;
+      }
+      const config = values.config !== undefined ? await loadConfig(configPath) : undefined;
+      if (config) secrets = secretValues(env, config);
+      const result = await validateWorkflow(
+        positionals[1] as string,
+        config ? root : cwd,
+        config,
+        services.createAgent !== undefined && services.createAgent !== createAgent,
+      );
+      write(
+        result,
+        [
+          `${result.valid ? "Valid" : "Invalid"} workflow: ${result.workflow.name} (version ${result.workflow.version}, ${result.workflow.stepCount} steps)`,
+          `Required agents: ${result.workflow.requiredAgents.join(", ") || "none"}`,
+          ...(result.configurationChecked
+            ? []
+            : [
+                "Agent configuration not checked; pass --config <file> to check bindings and installed provider support.",
+              ]),
+          ...result.diagnostics.map((item) => item.message),
+          ...result.warnings.map((item) => item.message),
+        ].join("\n"),
+      );
+      return result.valid ? 0 : 2;
+    }
     if (command === "init") {
       const result = await initialize(configPath, values);
       write(

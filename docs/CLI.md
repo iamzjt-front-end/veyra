@@ -2,6 +2,22 @@
 
 The public executable is `ve`. In this checkout, build the workspace and use `pnpm ve -- <command>` from the repository root. For another project, pass `--config /absolute/project/veyra.yaml`; paths and execution resolve relative to that config's directory. Public package installation is a later milestone.
 
+## Inspect workflows before running
+
+```bash
+pnpm ve -- workflow list
+pnpm ve -- workflow validate examples/workflows/v1/parallel.yaml
+pnpm ve -- workflow validate dev --config /absolute/project/veyra.yaml --json
+```
+
+`workflow list` reads the four built-in definitions and lists their names and required agents without loading project configuration. `workflow validate <preset-or-file>` resolves nested workflows and checks the strict DSL and graph before reporting the effective start, step count, required bindings and unreachable-step warnings. It does not execute shell commands, construct adapters, contact providers, resolve approvals or create run state. Intentional cycles are valid; their execution remains subject to saved retry and lifetime limits.
+
+Without `--config`, file paths resolve relative to the current directory and even an existing `veyra.yaml` is left unread. The output explicitly says agent configuration was not checked. With `--config`, the workflow path resolves relative to that configuration file and all missing reachable agent bindings and unsupported providers are reported together, including namespaced child step IDs. This checks bindings and currently implemented CLI provider names, not credential validity, model access, external service availability or project command behavior; use `ve doctor` for environment/readiness checks. Graph and configuration errors return exit code 2. Unreachable nodes produce warnings and do not require adapters; all potentially reachable branches and group children do.
+
+`--json` returns a `workflow.list` or `workflow.validation` object. Binding errors set `valid: false` with `diagnostics`; loader/argument errors use the standard `error` object. The same binding preflight runs before `run` constructs any adapter or creates state, and before adapter construction on resume. Programmatically injected adapter factories own support for their custom providers; validation never invokes those factories.
+
+See the [workflow example gallery](../examples/workflows/README.md) for complete simple, branching, parallel, approval, subworkflow, judge and policy definitions. Select a file for execution with `ve run "goal" --workflow <path> --config <file>`. The CLI delegates execution and resume to the shared Core model.
+
 ## Initialize and run
 
 ```bash

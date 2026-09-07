@@ -8,6 +8,11 @@ import { buildWorkflowGraph } from "./graph.js";
 
 const presets = new Set(["dev", "bugfix", "review", "research"]);
 
+/** Return an independent copy of the built-in names accepted by loadWorkflow. */
+export function listBuiltinWorkflows(): string[] {
+  return [...presets];
+}
+
 /** Resolve built-in names independently of cwd; other references are paths relative to cwd. */
 export async function loadWorkflow(
   reference: string,

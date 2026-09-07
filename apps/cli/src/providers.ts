@@ -2,7 +2,7 @@ import type { AgentConfig, VeyraConfig } from "@veyra/config";
 import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
 import { OpenAIAdapter, type OpenAIAdapterOptions } from "@veyra/openai";
 import type { AgentAdapter } from "@veyra/protocol";
-import { buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
+import { analyzeWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { CliError } from "./arguments.js";
 
 export type AgentFactory = (name: string, config: AgentConfig) => AgentAdapter;
@@ -19,13 +19,54 @@ export const createAgent: AgentFactory = (name, config) => {
 };
 
 export function requiredAgents(workflow: WorkflowDefinition): string[] {
-  return [
-    ...new Set(
-      Object.values(buildWorkflowGraph(workflow).steps).flatMap((step) =>
-        step.type === "agent" && step.agent ? [step.agent] : [],
-      ),
-    ),
-  ];
+  return [...agentReferences(workflow).keys()];
+}
+
+function agentReferences(workflow: WorkflowDefinition): Map<string, string[]> {
+  const graph = buildWorkflowGraph(workflow);
+  const references = new Map<string, string[]>();
+  for (const id of analyzeWorkflow(workflow).reachableSteps) {
+    const step = graph.steps[id];
+    if (step?.type !== "agent" || !step.agent) continue;
+    references.set(step.agent, [...(references.get(step.agent) ?? []), id]);
+  }
+  return references;
+}
+
+export interface AgentDiagnostic {
+  code: "missing_agent_config" | "unsupported_provider";
+  agent: string;
+  steps: string[];
+  provider?: string;
+  message: string;
+}
+
+/** Inspect bindings only; no adapter construction, credential lookup or provider calls. */
+export function agentDiagnostics(
+  config: VeyraConfig,
+  workflow: WorkflowDefinition,
+  customFactory = false,
+): AgentDiagnostic[] {
+  const diagnostics: AgentDiagnostic[] = [];
+  for (const [name, steps] of agentReferences(workflow)) {
+    const agent = Object.hasOwn(config.agents, name) ? config.agents[name] : undefined;
+    if (!agent)
+      diagnostics.push({
+        code: "missing_agent_config",
+        agent: name,
+        steps,
+        message: `Workflow agent '${name}' used by ${steps.join(", ")} has no entry in config.agents.`,
+      });
+    else if (!customFactory && !["openai", "codex"].includes(agent.provider))
+      diagnostics.push({
+        code: "unsupported_provider",
+        agent: name,
+        steps,
+        provider: agent.provider,
+        message: `Provider '${agent.provider}' for agent '${name}' is not implemented; supported providers are openai and codex.`,
+      });
+  }
+  return diagnostics;
 }
 
 export function adaptersFor(
@@ -33,15 +74,13 @@ export function adaptersFor(
   workflow: WorkflowDefinition,
   factory: AgentFactory,
 ): Record<string, AgentAdapter> {
+  const diagnostics = agentDiagnostics(config, workflow, factory !== createAgent);
+  if (diagnostics[0])
+    throw new CliError(diagnostics[0].code, diagnostics.map((item) => item.message).join("\n"));
   return Object.fromEntries(
     requiredAgents(workflow).map((name) => {
       const agent = Object.hasOwn(config.agents, name) ? config.agents[name] : undefined;
-      if (!agent)
-        throw new CliError(
-          "missing_agent_config",
-          `Workflow agent '${name}' has no entry in config.agents.`,
-        );
-      return [name, factory(name, agent)];
+      return [name, factory(name, agent as AgentConfig)];
     }),
   );
 }

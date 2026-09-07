@@ -32,6 +32,7 @@ const allowed: Record<string, string[]> = {
     "non-interactive",
   ],
   doctor: ["config", "workflow"],
+  workflow: ["config"],
   help: [],
   version: [],
 };
@@ -60,14 +61,34 @@ export function argumentsFor(argv: string[]) {
     if (!["json", "help", "version", ...(allowed[command] ?? [])].includes(key))
       throw new CliError("invalid_option", `--${key} is not valid for ve ${command}.`);
   }
-  const positionals = parsed.positionals.slice(1);
+  const positionals =
+    parsed.values.help || parsed.values.version ? [] : parsed.positionals.slice(1);
   if (command === "run" && !positionals.join(" ").trim())
     throw new CliError("missing_goal", 'Provide a goal: ve run "repair the failing test".');
   if (
     command !== "run" &&
+    command !== "workflow" &&
     positionals.length > (["status", "review", "resume"].includes(command) ? 1 : 0)
   )
     throw new CliError("unexpected_argument", `Unexpected argument for ve ${command}.`);
+  if (command === "workflow") {
+    const [action, reference] = positionals;
+    if (action !== "list" && action !== "validate")
+      throw new CliError(
+        "invalid_workflow_command",
+        "Use ve workflow list or ve workflow validate <name/path>.",
+      );
+    if (action === "list" && (positionals.length !== 1 || parsed.values.config !== undefined))
+      throw new CliError(
+        "unexpected_argument",
+        "ve workflow list accepts only --json; it does not load project configuration.",
+      );
+    if (action === "validate" && (positionals.length !== 2 || !reference?.trim()))
+      throw new CliError(
+        "missing_workflow_reference",
+        "Supply a workflow: ve workflow validate <name/path> [--config <file>].",
+      );
+  }
   if (parsed.values["run-id"] && positionals.length)
     throw new CliError(
       "duplicate_run_id",
@@ -98,6 +119,8 @@ Commands:
   review [id] inspect saved review and verification evidence
   resume [id] continue a paused run
   doctor      inspect environment and required provider readiness
+  workflow list          list built-in workflows and required agents
+  workflow validate <name/path>  validate a workflow without executing it
   version     print version
   help        show this help
 

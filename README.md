@@ -77,6 +77,8 @@ ve run "finish the current milestone"
 ve status
 ve review
 ve resume
+ve workflow list
+ve workflow validate dev
 ```
 
 In this checkout use `pnpm ve -- <command>` after building. The commands above work; see the [CLI reference](docs/CLI.md) for provider setup, flags, exit codes, and approval handling. Running `ve` without arguments will eventually open the TUI. The Web dashboard is a later management surface built on the same core event stream.

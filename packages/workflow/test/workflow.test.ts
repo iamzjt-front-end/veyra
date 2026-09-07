@@ -8,6 +8,7 @@ import {
   assertWorkflow,
   analyzeWorkflow,
   loadWorkflow,
+  listBuiltinWorkflows,
   parseWorkflow,
   resolveNextStep,
   WorkflowError,
@@ -141,6 +142,13 @@ describe("resolveNextStep", () => {
 });
 
 describe("loadWorkflow", () => {
+  it("exposes independent built-in names that all resolve through the loader", async () => {
+    const names = listBuiltinWorkflows();
+    expect(names).toEqual(["dev", "bugfix", "review", "research"]);
+    await Promise.all(names.map((name) => loadWorkflow(name)));
+    names.pop();
+    expect(listBuiltinWorkflows()).toHaveLength(4);
+  });
   it.each(["dev", "bugfix", "review", "research"])(
     "keeps the %s preset's declared capabilities, reachable steps and bounds",
     async (preset) => {
