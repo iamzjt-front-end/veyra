@@ -26,7 +26,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Provider/dashboard placeholders
 - [x] YAML config loader
 - [x] Workflow loader/validator
-- [ ] Hardened protocol contracts
+- [x] Hardened protocol contracts
 - [ ] Persistent local run state
 - [ ] Working OpenAI planner/reviewer adapter
 - [ ] Working Codex CLI executor adapter

@@ -94,7 +94,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Workflow                                 | ✓        | YAML loader and validation |
 | Runtime                                  | ✓        | scaffolded                 |
 | Verifier                                 | ✓        | scaffolded                 |
-| Protocol                                 | ✓        | scaffolded                 |
+| Protocol                                 | ✓        | contracts and JSON guard   |
 | Config                                   | ✓        | YAML loader and validation |
 | SDK                                      | ✓        | scaffolded                 |
 | OpenAI                                   | ✓        | adapter scaffolded         |
@@ -143,6 +143,8 @@ See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/i
 The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader; workflow execution and provider connections remain planned.
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.
+
+The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event contracts and the boundary between persisted data and execution controls.
 
 ## Current milestone
 

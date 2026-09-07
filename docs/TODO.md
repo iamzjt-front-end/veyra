@@ -305,28 +305,32 @@ Verified 53 workflow tests covering all four built-in presets, user paths, graph
 
 ## M1.3 — Harden provider-neutral protocol contracts
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.1, M1.2
 
 **Primary area:** `packages/protocol`
 
 ### Requirements
 
-- [ ] Review `AgentInput`, `AgentResult`, `ArtifactRef`, `VerificationResult`, `VeyraEvent` for the vertical slice.
-- [ ] Add run/step metadata needed for resumability and traceability without provider fields leaking into common contracts.
-- [ ] Add structured usage metadata support (tokens/cost fields optional and provider-neutral).
-- [ ] Add event types needed by real execution:
+- [x] Review `AgentInput`, `AgentResult`, `ArtifactRef`, `VerificationResult`, `VeyraEvent` for the vertical slice.
+- [x] Add run/step metadata needed for resumability and traceability without provider fields leaking into common contracts.
+- [x] Add structured usage metadata support (tokens/cost fields optional and provider-neutral).
+- [x] Add event types needed by real execution:
   - agent started/completed/failed
   - verification started/completed
   - run paused/resumed
   - approval required/resolved
   - process/log output reference if needed
-- [ ] Prefer serializable types; state/events must be JSON-compatible.
-- [ ] Define a stable error representation for persisted failures.
-- [ ] Avoid giant free-form provider payloads in persisted core state; provider-specific diagnostics may go under optional metadata/artifacts.
+- [x] Prefer serializable types; state/events must be JSON-compatible.
+- [x] Define a stable error representation for persisted failures.
+- [x] Avoid giant free-form provider payloads in persisted core state; provider-specific diagnostics may go under optional metadata/artifacts.
 
 ### Acceptance criteria
 
 Mock OpenAI, Codex, Verifier, Core, CLI, and future TUI can communicate using these contracts without importing one another.
+
+Verified 26 protocol tests covering provider-neutral adapters, normalized results, lifecycle events, JSON round trips, and rejection of non-JSON data. Compile-time negative checks reject functions, native errors, and persisted abort signals. All existing consumers compile; `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (135 tests), and `pnpm build` passed. Public contracts and serialization responsibilities are documented in `docs/PROTOCOL.md` and re-exported through the SDK.
 
 ---
 
@@ -1488,4 +1492,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.3 — Harden provider-neutral protocol contracts.**
+**Start with M1.4 — Implement local process runtime.**
