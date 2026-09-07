@@ -30,7 +30,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [ ] Persistent local run state
 - [ ] Working OpenAI planner/reviewer adapter
 - [ ] Working Codex CLI executor adapter
-- [ ] Local process runtime
+- [x] Local process runtime
 - [ ] Shell verifier implementation
 - [ ] Core orchestration loop
 - [ ] Reviewer/fix loop

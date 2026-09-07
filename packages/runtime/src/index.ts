@@ -1,17 +1,29 @@
-import type { AgentAdapter, AgentInput, AgentResult } from "@veyra/protocol";
+import type { AgentAdapter, AgentInput, AgentResult, AgentRunOptions } from "@veyra/protocol";
 
 export interface AgentRuntime {
-  runAgent(adapter: AgentAdapter, input: AgentInput): Promise<AgentResult>;
+  runAgent(
+    adapter: AgentAdapter,
+    input: AgentInput,
+    options?: AgentRunOptions,
+  ): Promise<AgentResult>;
 }
 
-/**
- * Minimal runtime boundary for v0.1.
- *
- * Process spawning, cancellation, timeout handling, stream forwarding, and
- * working-directory isolation will be implemented here rather than in core.
- */
+/** Adapters receive ephemeral controls and use the appropriate process or API lifecycle. */
 export class LocalAgentRuntime implements AgentRuntime {
-  async runAgent(adapter: AgentAdapter, input: AgentInput): Promise<AgentResult> {
-    return adapter.run(input);
+  async runAgent(
+    adapter: AgentAdapter,
+    input: AgentInput,
+    options?: AgentRunOptions,
+  ): Promise<AgentResult> {
+    return adapter.run(input, options);
   }
 }
+
+export {
+  DEFAULT_MAX_OUTPUT_BYTES,
+  ProcessExecutionError,
+  type ProcessRequest,
+  type ProcessResult,
+  type ProcessRunner,
+  runProcess,
+} from "./process.js";

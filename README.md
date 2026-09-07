@@ -92,7 +92,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Dashboard                                | ✓        | planned                    |
 | Core                                     | ✓        | scaffolded                 |
 | Workflow                                 | ✓        | YAML loader and validation |
-| Runtime                                  | ✓        | scaffolded                 |
+| Runtime                                  | ✓        | local process execution    |
 | Verifier                                 | ✓        | scaffolded                 |
 | Protocol                                 | ✓        | contracts and JSON guard   |
 | Config                                   | ✓        | YAML loader and validation |
@@ -145,6 +145,8 @@ The [configuration reference](docs/CONFIGURATION.md) documents the implemented v
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.
 
 The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event contracts and the boundary between persisted data and execution controls.
+
+The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior.
 
 ## Current milestone
 

@@ -336,22 +336,24 @@ Verified 26 protocol tests covering provider-neutral adapters, normalized result
 
 ## M1.4 — Implement local process runtime
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.3
 
 **Primary area:** `packages/runtime`
 
 ### Requirements
 
-- [ ] Implement a reusable local process runner.
-- [ ] Input must support executable, argv array, cwd, environment overrides, timeout, abort signal.
-- [ ] Do not construct shell strings when argv execution is sufficient.
-- [ ] Capture exit code, signal, stdout, stderr, duration.
-- [ ] Support streaming stdout/stderr callbacks/events while still retaining final output.
-- [ ] Handle executable-not-found with a clear typed error.
-- [ ] Handle timeout and cancellation cleanly.
-- [ ] Ensure child processes do not remain orphaned after cancellation where platform APIs permit.
-- [ ] Add a maximum retained-output strategy or documented limit to avoid unbounded memory for long agent sessions.
-- [ ] Do not add provider-specific behavior here.
+- [x] Implement a reusable local process runner.
+- [x] Input must support executable, argv array, cwd, environment overrides, timeout, abort signal.
+- [x] Do not construct shell strings when argv execution is sufficient.
+- [x] Capture exit code, signal, stdout, stderr, duration.
+- [x] Support streaming stdout/stderr callbacks/events while still retaining final output.
+- [x] Handle executable-not-found with a clear typed error.
+- [x] Handle timeout and cancellation cleanly.
+- [x] Ensure child processes do not remain orphaned after cancellation where platform APIs permit.
+- [x] Add a maximum retained-output strategy or documented limit to avoid unbounded memory for long agent sessions.
+- [x] Do not add provider-specific behavior here.
 
 ### Tests
 
@@ -367,6 +369,8 @@ Verified 26 protocol tests covering provider-neutral adapters, normalized result
 ### Acceptance criteria
 
 `packages/runtime` can execute a generic local command safely enough for Codex and verifier adapters to build on.
+
+Verified 20 runtime tests with real generic Node processes: arguments, cwd/environment, both streams, UTF-8 boundaries, bounded retention, nonzero exits, missing executable, invalid limits, timeout/cancel, callback failure cleanup, and POSIX descendant termination after the leader exits. All five baseline commands passed (155 tests). `docs/RUNTIME.md` documents the 1 MiB per-stream default and platform behavior: POSIX process groups are terminated; Windows currently terminates only the direct child.
 
 ---
 
@@ -1492,4 +1496,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.4 — Implement local process runtime.**
+**Start with M1.5 — Implement deterministic shell verifier.**
