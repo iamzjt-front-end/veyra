@@ -84,6 +84,35 @@ function agentResult(value: unknown): boolean {
   );
 }
 
+function agentInput(value: unknown, event: RecordValue): boolean {
+  return (
+    record(value) &&
+    execution(value) &&
+    value.runId === event.runId &&
+    value.stepId === event.stepId &&
+    value.attemptId === event.attemptId &&
+    value.attempt === event.attempt &&
+    string(value.role) &&
+    string(value.goal) &&
+    optional(value.instructions, string) &&
+    optional(value.context, record) &&
+    optional(value.artifacts, (items) => array(items, artifact)) &&
+    Object.keys(value).every((key) =>
+      [
+        "runId",
+        "stepId",
+        "attemptId",
+        "attempt",
+        "role",
+        "goal",
+        "instructions",
+        "context",
+        "artifacts",
+      ].includes(key),
+    )
+  );
+}
+
 function verification(value: unknown): boolean {
   return (
     record(value) &&
@@ -140,6 +169,7 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
     case "step.failed":
       return string(value.message) && optional(value.error, error);
     case "agent.started":
+    case "agent.input":
     case "agent.completed":
     case "agent.failed":
       return (
@@ -147,7 +177,11 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
         optional(value.provider, string) &&
         optional(value.role, string) &&
         (value.type === "agent.started" ||
-          (value.type === "agent.completed" ? agentResult(value.result) : error(value.error)))
+          (value.type === "agent.input"
+            ? agentInput(value.input, value)
+            : value.type === "agent.completed"
+              ? agentResult(value.result)
+              : error(value.error)))
       );
     case "verification.started":
       return array(value.commands, string);

@@ -1,5 +1,7 @@
 # Core orchestration
 
+Named workflow `inputs` select typed values from previous persisted outputs for agents and human gates. Core resolves and redacts each agent envelope, saves `agent.input`, then invokes the adapter with that saved input. See [workflow input semantics](WORKFLOWS.md#named-inputs-and-step-outputs) for limits, artifact references and resume behavior.
+
 `VeyraEngine` coordinates a validated workflow, injected adapters, the agent runtime, deterministic verifier, and local run store. It does not load YAML, construct vendor clients, or spawn provider processes.
 
 ```ts

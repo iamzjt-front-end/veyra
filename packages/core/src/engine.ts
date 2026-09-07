@@ -15,6 +15,7 @@ import { type AgentRuntime, LocalAgentRuntime } from "@veyra/runtime";
 import { ShellVerifier, type VerificationReport, type Verifier } from "@veyra/verifier";
 import {
   nextRetry,
+  InputResolutionError,
   resolveNextStep,
   withRetryDefaults,
   type WorkflowDefinition,
@@ -215,7 +216,11 @@ export class VeyraEngine {
     // Execute the validated, redacted snapshot that a later reader will see.
     const goal = run.input.goal;
     const steps = run.input.workflow.steps;
-    const context = new RunContext();
+    const context = new RunContext(
+      Object.values(steps).flatMap((step) =>
+        Object.values(step.inputs ?? {}).map((input) => input.from),
+      ),
+    );
     const attempts = new Map<string, number>();
     for (const event of history) {
       context.addEvent(event);
@@ -344,7 +349,7 @@ export class VeyraEngine {
             ...active,
             message: step.message ?? "Human approval required.",
             approvalId: randomUUID(),
-            context: context.input().context,
+            context: context.input(step.inputs).context,
             at: now(),
           });
           return await pause("human_approval");
@@ -366,20 +371,30 @@ export class VeyraEngine {
             provider: adapter.provider,
             role: key,
           };
+          const input = {
+            ...active,
+            role: key,
+            goal,
+            instructions: `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, and any explicitly selected values in context.inputs. Preserve project instructions.`,
+            ...context.input(step.inputs),
+          };
+          if (Buffer.byteLength(JSON.stringify(input)) > 256 * 1024)
+            throw new ExecutionError(
+              "input_too_large",
+              "Resolved agent input exceeds 256 KiB; reduce the goal/context or use artifact references.",
+            );
+          const savedInput = await record({ type: "agent.input", ...metadata, input, at: now() });
+          if (savedInput.type !== "agent.input")
+            throw new ExecutionError("invalid_event", "Stored agent input event type changed.");
+          if (Buffer.byteLength(JSON.stringify(savedInput.input)) > 256 * 1024)
+            throw new ExecutionError(
+              "input_too_large",
+              "Redacted agent input exceeds 256 KiB; reduce the goal/context or use artifact references.",
+            );
           await record({ type: "agent.started", ...metadata, at: now() });
           let result: AgentResult;
           try {
-            result = await this.#runtime.runAgent(
-              adapter,
-              {
-                ...active,
-                role: key,
-                goal,
-                instructions: `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps. Preserve project instructions.`,
-                ...context.input(),
-              },
-              { ...controls },
-            );
+            result = await this.#runtime.runAgent(adapter, savedInput.input, { ...controls });
           } catch (error) {
             const detail =
               error instanceof Error
@@ -507,7 +522,7 @@ export class VeyraEngine {
       // A broken store cannot truthfully claim a persisted failure; surface it to the caller.
       if (error instanceof StateStoreError) throw error;
       const failure: SerializedError =
-        error instanceof ExecutionError
+        error instanceof ExecutionError || error instanceof InputResolutionError
           ? { code: error.code, message: error.message }
           : {
               code: "run_execution_failed",

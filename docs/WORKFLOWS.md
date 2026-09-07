@@ -20,6 +20,8 @@ Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step I
 
 Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected. `parallel`, `router`, and `subworkflow` remain in the type vocabulary but are explicitly unsupported in v0.1.
 
+Agent and human nodes also support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
+
 ## JSON Schema and compatibility
 
 The editor/tooling schema is [workflow-v1.schema.json](../packages/workflow/schema/workflow-v1.schema.json), also available as the package export `@veyra/workflow/workflow-v1.schema.json`. It uses [JSON Schema draft-07](https://json-schema.org/draft-07/draft-handrews-json-schema-validation-01). Its `urn:veyra:workflow:1` identifier is an identifier, not a hosted download endpoint. Package publishing is separate roadmap work; the file is available in this checkout.
@@ -41,6 +43,43 @@ Workflow `version` is independent of the npm package version. The compatibility 
 - Additive optional fields/node kinds may extend version 1 only when existing documents keep the same meaning and the implementation has tests. Such additions must document the minimum supported Veyra package version. Older strict readers can reject them; authors should pin their tool/package version and matching schema.
 - Configuration and effective workflow data saved with a run remain authoritative on resume. A package upgrade must not silently reinterpret or migrate that snapshot. Compatibility changes require explicit validation/migration support.
 - Reserved node kinds remain rejected until their own implementation tasks pass. Documentation/schema availability alone does not make them executable.
+
+## Named inputs and step outputs
+
+[inputs.yaml](../examples/workflows/v1/inputs.yaml) is a complete provider-free example that presents selected verification fields at a human gate.
+
+The M3.2 implementation in the `0.1.0` development checkout adds explicit, typed data selection to agent and human nodes. Earlier scaffold checkouts do not support `inputs`; use the matching package and schema from this checkout. Existing workflows without `inputs` keep their recent-output context.
+
+```yaml
+execute:
+  type: agent
+  agent: executor
+  inputs:
+    plan:
+      from: plan
+      path: /data/instructions
+    testExitCode:
+      from: verify
+      path: /results/0/exitCode
+```
+
+The source IDs must exist in the workflow, and their outputs must already be available when this node executes. These selected values arrive as `AgentInput.context.inputs.plan` and `.testExitCode`, or `approval.required.context.inputs` for a human gate. Core uses the latest persisted output for each referenced step, including updated attempts after a repair. Resume reconstructs these values from the saved events and workflow. There is no implicit fallback to a missing field or unexecuted branch; the dependent step fails with `input_unavailable` before an agent or gate executes.
+
+The provider-neutral `StepOutput` contract defines selectable fields:
+
+| Source event / step      | Output fields                                                                                                               |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `agent.completed`        | `type: agent`, `outcome`, `summary`, optional `data` and `artifacts`. A normalized provider failure uses outcome `failure`. |
+| `verification.completed` | `type: command`, `outcome: success/failure`, `results` and artifact references.                                             |
+| `approval.resolved`      | `type: human`, `outcome: approved/rejected`, optional `comment`.                                                            |
+
+`path` is an [RFC 6901 JSON Pointer](https://www.rfc-editor.org/info/rfc6901/): empty selects the whole normalized output; `/data/instructions` selects a property; `/results/0/exitCode` selects an array element. Escape a property-name `/` as `~1` and `~` as `~0`. Only own JSON properties and existing canonical array indices are read. No code, expression, wildcard, environment lookup, URI fragment or filesystem read is evaluated. Strings remain literal strings, and numbers, booleans, arrays, objects and null retain their JSON types.
+
+Each node permits up to 16 named inputs, names up to 128 characters, and pointers up to 1024 characters/32 segments. The combined resolved input object is capped at 32 KiB of serialized JSON, including keys and escapes; excess data fails with `input_too_large` instead of silently truncating a selected value. Select a smaller nested field or an artifact reference for large results. Artifact paths are data references; selection never loads their file contents.
+
+Automatic `context.steps` still retains the latest eight recent outputs with bounded excerpts and a 48 KiB serialized step-map cap; it is a convenience preview and can omit or truncate data. Explicit bindings select from the original redacted persisted output, including an older step or a small field inside a large result. Core retains older full outputs only for step IDs explicitly referenced by the saved workflow. It does not append the full event history to an agent prompt.
+
+Before invoking an agent, Core records an `agent.input` event containing the resolved, redacted input and authoritative attempt identity. The adapter receives that saved input; later mutation cannot change the event on disk. The complete agent envelope has a 256 KiB limit. Execution controls such as abort signals, timeouts and working directories remain separate runtime arguments. Secrets must stay in provider-native authentication, never workflow data. Human input selections are recorded in the existing approval event.
 
 ## Outcome transitions
 

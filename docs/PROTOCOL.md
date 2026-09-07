@@ -10,6 +10,8 @@
 
 Context, result data, artifact metadata, and structured error details use `JsonObject`/`JsonValue`. Omit unknown optional fields. `isJsonValue(value)` checks runtime data for finite numbers, plain objects, dense arrays, and serializable nested values; it rejects functions, undefined, native errors, dates, maps, cycles, accessors, and custom serialization methods. Shared references are allowed when they are not cyclic. This guard validates shape, not content redaction or output size.
 
+`StepOutput` describes the normalized agent, command or human output used by workflow references. `AgentInput.context.inputs` contains the named JSON values selected by the saved workflow, while `context.steps` is bounded recent context. [Workflow inputs](WORKFLOWS.md#named-inputs-and-step-outputs) define their selection, size limits and missing-value behavior.
+
 ## Results, artifacts, and usage
 
 `AgentResult` keeps execution status (`success`, `failure`, `needs_input`) separate from a workflow `outcome` such as `pass`/`fail`. Optional timing uses ISO 8601 timestamp strings and milliseconds. Artifacts carry an ID, kind, optional path/media type/byte size, creation time, and producer execution identity.
@@ -28,7 +30,7 @@ All events carry a run ID and ISO timestamp. Persistence can add an event ID and
 
 - Run started/completed/failed/paused/resumed.
 - Step started/completed/failed and `step.retrying`, including its used count, maximum, and attempt identity.
-- Agent started/completed/failed, with normalized results or errors.
+- Agent input/started/completed/failed. `agent.input` records the resolved redacted `AgentInput` before invocation, with matching run/step/attempt identity and no ephemeral execution controls. Result/error events retain their existing meaning.
 - Verification started/completed, with deterministic command results.
 - Approval required/resolved, with explicit `approved`/`rejected` decisions.
 - Process output, referencing a stdout/stderr artifact and an optional bounded preview.

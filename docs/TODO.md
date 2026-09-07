@@ -920,11 +920,15 @@ Verified 35 schema tests against Ajv and the runtime parser: all four presets, t
 
 ## M3.2 — Typed context and step outputs
 
-- [ ] define how step outputs are named and referenced
-- [ ] support safe template/context references in later step inputs
-- [ ] prevent accidental dumping of unlimited prior context
-- [ ] define artifact references vs inline data
-- [ ] persist resolved inputs for audit/debugging where safe
+**Status:** [x] Complete and verified.
+
+- [x] define how step outputs are named and referenced
+- [x] support safe template/context references in later step inputs
+- [x] prevent accidental dumping of unlimited prior context
+- [x] define artifact references vs inline data
+- [x] persist resolved inputs for audit/debugging where safe
+
+Verified named RFC 6901 references preserve JSON types, select bounded fields from older/larger outputs, use the latest attempt, and reject unavailable/oversized values before invocation. Agent/human selections survive saved-state resume; artifact contents are not loaded. Core records the exact redacted adapter envelope in `agent.input`, excluding ephemeral controls. Tests cover pointer escaping, prototype/getter safety, Unicode limits, secret redaction, audit immutability, approval/verification outputs and schema parity. Frozen install and all five baseline commands passed (445 tests). No shell interpolation or expression evaluator was added. See `docs/WORKFLOWS.md` and `examples/workflows/v1/inputs.yaml`.
 
 ---
 
@@ -1544,4 +1548,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.2 — Typed context and step outputs.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.3 — Conditional branching.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

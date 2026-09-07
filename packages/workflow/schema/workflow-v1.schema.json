@@ -7,36 +7,63 @@
   "additionalProperties": false,
   "required": ["name", "version", "start", "steps"],
   "properties": {
-    "name": { "$ref": "#/definitions/text" },
-    "version": { "const": 1 },
-    "start": { "$ref": "#/definitions/text" },
+    "name": {
+      "$ref": "#/definitions/text"
+    },
+    "version": {
+      "const": 1
+    },
+    "start": {
+      "$ref": "#/definitions/text"
+    },
     "steps": {
       "type": "object",
       "minProperties": 1,
-      "propertyNames": { "$ref": "#/definitions/text" },
+      "propertyNames": {
+        "$ref": "#/definitions/text"
+      },
       "additionalProperties": {
         "oneOf": [
-          { "$ref": "#/definitions/agent" },
-          { "$ref": "#/definitions/command" },
-          { "$ref": "#/definitions/human" },
-          { "$ref": "#/definitions/end" }
+          {
+            "$ref": "#/definitions/agent"
+          },
+          {
+            "$ref": "#/definitions/command"
+          },
+          {
+            "$ref": "#/definitions/human"
+          },
+          {
+            "$ref": "#/definitions/end"
+          }
         ]
       }
     }
   },
   "definitions": {
-    "text": { "type": "string", "pattern": "\\S" },
+    "text": {
+      "type": "string",
+      "pattern": "\\S"
+    },
     "on": {
       "type": "object",
-      "propertyNames": { "$ref": "#/definitions/text" },
-      "additionalProperties": { "$ref": "#/definitions/text" }
+      "propertyNames": {
+        "$ref": "#/definitions/text"
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/text"
+      }
     },
     "retry": {
       "type": "object",
       "additionalProperties": false,
       "required": ["max"],
       "properties": {
-        "max": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+        "max": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
       }
     },
     "metadata": {
@@ -49,12 +76,27 @@
       "additionalProperties": false,
       "required": ["type", "agent"],
       "properties": {
-        "type": { "const": "agent" },
-        "agent": { "$ref": "#/definitions/text" },
-        "next": { "$ref": "#/definitions/text" },
-        "on": { "$ref": "#/definitions/on" },
-        "retry": { "$ref": "#/definitions/retry" },
-        "metadata": { "$ref": "#/definitions/metadata" }
+        "type": {
+          "const": "agent"
+        },
+        "agent": {
+          "$ref": "#/definitions/text"
+        },
+        "next": {
+          "$ref": "#/definitions/text"
+        },
+        "on": {
+          "$ref": "#/definitions/on"
+        },
+        "retry": {
+          "$ref": "#/definitions/retry"
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs"
+        }
       }
     },
     "command": {
@@ -62,16 +104,28 @@
       "additionalProperties": false,
       "required": ["type", "run"],
       "properties": {
-        "type": { "const": "command" },
+        "type": {
+          "const": "command"
+        },
         "run": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/definitions/text" }
+          "items": {
+            "$ref": "#/definitions/text"
+          }
         },
-        "next": { "$ref": "#/definitions/text" },
-        "on": { "$ref": "#/definitions/on" },
-        "retry": { "$ref": "#/definitions/retry" },
-        "metadata": { "$ref": "#/definitions/metadata" }
+        "next": {
+          "$ref": "#/definitions/text"
+        },
+        "on": {
+          "$ref": "#/definitions/on"
+        },
+        "retry": {
+          "$ref": "#/definitions/retry"
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
+        }
       }
     },
     "human": {
@@ -79,12 +133,27 @@
       "additionalProperties": false,
       "required": ["type"],
       "properties": {
-        "type": { "const": "human" },
-        "message": { "$ref": "#/definitions/text" },
-        "next": { "$ref": "#/definitions/text" },
-        "on": { "$ref": "#/definitions/on" },
-        "retry": { "$ref": "#/definitions/retry" },
-        "metadata": { "$ref": "#/definitions/metadata" }
+        "type": {
+          "const": "human"
+        },
+        "message": {
+          "$ref": "#/definitions/text"
+        },
+        "next": {
+          "$ref": "#/definitions/text"
+        },
+        "on": {
+          "$ref": "#/definitions/on"
+        },
+        "retry": {
+          "$ref": "#/definitions/retry"
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
+        },
+        "inputs": {
+          "$ref": "#/definitions/inputs"
+        }
       }
     },
     "end": {
@@ -92,8 +161,36 @@
       "additionalProperties": false,
       "required": ["type"],
       "properties": {
-        "type": { "const": "end" },
-        "metadata": { "$ref": "#/definitions/metadata" }
+        "type": {
+          "const": "end"
+        },
+        "metadata": {
+          "$ref": "#/definitions/metadata"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "maxProperties": 16,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "\\S",
+        "maxLength": 128
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "path"],
+        "properties": {
+          "from": {
+            "$ref": "#/definitions/text"
+          },
+          "path": {
+            "type": "string",
+            "maxLength": 1024,
+            "pattern": "^(?:/(?:[^~/]|~[01])*){0,32}(?![\\s\\S])"
+          }
+        }
       }
     }
   }

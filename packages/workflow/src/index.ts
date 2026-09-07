@@ -18,7 +18,15 @@ export interface WorkflowStep {
     max: number;
   };
   message?: string;
+  /** Named, explicit references delivered as AgentInput.context.inputs or gate context.inputs. */
+  inputs?: Record<string, StepInputReference>;
   metadata?: Record<string, unknown>;
+}
+
+export interface StepInputReference {
+  from: string;
+  /** RFC 6901 JSON Pointer into the source StepOutput; empty selects the whole output. */
+  path: string;
 }
 
 export interface StepOutcome {
@@ -40,3 +48,4 @@ import { parseWorkflow } from "./parser.js";
 export { loadWorkflow } from "./loader.js";
 export { parseWorkflow, WorkflowError } from "./parser.js";
 export { withRetryDefaults, nextRetry, type RetryDecision } from "./retry.js";
+export { resolveStepInputs, InputResolutionError, MAX_RESOLVED_INPUT_BYTES } from "./inputs.js";

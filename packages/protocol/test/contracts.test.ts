@@ -132,6 +132,7 @@ describe("provider-neutral contracts", () => {
       { type: "step.completed", ...execution, at, outcome: "pass" },
       { type: "step.failed", ...execution, at, message: failure.message, error: failure },
       { type: "agent.started", ...execution, at, agentId: "fixture-agent" },
+      { type: "agent.input", ...execution, at, agentId: "fixture-agent", input },
       { type: "agent.failed", ...execution, at, agentId: "fixture-agent", error: failure },
       { type: "verification.started", ...execution, at, commands: ["node --test"] },
       {

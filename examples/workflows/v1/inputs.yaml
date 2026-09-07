@@ -1,0 +1,27 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: selected-verification-input
+version: 1
+start: inspect
+steps:
+  inspect:
+    type: command
+    run:
+      - node --version
+    next: gate
+  gate:
+    type: human
+    message: Confirm the selected Node version output.
+    inputs:
+      nodeVersion:
+        from: inspect
+        path: /results/0/stdout
+      exitCode:
+        from: inspect
+        path: /results/0/exitCode
+    on:
+      approved: done
+      rejected: stopped
+  done:
+    type: end
+  stopped:
+    type: end

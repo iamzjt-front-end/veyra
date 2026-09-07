@@ -522,7 +522,10 @@ function redact(value: JsonValue, secrets: readonly string[], path: string[] = [
     const structuralKeys =
       path.join(".") === "workflow.steps" ||
       path.join(".") === "retryCounts" ||
-      (path[0] === "workflow" && path[1] === "steps" && path.length === 4 && path[3] === "on");
+      (path[0] === "workflow" &&
+        path[1] === "steps" &&
+        path.length === 4 &&
+        (path[3] === "on" || path[3] === "inputs"));
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
         key,

@@ -2,6 +2,17 @@ import { describe, expect, it } from "vitest";
 import { RunContext } from "../src/context.js";
 
 describe("bounded previous output context", () => {
+  it("selects a small field from an older large output and uses its latest replacement", () => {
+    const context = new RunContext(["source"]);
+    context.add("source", { data: { small: 1, large: "x".repeat(100_000) } });
+    for (let index = 0; index < 10; index++) context.add(`later-${index}`, { summary: "done" });
+    const references = { selected: { from: "source", path: "/data/small" } };
+    expect(context.input().context.steps).not.toHaveProperty("source");
+    expect(context.input(references).context.inputs).toEqual({ selected: 1 });
+    context.add("source", { data: { small: 2, large: "x".repeat(100_000) } });
+    expect(context.input(references).context.inputs).toEqual({ selected: 2 });
+    expect(Buffer.byteLength(JSON.stringify(context.input(references)))).toBeLessThan(66 * 1024);
+  });
   it("keeps the latest result per recent step and deduplicates bounded artifact references", () => {
     const context = new RunContext();
     for (let index = 0; index < 30; index++)

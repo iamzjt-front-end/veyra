@@ -13,10 +13,17 @@ export type {
   JsonObject,
   JsonValue,
   SerializedError,
+  StepOutput,
   UsageMetadata,
   VerificationResult,
   VeyraEvent,
 } from "@veyra/protocol";
 
-export type { StepOutcome, StepType, WorkflowDefinition, WorkflowStep } from "@veyra/workflow";
+export type {
+  StepInputReference,
+  StepOutcome,
+  StepType,
+  WorkflowDefinition,
+  WorkflowStep,
+} from "@veyra/workflow";
 export { isJsonValue } from "@veyra/protocol";

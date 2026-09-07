@@ -114,6 +114,9 @@ importers:
 
   packages/workflow:
     dependencies:
+      '@veyra/protocol':
+        specifier: workspace:*
+        version: link:../protocol
       yaml:
         specifier: 2.9.0
         version: 2.9.0

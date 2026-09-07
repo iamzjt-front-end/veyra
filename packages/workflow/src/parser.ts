@@ -1,4 +1,5 @@
-import type { WorkflowDefinition, WorkflowStep } from "./index.js";
+import type { StepInputReference, WorkflowDefinition, WorkflowStep } from "./index.js";
+import { pointerSegments } from "./inputs.js";
 
 export class WorkflowError extends Error {
   constructor(
@@ -67,7 +68,11 @@ function parseStep(value: unknown, field: string): WorkflowStep {
   const keys =
     type === "end"
       ? ["type", "metadata"]
-      : [...common, type === "agent" ? "agent" : type === "command" ? "run" : "message"];
+      : [
+          ...common,
+          type === "agent" ? "agent" : type === "command" ? "run" : "message",
+          ...(type === "agent" || type === "human" ? ["inputs"] : []),
+        ];
   object(raw, field, keys);
   const step: WorkflowStep = { type };
   if (type === "agent") step.agent = text(raw.agent, `${field}.agent`);
@@ -77,6 +82,32 @@ function parseStep(value: unknown, field: string): WorkflowStep {
     step.run = raw.run.map((command, i) => text(command, `${field}.run[${i}]`));
   }
   if (raw.message !== undefined) step.message = text(raw.message, `${field}.message`);
+  if (raw.inputs !== undefined) {
+    const inputs = Object.entries(object(raw.inputs, `${field}.inputs`));
+    if (inputs.length > 16)
+      throw new WorkflowError(`${field}.inputs`, "at most 16 named inputs are allowed");
+    step.inputs = Object.fromEntries(
+      inputs.map(([name, value]): [string, StepInputReference] => {
+        text(name, `${field}.inputs key`);
+        if ([...name].length > 128)
+          throw new WorkflowError(
+            `${field}.inputs key`,
+            "input names must be at most 128 characters",
+          );
+        const ref = object(value, `${field}.inputs.${name}`, ["from", "path"]);
+        const from = text(ref.from, `${field}.inputs.${name}.from`);
+        try {
+          pointerSegments(ref.path as string);
+        } catch {
+          throw new WorkflowError(
+            `${field}.inputs.${name}.path`,
+            "expected an RFC 6901 JSON Pointer (up to 1024 characters and 32 segments)",
+          );
+        }
+        return [name, { from, path: ref.path as string }];
+      }),
+    );
+  }
   if (raw.next !== undefined) step.next = text(raw.next, `${field}.next`);
   if (raw.on !== undefined) {
     step.on = Object.fromEntries(
@@ -117,6 +148,13 @@ export function parseWorkflow(value: unknown): WorkflowDefinition {
   if (!Object.hasOwn(steps, start))
     throw new WorkflowError("start", `step '${start}' does not exist`);
   for (const [id, step] of Object.entries(steps)) {
+    for (const [name, reference] of Object.entries(step.inputs ?? {})) {
+      if (!Object.hasOwn(steps, reference.from) || steps[reference.from]?.type === "end")
+        throw new WorkflowError(
+          `steps.${id}.inputs.${name}.from`,
+          "must reference an agent, command, or human step in this workflow",
+        );
+    }
     const targets = Object.entries(step.on ?? {}).map(([outcome, target]): [string, string] => [
       `steps.${id}.on.${outcome}`,
       target,

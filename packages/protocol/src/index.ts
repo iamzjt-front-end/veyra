@@ -99,6 +99,23 @@ export interface VerificationResult {
   artifacts?: ArtifactRef[];
 }
 
+/** Latest persisted output of one step; artifact paths are references, never file contents. */
+export type StepOutput =
+  | {
+      type: "agent";
+      outcome: string;
+      summary: string;
+      data?: JsonObject;
+      artifacts?: ArtifactRef[];
+    }
+  | {
+      type: "command";
+      outcome: "success" | "failure";
+      results: VerificationResult[];
+      artifacts?: ArtifactRef[];
+    }
+  | { type: "human"; outcome: ApprovalDecision; comment?: string };
+
 export interface EventMetadata {
   runId: string;
   at: string;
@@ -132,6 +149,7 @@ export type VeyraEvent = EventMetadata &
     | (StepEventMetadata & { type: "step.completed"; outcome?: string; artifacts?: ArtifactRef[] })
     | (StepEventMetadata & { type: "step.failed"; message: string; error?: SerializedError })
     | (AgentEventMetadata & { type: "agent.started" })
+    | (AgentEventMetadata & { type: "agent.input"; input: AgentInput })
     | (AgentEventMetadata & { type: "agent.completed"; result: AgentResult })
     | (AgentEventMetadata & { type: "agent.failed"; error: SerializedError })
     | (StepEventMetadata & { type: "verification.started"; commands: string[] })

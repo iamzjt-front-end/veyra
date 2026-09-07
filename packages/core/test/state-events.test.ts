@@ -35,6 +35,18 @@ const events: VeyraEvent[] = [
   { ...metadata, type: "agent.started", agentId: "fake" },
   {
     ...metadata,
+    type: "agent.input",
+    agentId: "fake",
+    input: {
+      runId: metadata.runId,
+      stepId: metadata.stepId,
+      role: "executor",
+      goal: "fixture",
+      context: { inputs: { selected: [true, 1] } },
+    },
+  },
+  {
+    ...metadata,
     type: "agent.completed",
     agentId: "fake",
     result: {
@@ -79,6 +91,24 @@ describe("persisted event validation", () => {
 
   it.each([
     { ...metadata, type: "future.unsupported" },
+    {
+      ...metadata,
+      type: "agent.input",
+      agentId: "fake",
+      input: { runId: "other", stepId: metadata.stepId, role: "executor", goal: "fixture" },
+    },
+    {
+      ...metadata,
+      type: "agent.input",
+      agentId: "fake",
+      input: {
+        runId: metadata.runId,
+        stepId: metadata.stepId,
+        role: "executor",
+        goal: "fixture",
+        timeoutMs: 1000,
+      },
+    },
     { ...metadata, type: "step.retrying", retryCount: -1, maxRetries: 3 },
     { ...metadata, type: "run.completed", usage: { inputTokens: -1 } },
     { ...metadata, type: "run.completed", timing: { startedAt: "bad timestamp" } },

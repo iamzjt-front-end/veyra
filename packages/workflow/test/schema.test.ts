@@ -21,6 +21,31 @@ const minimal = () => ({
 });
 
 describe("published version 1 workflow schema", () => {
+  it("validates named input bindings and rejects invalid pointer syntax/limits in both validators", () => {
+    const make = (path: string) => ({
+      ...minimal(),
+      start: "source",
+      steps: {
+        source: { type: "agent", agent: "planner", next: "target" },
+        target: { type: "human", inputs: { value: { from: "source", path } } },
+      },
+    });
+    for (const pointer of [
+      "",
+      "/data",
+      "/data/a~1b/~0key",
+      "/results/0/exitCode",
+      "/~01",
+      `/${"🧭".repeat(800)}`,
+    ]) {
+      expect(validate(make(pointer)), JSON.stringify(validate.errors)).toBe(true);
+      expect(() => parseWorkflow(make(pointer))).not.toThrow();
+    }
+    for (const pointer of ["\n", "data", "/bad~", "/~2", "/x".repeat(33), `/${"x".repeat(1024)}`]) {
+      expect(validate(make(pointer)), pointer).toBe(false);
+      expect(() => parseWorkflow(make(pointer))).toThrow("steps.target.inputs.value.path");
+    }
+  });
   it.each(["dev", "bugfix", "review", "research"])(
     "validates the %s preset with the schema and runtime parser",
     async (preset) => {
@@ -29,7 +54,7 @@ describe("published version 1 workflow schema", () => {
     },
   );
 
-  it.each(["minimal", "approval", "review-loop"])(
+  it.each(["minimal", "approval", "review-loop", "inputs"])(
     "validates the documented %s example and editor schema path",
     async (name) => {
       const file = fileURLToPath(
