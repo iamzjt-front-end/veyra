@@ -4,13 +4,15 @@ The repository keeps the full target architecture visible from the start. Roadma
 
 For the canonical task-by-task implementation order, dependencies, tests, and acceptance criteria, see [`docs/TODO.md`](TODO.md).
 
+The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGENTS.md) defines contributor rules; [ARCHITECTURE](ARCHITECTURE.md) defines stable boundaries. This roadmap summarizes verified milestones and does not replace the detailed TODO.
+
 ## M0 — Repository baseline
 
 - [x] Reproducible pnpm install and lockfile
 - [x] Formatting/linting baseline
 - [x] CI for pull requests/main
 - [x] Test conventions and deterministic fixtures
-- [ ] Documentation hierarchy/cross-links
+- [x] Documentation hierarchy/cross-links
 
 ## v0.1 — Working vertical slice
 

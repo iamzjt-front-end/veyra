@@ -1,5 +1,7 @@
 # Architecture
 
+This document owns Veyra's stable package boundaries and responsibility model. Read [AGENTS.md](../AGENTS.md) for contributor rules, [TODO](TODO.md) for the next implementation task and its acceptance criteria, [ROADMAP](ROADMAP.md) for milestone status, and the [README](../README.md#development) for setup commands.
+
 ## Mental model
 
 Veyra separates the system into explicit layers so orchestration remains provider-neutral and user interfaces remain replaceable.

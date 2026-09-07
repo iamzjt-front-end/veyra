@@ -1,5 +1,7 @@
 # AGENTS.md — Veyra contributor instructions
 
+This file defines coding-agent rules. Start with the [README](README.md#development) for local setup, follow the stable boundaries in [ARCHITECTURE](docs/ARCHITECTURE.md), and choose implementation work from the canonical [TODO](docs/TODO.md). [ROADMAP](docs/ROADMAP.md) summarizes milestone progress.
+
 ## Product intent
 
 Veyra is a provider-agnostic control plane for heterogeneous AI agents. Its core value is orchestration, verification, resumability, and human control — not another chat UI and not another single-model coding agent.

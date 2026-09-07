@@ -4,6 +4,8 @@
 >
 > This is the canonical implementation plan for Veyra. `docs/ROADMAP.md` describes milestones at a high level; this file defines the concrete execution order for Codex and other coding agents.
 
+Read [AGENTS.md](../AGENTS.md) for coding rules and [ARCHITECTURE](ARCHITECTURE.md) for package boundaries before implementing a task. Use the [README](../README.md#development) for local setup and [ROADMAP](ROADMAP.md) for milestone summaries. The [Next task](#next-task) section below identifies the current entry point; each task's acceptance criteria define completion.
+
 ## How to use this file
 
 ### Execution rule
@@ -174,20 +176,24 @@ Verified frozen install and the full five-command baseline; `pnpm test` passed w
 
 ## M0.5 — Make the docs hierarchy explicit
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M0.1
 
 ### Requirements
 
-- [ ] `README.md` = product overview and getting started.
-- [ ] `docs/ARCHITECTURE.md` = stable architectural boundaries.
-- [ ] `docs/ROADMAP.md` = milestone summary.
-- [ ] `docs/TODO.md` = canonical detailed execution plan.
-- [ ] `AGENTS.md` = coding-agent rules.
-- [ ] Cross-link these documents so contributors know where to look.
+- [x] `README.md` = product overview and getting started.
+- [x] `docs/ARCHITECTURE.md` = stable architectural boundaries.
+- [x] `docs/ROADMAP.md` = milestone summary.
+- [x] `docs/TODO.md` = canonical detailed execution plan.
+- [x] `AGENTS.md` = coding-agent rules.
+- [x] Cross-link these documents so contributors know where to look.
 
 ### Acceptance criteria
 
 A new contributor can identify the next task and architectural constraints without reading commit history.
+
+Verified all 27 relative links and anchors across the five source-of-truth documents. Each document identifies its purpose and directs contributors to setup, architectural rules, the canonical TODO, and milestone summaries. The full five-command repository baseline passed.
 
 ---
 
@@ -1474,4 +1480,4 @@ When finished:
 
 ## Next task
 
-**Start with M0.5 — Make the docs hierarchy explicit.**
+**Start with M1.1 — Define and load `veyra.yaml`.**
