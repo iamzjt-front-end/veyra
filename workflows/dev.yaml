@@ -1,0 +1,41 @@
+name: default-dev
+version: 1
+start: plan
+
+steps:
+  plan:
+    type: agent
+    agent: planner
+    next: execute
+
+  execute:
+    type: agent
+    agent: executor
+    next: verify
+
+  verify:
+    type: command
+    run:
+      - pnpm check
+      - pnpm test
+      - pnpm build
+    on:
+      success: review
+      failure: fix
+
+  review:
+    type: agent
+    agent: reviewer
+    on:
+      pass: done
+      fail: fix
+
+  fix:
+    type: agent
+    agent: executor
+    next: verify
+    retry:
+      max: 3
+
+  done:
+    type: end

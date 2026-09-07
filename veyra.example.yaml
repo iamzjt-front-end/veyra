@@ -1,0 +1,28 @@
+version: 1
+
+project:
+  name: example-project
+
+agents:
+  planner:
+    provider: openai
+    model: gpt-5.6-sol
+
+  executor:
+    provider: codex
+
+  reviewer:
+    provider: openai
+    model: gpt-5.6-sol
+
+workflow:
+  use: ./workflows/dev.yaml
+
+runtime:
+  maxFixIterations: 3
+  stateDir: ./.veyra
+
+approval:
+  requiredFor:
+    - architecture_change
+    - production_deploy

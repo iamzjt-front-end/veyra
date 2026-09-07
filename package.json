@@ -1,0 +1,25 @@
+{
+  "name": "veyra-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Veyra — one goal, many agents, verified execution.",
+  "packageManager": "pnpm@10.15.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev --parallel",
+    "check": "turbo check",
+    "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules",
+    "veyra": "pnpm --filter @veyra/cli dev"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "turbo": "^2.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.0"
+  }
+}
