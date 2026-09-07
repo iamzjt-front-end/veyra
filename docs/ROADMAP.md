@@ -37,7 +37,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Retry limit enforcement
 - [x] Human approval node
 - [x] Working `ve init/run/status/review/resume/doctor`
-- [ ] Deterministic E2E tests
+- [x] Deterministic E2E tests
 - [ ] Opt-in real GPT + Codex smoke test
 
 ## v0.2 — TUI

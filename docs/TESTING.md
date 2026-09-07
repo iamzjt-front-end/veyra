@@ -23,3 +23,17 @@ Every workspace already has a Vitest test script. The shared `vitest.config.ts` 
 Use `withFixtureWorkspace(async (workspace) => { ... })` from `test/helpers/workspace.ts` to copy this project to a unique directory under the OS temporary directory. It removes the copy on both success and failure. Tests needing explicit lifetime control can call `createFixtureWorkspace()` and invoke `cleanup()` in `finally` or `afterEach`; cleanup is safe to call more than once.
 
 Only mutate the temporary copy. Do not run agents or mutating tests against the committed fixture or the developer's repository. Give subprocesses explicit working directories and timeouts, and check their exit status. Never write secrets into fixtures or test output.
+
+## End-to-end CLI scenarios
+
+`test/e2e/vertical-slice.test.ts` exercises the complete built-in dev workflow through the CLI application in real, separate Node.js processes. `cli-harness.ts` supplies deterministic adapters through the existing service interface; it is test code and adds no production fake-provider switch. The fixture executor edits actual source files, while the real shell verifier runs `pnpm check`, `pnpm test`, and `pnpm build`. The disposable copy adds a dependency-free build script and expects the new greeting; the committed fixture stays unchanged.
+
+The suite covers success, one verifier repair, one reviewer repair, exhausted retries, explicit human approval, recovery after an owner exits at a completed checkpoint, invalid configuration, a missing real Codex executable, and persisted provider failure. Status/review/resume run in new processes; assertions inspect saved state/events and the fixture's actual build output. Known provider key variables are removed from child environments, and no live provider or Codex login is used. Fixtures are removed in `finally`, including failed tests.
+
+After dependencies and workspace builds are available, run just these scenarios with:
+
+```bash
+pnpm exec vitest run test/e2e/vertical-slice.test.ts --config vitest.config.ts
+```
+
+They also run in the default `pnpm test` suite and CI. Each scenario has a 60-second test deadline and each CLI process has a 45-second execution timeout; these are bounds, not sleeps.

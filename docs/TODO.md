@@ -711,25 +711,29 @@ Verified 14 CLI tests: command-handler-only mocked plan/gate/execute/verify/revi
 
 ## M1.13 — Add deterministic end-to-end tests
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.12
 
 **Primary areas:** integration/e2e tests and fixture projects
 
 ### Required scenarios
 
-- [ ] happy path completes in one attempt
-- [ ] verifier fails once, executor fixes, then passes
-- [ ] reviewer fails once, executor fixes, then passes
-- [ ] max retries reached
-- [ ] human gate pauses and resumes
-- [ ] process restart/resume from persisted state
-- [ ] invalid config fails before provider execution
-- [ ] missing Codex executable produces actionable error
-- [ ] provider failure is persisted
+- [x] happy path completes in one attempt
+- [x] verifier fails once, executor fixes, then passes
+- [x] reviewer fails once, executor fixes, then passes
+- [x] max retries reached
+- [x] human gate pauses and resumes
+- [x] process restart/resume from persisted state
+- [x] invalid config fails before provider execution
+- [x] missing Codex executable produces actionable error
+- [x] provider failure is persisted
 
 ### Acceptance criteria
 
 All scenarios run without real network/provider credentials by using fake adapters and fixture repositories.
+
+Verified all nine scenarios through separate CLI application processes and disposable fixture projects. The built-in dev preset runs real `pnpm check`, `pnpm test`, and `pnpm build`; repair tests mutate real source and inspect saved evidence/build output. Approval and interrupted-checkpoint resumes use a different process and preserve previous work. The missing-executable case uses the real Codex adapter with a guaranteed absent path. No live API or Codex login is used. All five baseline commands passed (367 tests). See `test/e2e/vertical-slice.test.ts` and `docs/TESTING.md`.
 
 ---
 
@@ -1528,4 +1532,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.13 — Add deterministic end-to-end tests.**
+**Start with M1.14 — Add opt-in real GPT + Codex integration smoke test.**
