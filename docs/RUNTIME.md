@@ -17,7 +17,7 @@ const result = await runProcess({
 
 ## Input and output
 
-The runner passes an executable and argument array directly to Node's `spawn` with `shell: false`. Shell punctuation in an argument stays literal. Stdin is closed; use a non-interactive command. The runner does not create a workspace or change the caller's working directory. `env` inherits the current environment with explicit overrides; an `undefined` override removes a variable from the child only. Do not persist this execution request or its environment.
+The runner passes an executable and argument array directly to Node's `spawn` with `shell: false`. Shell punctuation in an argument stays literal. Optional `stdin` supplies up to 1 MiB of UTF-8 text and is then closed; otherwise the child immediately receives EOF. This supports prompts without command-line quoting or argument-length limits. Use a non-interactive command. The runner does not create a workspace or change the caller's working directory. `env` inherits the current environment with explicit overrides; an `undefined` override removes a variable from the child only. Do not persist this execution request or its environment.
 
 `ProcessResult` includes exit code, termination signal, duration in milliseconds, stdout/stderr, and truncation flags. A nonzero exit is a result, not an exception. Timeout/cancellation add `terminationReason`; callers must treat that as interrupted even if the process's shutdown handler exits zero. A request already aborted returns a cancelled result without starting a process. Without `timeoutMs`, no timeout is imposed; integrations should choose a finite limit appropriate to their work.
 

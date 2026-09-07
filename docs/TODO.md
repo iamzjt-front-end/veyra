@@ -506,24 +506,26 @@ Verified 36 adapter tests, including the official SDK with mocked HTTP, planner/
 
 ## M1.8 — Implement Codex CLI executor adapter
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.4, M1.3
 
 **Primary area:** `plugins/codex`
 
 ### Requirements
 
-- [ ] Implement **CLI mode first**; SDK mode may remain planned.
-- [ ] Detect whether the `codex` executable is available.
-- [ ] Before coding the final invocation, inspect the currently installed Codex CLI help/version rather than assuming stale flags.
-- [ ] Run Codex in the target repository working directory through `packages/runtime`.
-- [ ] Convert planner/fix instructions into a clear execution prompt.
-- [ ] Preserve user/project `AGENTS.md` instructions.
-- [ ] Capture Codex stdout/stderr and exit metadata.
-- [ ] Normalize completion into `AgentResult`.
-- [ ] Do not parse fragile human terminal formatting when a supported structured/non-interactive output mode is available.
-- [ ] Support cancellation and timeout.
-- [ ] Do not manage/store the user's Codex login token; rely on the installed Codex authentication mechanism.
-- [ ] Add a `doctor` capability check for executable/version/auth readiness where detectable without destructive actions.
+- [x] Implement **CLI mode first**; SDK mode may remain planned.
+- [x] Detect whether the `codex` executable is available.
+- [x] Before coding the final invocation, inspect the currently installed Codex CLI help/version rather than assuming stale flags.
+- [x] Run Codex in the target repository working directory through `packages/runtime`.
+- [x] Convert planner/fix instructions into a clear execution prompt.
+- [x] Preserve user/project `AGENTS.md` instructions.
+- [x] Capture Codex stdout/stderr and exit metadata.
+- [x] Normalize completion into `AgentResult`.
+- [x] Do not parse fragile human terminal formatting when a supported structured/non-interactive output mode is available.
+- [x] Support cancellation and timeout.
+- [x] Do not manage/store the user's Codex login token; rely on the installed Codex authentication mechanism.
+- [x] Add a `doctor` capability check for executable/version/auth readiness where detectable without destructive actions.
 
 ### Tests
 
@@ -536,6 +538,8 @@ Verified 36 adapter tests, including the official SDK with mocked HTTP, planner/
 ### Acceptance criteria
 
 Given a deterministic mocked Codex process result, the adapter returns a valid `AgentResult`; when a real logged-in Codex CLI is available, a manual smoke test can modify a disposable fixture repository.
+
+Verified 40 mocked adapter/JSONL tests plus three supporting runtime stdin tests. Installed `codex-cli 0.153.4` help/version and read-only login status were inspected before finalizing invocation. `pnpm --filter @veyra/codex smoke` passed with the real logged-in CLI: only `src/message.js` changed, project instructions remained unchanged, syntax/tests passed, and the disposable Git repository was removed. The runtime stdin primitive is necessary to pass prompts without shell interpolation or argument-length limits. Frozen install and all five baseline commands passed (293 tests). See `docs/CODEX.md`.
 
 ---
 
@@ -1508,4 +1512,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.8 — Implement Codex CLI executor adapter.**
+**Start with M1.9 — Implement the v0.1 Core orchestration loop.**

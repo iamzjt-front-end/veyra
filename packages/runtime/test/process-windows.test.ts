@@ -25,6 +25,7 @@ function setup(treeExitCode: number) {
   );
   const child = new ChildProcess();
   Object.defineProperty(child, "pid", { value: 12345 });
+  child.stdin = new PassThrough();
   child.stdout = new PassThrough();
   child.stderr = new PassThrough();
   const helper = new ChildProcess();

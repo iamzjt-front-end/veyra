@@ -93,6 +93,9 @@ importers:
       '@veyra/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
 
   plugins/openai:
     dependencies:

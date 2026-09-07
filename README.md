@@ -98,7 +98,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Config                                   | ✓        | YAML loader and validation |
 | SDK                                      | ✓        | scaffolded                 |
 | OpenAI                                   | ✓        | planner/reviewer adapter   |
-| Codex                                    | ✓        | adapter scaffolded         |
+| Codex                                    | ✓        | CLI executor adapter       |
 | Claude / Claude Code / Gemini / OpenCode | ✓        | planned                    |
 
 ## Implementation plan
@@ -153,6 +153,8 @@ The [verification reference](docs/VERIFICATION.md) describes sequential command 
 The [state reference](docs/STATE.md) documents local snapshots, event history, recovery errors, and the single-writer boundary.
 
 The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
+
+The [Codex adapter reference](docs/CODEX.md) covers CLI execution, permissions, readiness checks, and the disposable live smoke test.
 
 ## Current milestone
 

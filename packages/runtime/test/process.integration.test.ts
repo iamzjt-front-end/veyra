@@ -17,6 +17,26 @@ function node(script: string, options: Omit<ProcessRequest, "executable" | "args
 afterEach(() => vi.unstubAllEnvs());
 
 describe("local process runner", () => {
+  it("writes UTF-8 stdin literally and closes it", async () => {
+    const stdin = "A large prompt: $(not a command) 你好\n".repeat(1000);
+    const result = await node(
+      "process.stdin.setEncoding('utf8'); let text = ''; process.stdin.on('data', chunk => text += chunk); process.stdin.on('end', () => process.stdout.write(text));",
+      { stdin },
+    );
+    expect(result.stdout).toBe(stdin);
+    expect(result.exitCode).toBe(0);
+  });
+
+  it("rejects oversized stdin before spawning", async () => {
+    await expect(node("", { stdin: "x".repeat(1024 * 1024 + 1) })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+  });
+
+  it("handles a process that exits before consuming stdin", async () => {
+    const result = await node("process.exit(4)", { stdin: "x".repeat(1024 * 1024) });
+    expect(result.exitCode).toBe(4);
+  });
   it("captures both streams and preserves arguments without shell evaluation", async () => {
     const values = ["spaces stay together", "$(echo unsafe); & |", '"quotes"', "你好"];
     const streamed: string[] = [];

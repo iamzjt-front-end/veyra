@@ -8,6 +8,8 @@ export const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
 export interface ProcessRequest {
   executable: string;
   args?: readonly string[];
+  /** Optional UTF-8 input, capped at 1 MiB, followed by EOF. */
+  stdin?: string;
   cwd?: string;
   /** Inherit the current environment; undefined removes an inherited variable. */
   env?: Record<string, string | undefined>;
@@ -43,6 +45,7 @@ export class ProcessExecutionError extends Error {
       | "invalid_cwd"
       | "executable_not_found"
       | "spawn_failed"
+      | "stdin_failed"
       | "output_callback_failed"
       | "termination_failed",
     message: string,
@@ -92,7 +95,7 @@ export const runProcess: ProcessRunner = async (request) => {
       shell: false,
       detached: process.platform !== "win32",
       windowsHide: true,
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["pipe", "pipe", "pipe"],
     });
     let closed = false;
     let stopping = false;
@@ -203,6 +206,16 @@ export const runProcess: ProcessRunner = async (request) => {
 
     child.stdout.on("data", (chunk: Buffer) => forward(request.onStdout, stdout.append(chunk)));
     child.stderr.on("data", (chunk: Buffer) => forward(request.onStderr, stderr.append(chunk)));
+    child.stdin.on("error", (error) => {
+      // Early process exit can close stdin before all input is consumed.
+      if (codeOf(error) === "EPIPE") return;
+      failure = new ProcessExecutionError(
+        "stdin_failed",
+        "Unable to write local process input.",
+        codeOf(error),
+      );
+      stop();
+    });
     child.once("error", (error) => {
       const code = codeOf(error);
       failure = new ProcessExecutionError(
@@ -224,6 +237,7 @@ export const runProcess: ProcessRunner = async (request) => {
     if (request.timeoutMs !== undefined)
       timeout = setTimeout(() => stop("timeout"), request.timeoutMs);
     if (request.signal?.aborted) abort();
+    child.stdin.end(request.stdin ?? "");
   });
 };
 
@@ -261,6 +275,14 @@ function codeOf(error: unknown): string | undefined {
 }
 
 function validateRequest(request: ProcessRequest) {
+  if (
+    request.stdin !== undefined &&
+    (typeof request.stdin !== "string" || Buffer.byteLength(request.stdin) > 1024 * 1024)
+  )
+    throw new ProcessExecutionError(
+      "invalid_request",
+      "Process stdin must be a UTF-8 string no larger than 1 MiB.",
+    );
   if (
     !request.executable ||
     request.executable.includes("\0") ||
