@@ -1,6 +1,7 @@
 {
   "name": "veyra-monorepo",
   "private": true,
+  "type": "module",
   "version": "0.1.0",
   "description": "Veyra — one goal, many agents, verified execution.",
   "packageManager": "pnpm@10.15.1",
@@ -13,14 +14,15 @@
     "format:check": "prettier --check .",
     "build": "turbo build",
     "dev": "turbo dev --parallel",
-    "check": "turbo check",
-    "test": "turbo test",
+    "check": "turbo check && tsc -p tsconfig.test.json",
+    "test": "turbo test && vitest run --config vitest.config.ts",
     "clean": "turbo clean && rm -rf node_modules",
     "ve": "pnpm --filter @veyra/cli dev"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
     "@types/node": "^22.10.0",
+    "@veyra/protocol": "workspace:*",
     "prettier": "3.9.6",
     "tsx": "^4.19.0",
     "turbo": "^2.5.0",

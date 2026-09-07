@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["test/helpers/**", "test/fixtures/**", "vitest.config.ts"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
@@ -14,7 +15,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "outputs": []
     },
     "clean": {
       "cache": false

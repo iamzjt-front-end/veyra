@@ -149,22 +149,26 @@ Verified the full local baseline and hosted GitHub Actions on temporary validati
 
 ## M0.4 — Establish test conventions and fixtures
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M0.1
 
 **Primary areas:** packages/apps tests, `examples/`, optional `test/fixtures/`
 
 ### Requirements
 
-- [ ] Define unit vs integration vs end-to-end test conventions.
-- [ ] Create at least one minimal fixture project that Veyra may safely modify during tests.
-- [ ] Create reusable fake/mock `AgentAdapter` implementations for deterministic tests.
-- [ ] Tests must never require an OpenAI key or a logged-in Codex CLI by default.
-- [ ] Temporary test state must be isolated and cleaned up.
+- [x] Define unit vs integration vs end-to-end test conventions.
+- [x] Create at least one minimal fixture project that Veyra may safely modify during tests.
+- [x] Create reusable fake/mock `AgentAdapter` implementations for deterministic tests.
+- [x] Tests must never require an OpenAI key or a logged-in Codex CLI by default.
+- [x] Temporary test state must be isolated and cleaned up.
 
 ### Acceptance criteria
 
 - A mock agent can produce a deterministic `AgentResult`.
 - A test can create and destroy an isolated fixture workspace.
+
+Verified frozen install and the full five-command baseline; `pnpm test` passed with `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `GEMINI_API_KEY` unset (eight Vitest tests plus the fixture's Node test). Tests cover deterministic response/input copies, a configured failure, independent mutable workspaces, and cleanup after success/failure. Root test helpers use ESM and strict TypeScript checks, and shared fixture changes invalidate Turbo caches. Conventions are documented in `docs/TESTING.md`.
 
 ---
 
@@ -1470,4 +1474,4 @@ When finished:
 
 ## Next task
 
-**Start with M0.4 — Establish test conventions and fixtures.**
+**Start with M0.5 — Make the docs hierarchy explicit.**

@@ -136,6 +136,8 @@ Run `pnpm format` to format the repository. Prettier handles TypeScript, JSON, M
 
 CI runs the same five checks for pull requests and pushes to `main`, using Node.js 22, Corepack, a cached pnpm store, and `pnpm install --frozen-lockfile`. The default suite does not require provider credentials or live API calls.
 
+See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
+
 ## Current milestone
 
 The first product milestone is the **v0.1 vertical slice**:

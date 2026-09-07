@@ -14,6 +14,9 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
+      '@veyra/protocol':
+        specifier: workspace:*
+        version: link:packages/protocol
       prettier:
         specifier: 3.9.6
         version: 3.9.6

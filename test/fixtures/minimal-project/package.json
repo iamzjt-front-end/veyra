@@ -1,0 +1,9 @@
+{
+  "name": "veyra-test-fixture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/message.js",
+    "test": "node --test"
+  }
+}
