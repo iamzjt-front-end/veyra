@@ -81,7 +81,10 @@ export async function executeParallel(options: ParallelOptions): Promise<LeafRes
   }
   const seed = new RunContext(
     Object.values(steps).flatMap((node) =>
-      Object.values(node.inputs ?? {}).map((input) => input.from),
+      [
+        ...Object.values(node.inputs ?? {}),
+        ...(node.route && typeof node.route !== "string" ? [node.route] : []),
+      ].map((input) => input.from),
     ),
   );
   seed.restore(events.filter((event) => (event.sequence ?? 0) < (batch.sequence ?? 0)));

@@ -963,10 +963,14 @@ Verified 22 parallel graph tests, the schema-backed parallel example, nine Core 
 
 ## M3.5 — Router nodes
 
-- [ ] deterministic/static router rules first
-- [ ] optional agent-powered router later in the same abstraction
-- [ ] route decision persisted as evidence
-- [ ] invalid target protection
+**Status:** [x] Complete and verified.
+
+- [x] deterministic/static router rules first
+- [x] optional agent-powered router later in the same abstraction
+- [x] route decision persisted as evidence
+- [x] invalid target protection
+
+Implemented static labels and bounded output-reference selection through a declared `on` map with optional `next` fallback. An ordinary preceding agent can propose a label through the same contract as deterministic evidence; the router itself remains deterministic and provider-neutral. `router.selected` persists the chosen label, target and optional source before scheduling. Verified 25 router unit cases, 13 Core integration cases, schema/example validation and event contract cases, including declared-target protection, invalid/missing input, full-output references after approval, completed-checkpoint recovery in a new process, and bounded router cycles. All five baseline commands passed (547 tests). See `docs/WORKFLOWS.md` and `examples/workflows/v1/router.yaml`.
 
 ---
 
@@ -1556,4 +1560,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.5 — Router nodes.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.6 — Subworkflows.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

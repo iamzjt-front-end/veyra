@@ -58,7 +58,7 @@ function json(value: unknown, field: string, parents = new Set<object>()): unkno
 function parseStep(value: unknown, field: string): WorkflowStep {
   const raw = object(value, field);
   const type = text(raw.type, `${field}.type`);
-  if (["router", "subworkflow"].includes(type)) {
+  if (type === "subworkflow") {
     throw new WorkflowError(`${field}.type`, `${type} is reserved and unsupported in v0.1`);
   }
   if (
@@ -66,9 +66,13 @@ function parseStep(value: unknown, field: string): WorkflowStep {
     type !== "command" &&
     type !== "human" &&
     type !== "parallel" &&
+    type !== "router" &&
     type !== "end"
   ) {
-    throw new WorkflowError(`${field}.type`, "expected agent, command, human, parallel, or end");
+    throw new WorkflowError(
+      `${field}.type`,
+      "expected agent, command, human, parallel, router, or end",
+    );
   }
   const common = ["type", "metadata", "next", "on", "retry"];
   const keys =
@@ -78,7 +82,15 @@ function parseStep(value: unknown, field: string): WorkflowStep {
           ...common,
           ...(type === "parallel"
             ? ["children", "concurrency", "failurePolicy"]
-            : [type === "agent" ? "agent" : type === "command" ? "run" : "message"]),
+            : [
+                type === "router"
+                  ? "route"
+                  : type === "agent"
+                    ? "agent"
+                    : type === "command"
+                      ? "run"
+                      : "message",
+              ]),
           ...(type === "agent" || type === "human" ? ["inputs"] : []),
         ];
   object(raw, field, keys);
@@ -107,6 +119,21 @@ function parseStep(value: unknown, field: string): WorkflowStep {
     step.failurePolicy = (raw.failurePolicy as "wait-all" | "fail-fast" | undefined) ?? "wait-all";
   }
   if (type === "agent") step.agent = text(raw.agent, `${field}.agent`);
+  if (type === "router") {
+    if (typeof raw.route === "string") {
+      step.route = text(raw.route, `${field}.route`);
+      if ([...step.route].length > 128)
+        throw new WorkflowError(`${field}.route`, "route labels must be at most 128 characters");
+    } else {
+      step.route = parseReference(raw.route, `${field}.route`);
+    }
+    const routes = Object.keys(object(raw.on, `${field}.on`));
+    if (routes.length < 1 || routes.length > 32 || routes.some((label) => [...label].length > 128))
+      throw new WorkflowError(
+        `${field}.on`,
+        "must declare 1 to 32 routes with labels of at most 128 characters",
+      );
+  }
   if (type === "command") {
     if (!Array.isArray(raw.run) || raw.run.length === 0)
       throw new WorkflowError(`${field}.run`, "must be a non-empty array of commands");
@@ -125,17 +152,7 @@ function parseStep(value: unknown, field: string): WorkflowStep {
             `${field}.inputs key`,
             "input names must be at most 128 characters",
           );
-        const ref = object(value, `${field}.inputs.${name}`, ["from", "path"]);
-        const from = text(ref.from, `${field}.inputs.${name}.from`);
-        try {
-          pointerSegments(ref.path as string);
-        } catch {
-          throw new WorkflowError(
-            `${field}.inputs.${name}.path`,
-            "expected an RFC 6901 JSON Pointer (up to 1024 characters and 32 segments)",
-          );
-        }
-        return [name, { from, path: ref.path as string }];
+        return [name, parseReference(value, `${field}.inputs.${name}`)];
       }),
     );
   }
@@ -161,7 +178,31 @@ function parseStep(value: unknown, field: string): WorkflowStep {
       unknown
     >;
   }
+  if (
+    type === "router" &&
+    typeof step.route === "string" &&
+    !Object.hasOwn(step.on ?? {}, step.route) &&
+    step.next === undefined
+  )
+    throw new WorkflowError(
+      `${field}.route`,
+      "static label must match a declared route or have a next fallback",
+    );
   return step;
+}
+
+function parseReference(value: unknown, field: string): StepInputReference {
+  const ref = object(value, field, ["from", "path"]);
+  const from = text(ref.from, `${field}.from`);
+  try {
+    pointerSegments(ref.path as string);
+  } catch {
+    throw new WorkflowError(
+      `${field}.path`,
+      "expected an RFC 6901 JSON Pointer (up to 1024 characters and 32 segments)",
+    );
+  }
+  return { from, path: ref.path as string };
 }
 
 /** Parse provider-neutral graph data; no YAML, process, or agent execution occurs here. */
@@ -179,6 +220,17 @@ export function parseWorkflow(value: unknown): WorkflowDefinition {
   if (!Object.hasOwn(steps, start))
     throw new WorkflowError("start", `step '${start}' does not exist`);
   for (const [id, step] of Object.entries(steps)) {
+    if (
+      step.route &&
+      typeof step.route !== "string" &&
+      (!Object.hasOwn(steps, step.route.from) ||
+        steps[step.route.from]?.type === "end" ||
+        step.route.from === id)
+    )
+      throw new WorkflowError(
+        `steps.${id}.route.from`,
+        "must reference a different non-terminal output step in this workflow",
+      );
     for (const [name, reference] of Object.entries(step.inputs ?? {})) {
       if (!Object.hasOwn(steps, reference.from) || steps[reference.from]?.type === "end")
         throw new WorkflowError(

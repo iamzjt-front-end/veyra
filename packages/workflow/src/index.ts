@@ -23,6 +23,8 @@ export interface WorkflowStep {
   children?: string[];
   concurrency?: number;
   failurePolicy?: "wait-all" | "fail-fast";
+  /** A static route label or a reference selecting a label from a previous output. */
+  route?: string | StepInputReference;
   metadata?: Record<string, unknown>;
 }
 
@@ -53,3 +55,4 @@ export { parseWorkflow, WorkflowError } from "./parser.js";
 export { withRetryDefaults, nextRetry, type RetryDecision } from "./retry.js";
 export { resolveStepInputs, InputResolutionError, MAX_RESOLVED_INPUT_BYTES } from "./inputs.js";
 export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";
+export { resolveRoute, RouterError, type RouteDecision } from "./router.js";

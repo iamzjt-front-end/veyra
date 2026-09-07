@@ -10,7 +10,12 @@ export function withRetryDefaults(
     throw new Error("Default repair limit must be a non-negative safe integer.");
   const copy = parseWorkflow(workflow);
   for (const step of Object.values(copy.steps)) {
-    if (step.type === "agent" || step.type === "command" || step.type === "parallel")
+    if (
+      step.type === "agent" ||
+      step.type === "command" ||
+      step.type === "parallel" ||
+      step.type === "router"
+    )
       step.retry ??= { max: defaultMax };
   }
   return copy;

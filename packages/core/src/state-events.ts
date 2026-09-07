@@ -188,6 +188,18 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
   switch (value.type) {
     case "step.started":
       return true;
+    case "router.selected":
+      return (
+        typeof value.route === "string" &&
+        value.route.trim().length > 0 &&
+        [...value.route].length <= 128 &&
+        typeof value.target === "string" &&
+        value.target.trim().length > 0 &&
+        ["static", "input"].includes(value.selection as string) &&
+        (value.selection === "static"
+          ? value.source === undefined
+          : record(value.source) && string(value.source.stepId) && string(value.source.path))
+      );
     case "parallel.started":
       return (
         array(value.children, string) &&

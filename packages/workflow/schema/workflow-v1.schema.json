@@ -38,6 +38,9 @@
           },
           {
             "$ref": "#/definitions/parallel"
+          },
+          {
+            "$ref": "#/definitions/router"
           }
         ]
       }
@@ -194,6 +197,30 @@
             "pattern": "^(?:/(?:[^~/]|~[01])*){0,32}(?![\\s\\S])"
           }
         }
+      }
+    },
+    "router": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "route", "on"],
+      "properties": {
+        "type": { "const": "router" },
+        "route": {
+          "oneOf": [
+            { "type": "string", "pattern": "\\S", "maxLength": 128 },
+            { "$ref": "#/definitions/inputs/additionalProperties" }
+          ]
+        },
+        "on": {
+          "type": "object",
+          "minProperties": 1,
+          "maxProperties": 32,
+          "propertyNames": { "type": "string", "pattern": "\\S", "maxLength": 128 },
+          "additionalProperties": { "$ref": "#/definitions/text" }
+        },
+        "next": { "$ref": "#/definitions/text" },
+        "retry": { "$ref": "#/definitions/retry" },
+        "metadata": { "$ref": "#/definitions/metadata" }
       }
     },
     "parallel": {

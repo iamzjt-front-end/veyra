@@ -30,6 +30,7 @@ Core saves the goal, working directory, and workflow snapshot before starting. E
 - `command`: call the deterministic verifier with the configured command list and convert its aggregate result into `success`/`failure`. Core emits verification events; an injected verifier should not independently append duplicate events to the same run.
 - `human`: persist `approval.required` with an approval ID, message/context, and pause at the gate. The [approval API](APPROVALS.md) records explicit decisions before resume.
 - `parallel`: schedule independent agent/command children up to the saved concurrency limit, propagate cancellation, persist each child independently, then join in declaration order. The [parallel contract](WORKFLOWS.md#parallel-groups) defines wait-all/fail-fast behavior and paused-child resume.
+- `router`: resolve a static label or explicit persisted output reference through the declared route map, persist `router.selected`, then schedule its target. No provider executes inside the router. See [router semantics](WORKFLOWS.md#router-nodes).
 - `end`: complete the step, save terminal state, and emit `run.completed`.
 
 Transitions are resolved by `@veyra/workflow`. Failures require an explicit matching `on.failure` or `on.fail` recovery transition; they cannot silently fall through `next` to completion. A branch with no matching outcome and no fallback fails with an actionable error. A successful leaf with no transitions completes the run. Results report `completed`, `failed`, or `paused` plus the run ID and last step.

@@ -14,6 +14,7 @@ import { ShellVerifier, type Verifier } from "@veyra/verifier";
 import {
   nextRetry,
   InputResolutionError,
+  RouterError,
   resolveNextStep,
   withRetryDefaults,
   type WorkflowDefinition,
@@ -30,6 +31,7 @@ import { RunContext } from "./context.js";
 import { ExecutionError } from "./execution-error.js";
 import { executeLeaf } from "./leaf.js";
 import { executeParallel, pendingParallel } from "./parallel.js";
+import { executeRouter } from "./router.js";
 import { LocalRunStore, StateStoreError, type StoredRun } from "./state.js";
 
 export interface RunRequest extends AgentRunOptions {
@@ -131,7 +133,10 @@ export class VeyraEngine {
     if (
       Object.values(run.input.workflow.steps).some(
         (step) =>
-          (step.type === "agent" || step.type === "command" || step.type === "parallel") &&
+          (step.type === "agent" ||
+            step.type === "command" ||
+            step.type === "parallel" ||
+            step.type === "router") &&
           step.retry === undefined,
       )
     )
@@ -211,7 +216,10 @@ export class VeyraEngine {
     const steps = run.input.workflow.steps;
     const context = new RunContext(
       Object.values(steps).flatMap((step) =>
-        Object.values(step.inputs ?? {}).map((input) => input.from),
+        [
+          ...Object.values(step.inputs ?? {}),
+          ...(step.route && typeof step.route !== "string" ? [step.route] : []),
+        ].map((input) => input.from),
       ),
     );
     const attempts = new Map<string, number>();
@@ -288,7 +296,10 @@ export class VeyraEngine {
         const batch = step.type === "parallel" ? pendingParallel(eventLog, stepId) : undefined;
         if (
           !batch &&
-          (step.type === "agent" || step.type === "command" || step.type === "parallel")
+          (step.type === "agent" ||
+            step.type === "command" ||
+            step.type === "parallel" ||
+            step.type === "router")
         ) {
           const decision = nextRetry(
             step,
@@ -414,7 +425,9 @@ export class VeyraEngine {
                   return execution;
                 },
               })
-            : await executeLeaf(leafOptions);
+            : step.type === "router"
+              ? await executeRouter(leafOptions)
+              : await executeLeaf(leafOptions);
         if (leaf.pauseReason !== undefined) return await pause(leaf.pauseReason);
         const { outcome, failureMessage } = leaf;
         if (controls.signal?.aborted)
@@ -448,7 +461,9 @@ export class VeyraEngine {
       // A broken store cannot truthfully claim a persisted failure; surface it to the caller.
       if (error instanceof StateStoreError) throw error;
       const failure: SerializedError =
-        error instanceof ExecutionError || error instanceof InputResolutionError
+        error instanceof ExecutionError ||
+        error instanceof InputResolutionError ||
+        error instanceof RouterError
           ? { code: error.code, message: error.message }
           : {
               code: "run_execution_failed",

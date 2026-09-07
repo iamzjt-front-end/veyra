@@ -62,6 +62,13 @@ export class RunContext {
         artifacts: event.results.flatMap((item) => item.artifacts ?? []),
       };
       this.add(event.stepId, output as unknown as JsonObject, output.artifacts);
+    } else if (event.type === "router.selected") {
+      this.add(event.stepId, {
+        type: "router",
+        outcome: event.route,
+        target: event.target,
+        selection: event.selection,
+      });
     } else if (event.type === "parallel.completed") {
       const output: StepOutput = {
         type: "parallel",

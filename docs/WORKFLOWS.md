@@ -11,15 +11,16 @@
 
 Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step ID, and a `steps` object. Step IDs and transition outcome keys must be non-empty strings. The start step and every `next`/`on` destination must exist as actual entries in the step map.
 
-| Node type  | Fields specific to this type                                        |
-| ---------- | ------------------------------------------------------------------- |
-| `agent`    | Required non-empty `agent`, referencing a configured agent name     |
-| `command`  | Required non-empty `run` array of non-empty command strings         |
-| `human`    | Optional non-empty `message`                                        |
-| `parallel` | Required `children` IDs; optional `concurrency` and `failurePolicy` |
-| `end`      | Terminal node; no transitions or retry settings                     |
+| Node type  | Fields specific to this type                                            |
+| ---------- | ----------------------------------------------------------------------- |
+| `agent`    | Required non-empty `agent`, referencing a configured agent name         |
+| `command`  | Required non-empty `run` array of non-empty command strings             |
+| `human`    | Optional non-empty `message`                                            |
+| `parallel` | Required `children` IDs; optional `concurrency` and `failurePolicy`     |
+| `router`   | Required `route` label/reference and `on` map; optional `next` fallback |
+| `end`      | Terminal node; no transitions or retry settings                         |
 
-Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected. `router` and `subworkflow` remain in the type vocabulary but are explicitly unsupported until their implementation milestones.
+Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected. `subworkflow` remains in the type vocabulary but is explicitly unsupported until its implementation milestone.
 
 Agent and human nodes also support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
 
@@ -35,6 +36,7 @@ For a YAML language server, select the schema with a comment containing its rela
 | [approval.yaml](../examples/workflows/v1/approval.yaml)       | An explicit approved/rejected branch before a read-only command.                                                                            |
 | [review-loop.yaml](../examples/workflows/v1/review-loop.yaml) | Executor, deterministic test, reviewer and a single allowed repair; requires configured executor/reviewer agents and a project test script. |
 | [parallel.yaml](../examples/workflows/v1/parallel.yaml)       | Independent syntax and test commands for the disposable fixture project, with a bounded join.                                               |
+| [router.yaml](../examples/workflows/v1/router.yaml)           | Routes persisted verification success to completion and failure to a human gate.                                                            |
 
 Schema validation covers data shape, exact supported node types, required fields, unknown fields, non-blank strings, and retry integer bounds. `parseWorkflow`/`loadWorkflow` additionally check actual start/transition destinations and reject non-JSON in-memory metadata and YAML alias problems. A schema-valid object is not necessarily a valid graph, and validation never grants permission to execute commands. Always use the runtime loader before execution. Tests validate every preset/example and compare invalid structural cases through both validators; Ajv is a development-only dependency, not another runtime parser.
 
@@ -75,6 +77,7 @@ The provider-neutral `StepOutput` contract defines selectable fields:
 | `verification.completed` | `type: command`, `outcome: success/failure`, `results` and artifact references.                                                    |
 | `approval.resolved`      | `type: human`, `outcome: approved/rejected`, optional `comment`.                                                                   |
 | `parallel.completed`     | `type: parallel`, `outcome: success/failure`, declaration-ordered `results` containing child states and evidence event references. |
+| `router.selected`        | `type: router`, `outcome` (the selected route label), `target` and `selection: static/input`.                                      |
 
 `path` is an [RFC 6901 JSON Pointer](https://www.rfc-editor.org/info/rfc6901/): empty selects the whole normalized output; `/data/instructions` selects a property; `/results/0/exitCode` selects an array element. Escape a property-name `/` as `~1` and `~` as `~0`. Only own JSON properties and existing canonical array indices are read. No code, expression, wildcard, environment lookup, URI fragment or filesystem read is evaluated. Strings remain literal strings, and numbers, booleans, arrays, objects and null retain their JSON types.
 
@@ -123,6 +126,28 @@ The current presets and explicit agent outcomes are covered by exact `on` branch
 
 `analyzeWorkflow(definition)` first runs the same strict parser and checks every destination, including destinations inside unreachable branches. It returns `reachableSteps` and `unreachableSteps` in definition order. Reachability follows all possible `on` targets, `next` edges and parallel children from `start`, terminating on cycles; it does not predict what a provider will report or treat data references as execution edges. Unreachable nodes are diagnostics, not automatic deletions or hard errors, because a definition can intentionally retain unused steps. Execution safety still comes from Core's bounded retry policy.
 
+## Router nodes
+
+The M3.5 implementation in the `0.1.0` development checkout supports deterministic routers. Match this checkout's implementation and schema; older strict readers reject the node.
+
+```yaml
+choose:
+  type: router
+  route: { from: classify, path: /data/route }
+  on:
+    inspect: review
+    change: execute
+  next: manual
+```
+
+`route` is either a static string (for example `route: inspect`) or the same bounded `{ from, path }` reference used by named inputs. References must identify a different non-terminal step and resolve to an available, non-empty string of at most 128 characters. Selection reads already persisted output; it never evaluates expressions or runs a provider. Missing/oversized input fails explicitly. Invalid types/blank/oversized labels fail with `invalid_route`.
+
+`on` must declare 1–32 label-to-step mappings, each label at most 128 characters. Selection is an exact own-key match before the optional `next` fallback. An unmatched value without a fallback fails with `unmatched_route`. Every target is validated against the saved workflow; owned parallel children cannot be entered directly. A static unmatched label without a fallback is rejected before the run starts. A label that happens to equal an existing step ID cannot select that step unless its route is declared. The existing `failure`/`fail` labels retain their meaning for the destination's repair-budget accounting.
+
+Optional agent-assisted routing uses an ordinary preceding agent to propose a label in its normalized result, then references that field as above. Providers remain injected behind `AgentAdapter`; the router does not call a vendor, create another agent interface or accept arbitrary model-proposed destinations. Agent completion/usage remains separate evidence, and deterministic verification outputs can drive the same router. A classifier must still satisfy its own execution/transition contract before routing occurs.
+
+Core saves `router.selected` with the selected label, exact target, selection kind and optional source step/pointer before recording step completion or scheduling the target. Later inputs and human gates can reference that decision. Saved source data and decisions survive pause/resume; a proven completed router checkpoint can continue its successor without repeating classification. Router cycles consume their snapshotted retry budgets and the lifetime step limit.
+
 ## Parallel groups
 
 The M3.4 implementation in the `0.1.0` development checkout adds parallel groups to version 1. Use this implementation and its matching schema; earlier scaffold checkouts reject this node.
@@ -160,7 +185,7 @@ Parallel children use the same configured working directory. Authors must choose
 
 ## v0.1 retry policy
 
-Each executable step (`agent`, `command` or `parallel`) has an independent repair budget. Parallel children also have individual budgets; resuming an unfinished group retains the parent attempt while retried children spend their own budgets. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits in the saved run snapshot. Resume uses that snapshot even if the current config changes.
+Each executable step (`agent`, `command`, `parallel` or `router`) has an independent repair budget. Parallel children also have individual budgets; resuming an unfinished group retains the parent attempt while retried children spend their own budgets. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits in the saved run snapshot. Resume uses that snapshot even if the current config changes.
 
 `nextRetry()` evaluates the next execution without mutating state:
 

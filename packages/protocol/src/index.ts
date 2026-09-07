@@ -116,6 +116,7 @@ export type StepOutput =
       artifacts?: ArtifactRef[];
     }
   | { type: "human"; outcome: ApprovalDecision; comment?: string }
+  | { type: "router"; outcome: string; target: string; selection: "static" | "input" }
   | { type: "parallel"; outcome: "success" | "failure"; results: ParallelChildResult[] };
 
 export interface ParallelChildResult {
@@ -162,6 +163,13 @@ export type VeyraEvent = EventMetadata &
     | (StepEventMetadata & { type: "step.retrying"; retryCount: number; maxRetries: number })
     | (StepEventMetadata & { type: "step.completed"; outcome?: string; artifacts?: ArtifactRef[] })
     | (StepEventMetadata & { type: "step.failed"; message: string; error?: SerializedError })
+    | (StepEventMetadata & {
+        type: "router.selected";
+        route: string;
+        target: string;
+        selection: "static" | "input";
+        source?: { stepId: string; path: string };
+      })
     | (StepEventMetadata & {
         type: "parallel.started";
         children: string[];

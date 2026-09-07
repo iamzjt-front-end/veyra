@@ -32,6 +32,15 @@ const events: VeyraEvent[] = [
   { ...metadata, type: "step.retrying", retryCount: 1, maxRetries: 3 },
   { ...metadata, type: "step.completed", artifacts: [artifact] },
   { ...metadata, type: "step.failed", message: "Failed", error },
+  { ...metadata, type: "router.selected", route: "inspect", target: "done", selection: "static" },
+  {
+    ...metadata,
+    type: "router.selected",
+    route: "inspect",
+    target: "done",
+    selection: "input",
+    source: { stepId: "classify", path: "/data/route" },
+  },
   {
     ...metadata,
     type: "parallel.started",
@@ -111,6 +120,18 @@ describe("persisted event validation", () => {
 
   it.each([
     { ...metadata, type: "future.unsupported" },
+    { ...metadata, type: "router.selected", route: "", target: "done", selection: "static" },
+    { ...metadata, type: "router.selected", route: "inspect", target: 1, selection: "static" },
+    { ...metadata, type: "router.selected", route: "inspect", target: "done", selection: "input" },
+    {
+      ...metadata,
+      type: "router.selected",
+      route: "inspect",
+      target: "done",
+      selection: "static",
+      source: { stepId: "classify", path: "/data/route" },
+    },
+    { ...metadata, type: "router.selected", route: "inspect", target: "done", selection: "agent" },
     {
       ...metadata,
       type: "parallel.started",
