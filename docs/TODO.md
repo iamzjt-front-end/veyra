@@ -410,6 +410,8 @@ Verified 16 verifier tests for ordering, first/later failures, empty commands, t
 
 ## M1.6 — Implement persistent local run state
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.3
 
 **Primary area:** preferably `packages/core` persistence boundary or a small internal module owned by Core; do not create a new top-level package without approval
@@ -430,16 +432,16 @@ Verified 16 verifier tests for ordering, first/later failures, empty commands, t
 
 ### Requirements
 
-- [ ] Generate collision-resistant run IDs.
-- [ ] Persist original goal/input.
-- [ ] Persist current step, status, retry counts, timestamps, last outcome.
-- [ ] Append structured events to JSONL.
-- [ ] Use atomic write/rename strategy for mutable JSON state where practical.
-- [ ] Ensure parent directories are created automatically.
-- [ ] Provide read/list/load APIs needed by `status`, `review`, and `resume`.
-- [ ] Do not persist API keys or raw environment secrets.
-- [ ] Define behavior for corrupt/incomplete state files with actionable errors.
-- [ ] Make state directory configurable; default `.veyra`.
+- [x] Generate collision-resistant run IDs.
+- [x] Persist original goal/input.
+- [x] Persist current step, status, retry counts, timestamps, last outcome.
+- [x] Append structured events to JSONL.
+- [x] Use atomic write/rename strategy for mutable JSON state where practical.
+- [x] Ensure parent directories are created automatically.
+- [x] Provide read/list/load APIs needed by `status`, `review`, and `resume`.
+- [x] Do not persist API keys or raw environment secrets.
+- [x] Define behavior for corrupt/incomplete state files with actionable errors.
+- [x] Make state directory configurable; default `.veyra`.
 
 ### Tests
 
@@ -453,6 +455,8 @@ Verified 16 verifier tests for ordering, first/later failures, empty commands, t
 ### Acceptance criteria
 
 A run can stop after one step, the Node process can exit, and a new process can load enough information to know the run status and next step.
+
+Verified 41 Core persistence/event tests: complete layout, atomic snapshot visibility, unique IDs, active selection, ordered events, secret filtering, corrupt/incomplete files, malformed payloads, and path/symlink rejection. A writer Node process persisted one completed step and a paused next step, exited, and a second Node process recovered input, status, retries, next step, and events. All five baseline commands passed (214 tests). `docs/STATE.md` documents the Core-owned store, JSON record limit, explicit single-writer constraint, and non-transactional recovery boundaries. No orchestration behavior was advanced in this task.
 
 ---
 
@@ -1500,4 +1504,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.6 — Implement persistent local run state.**
+**Start with M1.7 — Implement OpenAI reasoning adapter.**

@@ -1,0 +1,53 @@
+# Local run state
+
+`LocalRunStore` is the persistence boundary owned by `@veyra/core`. It stores versioned JSON and structured events; it does not schedule steps or construct providers.
+
+```text
+.veyra/
+  state/
+    active.json
+  runs/
+    <UUID>/
+      input.json
+      state.json
+      events.jsonl
+      artifacts/
+```
+
+## API and snapshots
+
+```ts
+import { LocalRunStore } from "@veyra/core";
+
+const store = new LocalRunStore({ stateDir: ".veyra" });
+const run = await store.createRun({ goal, workflow, cwd: process.cwd() });
+await store.updateRun(run.state.runId, {
+  status: "paused",
+  currentStep: "verify",
+  retryCounts: { execute: 1 },
+  lastOutcome: "success",
+});
+const reloaded = await store.loadRun(run.state.runId);
+```
+
+The directory defaults to `.veyra` relative to the caller's working directory. Creation generates a UUID, snapshots the original goal, validated workflow, working directory, and creation time, and sets the active pointer. Inputs are immutable through this API. State records status (`running`, `paused`, `completed`, `failed`), the current/next step, retry counts, timestamps, and optional last outcome. Step IDs and retry keys must exist in the workflow. Updates replace the supplied retry map; use `currentStep: null` to remove the step for a terminal run. Omit optional fields instead of supplying `undefined`.
+
+`loadRun(id)` reads an input/state pair. `listRuns()` returns states ordered by update time, and `getActiveRun()` loads the selected run or returns null. `setActiveRun(id)` selects an existing run; null clears the pointer without deleting history. Completing a run does not implicitly clear that selection.
+
+`appendEvent(id, event)` validates the shared event contract, assigns a UUID event ID and a one-based sequence, redacts it, and appends one JSON line. `readEvents(id)` validates and returns the recorded events. Appends validate the existing log before adding a record. These APIs read the local history into memory; large-history streaming and retention are later work. A single JSON snapshot/event is limited to 16 MiB on write; use artifacts for large output. Artifact directories are created now; artifact collection and rendering belong to later tasks.
+
+## Interruption and errors
+
+Mutable snapshots and the active pointer use exclusive temporary files, file sync, and atomic rename. A new run is assembled in a staging directory and published only after its initial files exist. Incomplete `.tmp-*` run directories are ignored by listing. A process interruption therefore cannot expose a half-written replacement JSON snapshot. Power-loss durability of directory entries depends on the filesystem; this is not a transactional database.
+
+Run publication, event append, state update, and active-pointer update are separate operations. If a process exits between them, the last complete snapshot remains readable and event history supplies additional evidence. If pointer publication failed after run creation, `listRuns()` can still discover the run. Engine reconciliation and safe replay are later tasks.
+
+Malformed JSON, unsupported schemas, missing files, invalid step references, and malformed events raise `StateStoreError` with a path and corrective guidance. A partial final JSONL line is reported as corrupt, and further appends are refused. No damaged history is silently skipped or repaired: preserve it and restore a valid copy before resuming. API calls reject path-like run IDs and symlinked state files/directories.
+
+Mutations are serialized within one store instance. Use one writer per state directory; cross-process locking is not yet implemented. The store does not claim protection against a separate process racing filesystem changes. These limitations are tracked by the canonical [TODO](TODO.md).
+
+## Secret boundary
+
+The input API accepts only a goal, workflow, and optional cwd. Provider configuration, native errors, abort signals, API clients, and raw execution environments are not input snapshots. Credential-shaped fields and environment objects in JSON payloads are replaced with `[REDACTED]`. Applications must pass known secret values through the ephemeral `redactValues` constructor option to remove them from free-form text as well. The store does not discover credentials or read the ambient environment into state.
+
+Secret filtering is checked before publication. If redaction would invalidate workflow/state/event identifiers, the write is rejected. Never use credentials as execution identifiers or embed them into command strings. Callers remain responsible for supplying known secrets and for avoiding unrecognized sensitive content in goals, output, and artifact files. Newly created directories/files use restrictive POSIX modes where supported.

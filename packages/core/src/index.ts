@@ -6,6 +6,18 @@ import {
   type WorkflowDefinition,
 } from "@veyra/workflow";
 
+export {
+  type CreateRunInput,
+  LocalRunStore,
+  type LocalRunStoreOptions,
+  type RunStateUpdate,
+  type RunStatus,
+  StateStoreError,
+  type StoredRun,
+  type StoredRunInput,
+  type StoredRunState,
+} from "./state.js";
+
 export interface RunRequest {
   goal: string;
   workflow: WorkflowDefinition;

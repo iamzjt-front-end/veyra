@@ -90,7 +90,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | CLI                                      | ✓        | scaffolded                 |
 | TUI                                      | ✓        | scaffolded                 |
 | Dashboard                                | ✓        | planned                    |
-| Core                                     | ✓        | scaffolded                 |
+| Core                                     | ✓        | local run persistence      |
 | Workflow                                 | ✓        | YAML loader and validation |
 | Runtime                                  | ✓        | local process execution    |
 | Verifier                                 | ✓        | sequential shell checks    |
@@ -149,6 +149,8 @@ The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event con
 The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior.
 
 The [verification reference](docs/VERIFICATION.md) describes sequential command checks, aggregate results, and verification events.
+
+The [state reference](docs/STATE.md) documents local snapshots, event history, recovery errors, and the single-writer boundary.
 
 ## Current milestone
 
