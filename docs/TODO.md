@@ -124,22 +124,26 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, and `pnpm 
 
 ## M0.3 — Add CI for pull requests and main
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M0.1, M0.2
 
 **Primary areas:** `.github/workflows/`
 
 ### Requirements
 
-- [ ] Add a CI workflow for pushes to `main` and pull requests.
-- [ ] Use the Node version supported by the repository and Corepack/pnpm cache.
-- [ ] Run install with a frozen lockfile.
-- [ ] Run `lint`, `format:check`, `check`, `test`, `build`.
-- [ ] Avoid provider/API integration tests in normal CI.
-- [ ] Keep secrets out of the workflow.
+- [x] Add a CI workflow for pushes to `main` and pull requests.
+- [x] Use the Node version supported by the repository and Corepack/pnpm cache.
+- [x] Run install with a frozen lockfile.
+- [x] Run `lint`, `format:check`, `check`, `test`, `build`.
+- [x] Avoid provider/API integration tests in normal CI.
+- [x] Keep secrets out of the workflow.
 
 ### Acceptance criteria
 
 A PR with valid code gets green CI; a deliberate type error or failing test makes CI fail.
+
+Verified the full local baseline and hosted GitHub Actions on temporary validation PR #1: [valid code passed](https://github.com/iamzjt-front-end/veyra/actions/runs/34146701083), and [a deliberate type error failed](https://github.com/iamzjt-front-end/veyra/actions/runs/34146796260) at `Check types` with `TS2322: Type 'number' is not assignable to type 'string'`. The negative probe exists only on the temporary validation branch, never in the implementation branch. Actions are pinned to verified release commit SHAs; the workflow uses Node.js 22, Corepack 0.34.7, the declared pnpm version, and read-only repository permissions.
 
 ---
 
@@ -1466,4 +1470,4 @@ When finished:
 
 ## Next task
 
-**Start with M0.3 — Add CI for pull requests and main.**
+**Start with M0.4 — Establish test conventions and fixtures.**

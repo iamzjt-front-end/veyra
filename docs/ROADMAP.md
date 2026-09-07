@@ -8,7 +8,7 @@ For the canonical task-by-task implementation order, dependencies, tests, and ac
 
 - [x] Reproducible pnpm install and lockfile
 - [x] Formatting/linting baseline
-- [ ] CI for pull requests/main
+- [x] CI for pull requests/main
 - [ ] Test conventions and deterministic fixtures
 - [ ] Documentation hierarchy/cross-links
 
