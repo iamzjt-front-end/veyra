@@ -266,24 +266,26 @@ Verified 48 config tests covering minimal/full inputs, defaults, invalid fields/
 
 ## M1.2 — Load and validate workflow YAML
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.1
 
 **Primary area:** `packages/workflow`
 
 ### Requirements
 
-- [ ] Add a loader for built-in and user-supplied workflow YAML.
-- [ ] Keep workflow parsing separate from config parsing.
-- [ ] Validate `name`, `version`, `start`, and step map.
-- [ ] For v0.1, support these executable step types only:
+- [x] Add a loader for built-in and user-supplied workflow YAML.
+- [x] Keep workflow parsing separate from config parsing.
+- [x] Validate `name`, `version`, `start`, and step map.
+- [x] For v0.1, support these executable step types only:
   - `agent`
   - `command`
   - `human`
   - `end`
-- [ ] `parallel`, `router`, and `subworkflow` remain schema-reserved/planned; return a clear unsupported-in-v0.1 error if encountered.
-- [ ] Validate all transition destinations.
-- [ ] Detect an obviously invalid start node and missing transition targets.
-- [ ] Define how outcomes map to transitions (`success`, `failure`, `pass`, `fail`, `approved`, `rejected`, etc.).
+- [x] `parallel`, `router`, and `subworkflow` remain schema-reserved/planned; return a clear unsupported-in-v0.1 error if encountered.
+- [x] Validate all transition destinations.
+- [x] Detect an obviously invalid start node and missing transition targets.
+- [x] Define how outcomes map to transitions (`success`, `failure`, `pass`, `fail`, `approved`, `rejected`, etc.).
 
 ### Tests
 
@@ -296,6 +298,8 @@ Verified 48 config tests covering minimal/full inputs, defaults, invalid fields/
 ### Acceptance criteria
 
 `workflows/dev.yaml` can be parsed and validated without Core needing to know YAML details.
+
+Verified 53 workflow tests covering all four built-in presets, user paths, graph/node validation, reserved nodes, retry settings, exact outcome mapping, prototype-safe destination checks, independent copies, and file/YAML errors. Frozen install and all five baseline commands passed (109 Vitest tests total). The compiled package loaded all four presets with an unrelated working directory. `docs/WORKFLOWS.md` documents schema and transition semantics; no execution or retry enforcement was added in this task.
 
 ---
 
@@ -1484,4 +1488,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.2 — Load and validate workflow YAML.**
+**Start with M1.3 — Harden provider-neutral protocol contracts.**

@@ -10,5 +10,8 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "yaml": "2.9.0"
   }
 }

@@ -3,7 +3,7 @@ export type StepType =
 
 export interface WorkflowDefinition {
   name: string;
-  version: number;
+  version: 1;
   start: string;
   steps: Record<string, WorkflowStep>;
 }
@@ -27,20 +27,15 @@ export interface StepOutcome {
 }
 
 export function resolveNextStep(step: WorkflowStep, outcome: StepOutcome): string | undefined {
-  return step.on?.[outcome.status] ?? step.next;
+  return step.on && Object.hasOwn(step.on, outcome.status)
+    ? (step.on[outcome.status] ?? step.next)
+    : step.next;
 }
 
 export function assertWorkflow(definition: WorkflowDefinition): void {
-  if (!definition.steps[definition.start]) {
-    throw new Error(`Workflow start step '${definition.start}' does not exist.`);
-  }
-
-  for (const [stepId, step] of Object.entries(definition.steps)) {
-    const destinations = [step.next, ...Object.values(step.on ?? {})].filter(Boolean) as string[];
-    for (const destination of destinations) {
-      if (!definition.steps[destination]) {
-        throw new Error(`Step '${stepId}' points to missing step '${destination}'.`);
-      }
-    }
-  }
+  parseWorkflow(definition);
 }
+import { parseWorkflow } from "./parser.js";
+
+export { loadWorkflow } from "./loader.js";
+export { parseWorkflow, WorkflowError } from "./parser.js";

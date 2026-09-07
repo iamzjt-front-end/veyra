@@ -15,6 +15,6 @@ The optional `project` object requires `name` when present. Unknown fields at th
 | `runtime.stateDir`         | `.veyra` | Non-empty path string                                   |
 | `approval.requiredFor`     | `[]`     | Array of non-empty operation names                      |
 
-Project name and model have no inferred default. Returned objects and arrays are independent copies. Paths remain as configured; callers resolve relative paths against the config directory when executing a project. Workflow contents, provider readiness, and approval execution are validated by their owning packages in later tasks.
+Project name and model have no inferred default. Returned objects and arrays are independent copies. Paths remain as configured; callers resolve relative paths against the config directory when executing a project. Workflow contents are validated by [`@veyra/workflow`](WORKFLOWS.md). Provider readiness and approval execution remain part of their owning packages' later tasks.
 
 See [`veyra.example.yaml`](../veyra.example.yaml) for the full shape. Keep credentials in environment variables or the provider's native login, never in generated config or committed examples. The loader does not interpolate environment variables or log config values. File errors include the absolute path; validation errors identify the field; malformed YAML errors include the parser error code and line/column without displaying a source excerpt.

@@ -91,7 +91,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | TUI                                      | ✓        | scaffolded                 |
 | Dashboard                                | ✓        | planned                    |
 | Core                                     | ✓        | scaffolded                 |
-| Workflow                                 | ✓        | scaffolded                 |
+| Workflow                                 | ✓        | YAML loader and validation |
 | Runtime                                  | ✓        | scaffolded                 |
 | Verifier                                 | ✓        | scaffolded                 |
 | Protocol                                 | ✓        | scaffolded                 |
@@ -141,6 +141,8 @@ CI runs the same five checks for pull requests and pushes to `main`, using Node.
 See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
 
 The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader; workflow execution and provider connections remain planned.
+
+The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.
 
 ## Current milestone
 

@@ -79,7 +79,11 @@ importers:
         specifier: workspace:*
         version: link:../protocol
 
-  packages/workflow: {}
+  packages/workflow:
+    dependencies:
+      yaml:
+        specifier: 2.9.0
+        version: 2.9.0
 
   plugins/codex:
     dependencies:
