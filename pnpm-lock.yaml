@@ -78,6 +78,9 @@ importers:
       '@veyra/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/workflow:
     dependencies:

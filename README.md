@@ -93,7 +93,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Core                                     | ✓        | scaffolded                 |
 | Workflow                                 | ✓        | YAML loader and validation |
 | Runtime                                  | ✓        | local process execution    |
-| Verifier                                 | ✓        | scaffolded                 |
+| Verifier                                 | ✓        | sequential shell checks    |
 | Protocol                                 | ✓        | contracts and JSON guard   |
 | Config                                   | ✓        | YAML loader and validation |
 | SDK                                      | ✓        | scaffolded                 |
@@ -147,6 +147,8 @@ The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node val
 The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event contracts and the boundary between persisted data and execution controls.
 
 The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior.
+
+The [verification reference](docs/VERIFICATION.md) describes sequential command checks, aggregate results, and verification events.
 
 ## Current milestone
 

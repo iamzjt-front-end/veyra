@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import { stat } from "node:fs/promises";
+import { join } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 
 export const DEFAULT_MAX_OUTPUT_BYTES = 1024 * 1024;
@@ -148,6 +149,32 @@ export const runProcess: ProcessRunner = async (request) => {
       stopping = true;
       terminationReason = reason;
       clearTimeout(timeout);
+      if (process.platform === "win32" && child.pid) {
+        const taskkill = spawn(
+          join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe"),
+          ["/PID", String(child.pid), "/T", "/F"],
+          { windowsHide: true, stdio: "ignore", timeout: 5000 },
+        );
+        let taskkillError: string | undefined;
+        taskkill.once("error", (error) => {
+          taskkillError = codeOf(error);
+        });
+        taskkill.once("close", (code) => {
+          if (code !== 0) {
+            failure ??= new ProcessExecutionError(
+              "termination_failed",
+              "Windows process-tree termination failed; only direct-child cleanup was attempted.",
+              taskkillError,
+            );
+            signalChild("SIGKILL");
+            child.stdout.destroy();
+            child.stderr.destroy();
+          }
+          cleanupFinished = true;
+          finish();
+        });
+        return;
+      }
       signalChild("SIGTERM");
       // Keep escalation even if the leader closes first: descendants may ignore SIGTERM.
       escalation = setTimeout(() => {

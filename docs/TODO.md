@@ -370,11 +370,13 @@ Verified 26 protocol tests covering provider-neutral adapters, normalized result
 
 `packages/runtime` can execute a generic local command safely enough for Codex and verifier adapters to build on.
 
-Verified 20 runtime tests with real generic Node processes: arguments, cwd/environment, both streams, UTF-8 boundaries, bounded retention, nonzero exits, missing executable, invalid limits, timeout/cancel, callback failure cleanup, and POSIX descendant termination after the leader exits. All five baseline commands passed (155 tests). `docs/RUNTIME.md` documents the 1 MiB per-stream default and platform behavior: POSIX process groups are terminated; Windows currently terminates only the direct child.
+Verified 20 runtime tests with real generic Node processes: arguments, cwd/environment, both streams, UTF-8 boundaries, bounded retention, nonzero exits, missing executable, invalid limits, timeout/cancel, callback failure cleanup, and POSIX descendant termination after the leader exits. All five baseline commands passed (155 tests). `docs/RUNTIME.md` documents the 1 MiB per-stream default and platform behavior. M1.5 subsequently added Windows process-tree cleanup needed for shell commands; native Windows validation remains pending.
 
 ---
 
 ## M1.5 — Implement deterministic shell verifier
+
+**Status:** [x] Complete and verified.
 
 **Depends on:** M1.4
 
@@ -382,13 +384,13 @@ Verified 20 runtime tests with real generic Node processes: arguments, cwd/envir
 
 ### Requirements
 
-- [ ] Replace scaffold with a real `ShellVerifier` built on the runtime process runner.
-- [ ] Run verification commands sequentially by default.
-- [ ] Stop on first failure by default; allow future policy extension without implementing parallel verification yet.
-- [ ] Return one structured result per command plus aggregate success/failure.
-- [ ] Record duration and bounded stdout/stderr.
-- [ ] Emit verification events through an injected event sink or callback, not by importing Core.
-- [ ] Treat verification as objective execution; no LLM judgment here.
+- [x] Replace scaffold with a real `ShellVerifier` built on the runtime process runner.
+- [x] Run verification commands sequentially by default.
+- [x] Stop on first failure by default; allow future policy extension without implementing parallel verification yet.
+- [x] Return one structured result per command plus aggregate success/failure.
+- [x] Record duration and bounded stdout/stderr.
+- [x] Emit verification events through an injected event sink or callback, not by importing Core.
+- [x] Treat verification as objective execution; no LLM judgment here.
 
 ### Tests
 
@@ -401,6 +403,8 @@ Verified 20 runtime tests with real generic Node processes: arguments, cwd/envir
 ### Acceptance criteria
 
 The `verify` node in `workflows/dev.yaml` can execute `pnpm check`, `pnpm test`, and `pnpm build` and produce a machine-readable aggregate result.
+
+Verified 16 verifier tests for ordering, first/later failures, empty commands, timeout/cancel, error normalization, bounded output, and injected events. Loaded the real `dev` preset and executed its three verification commands through the compiled `ShellVerifier`: all returned exit 0, no output truncation, and a JSON-compatible successful report with started/completed events. Frozen install and all five baseline commands passed (173 tests). Minimal supporting changes add protocol truncation flags and Windows PID-scoped `taskkill /T /F` cleanup for shell descendants, covered by two mocked runtime tests; native Windows validation remains pending. See `docs/VERIFICATION.md`.
 
 ---
 
@@ -1496,4 +1500,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.5 — Implement deterministic shell verifier.**
+**Start with M1.6 — Implement persistent local run state.**

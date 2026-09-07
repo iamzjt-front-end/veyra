@@ -90,6 +90,8 @@ export interface VerificationResult {
   exitCode: number | null;
   stdout: string;
   stderr: string;
+  stdoutTruncated?: boolean;
+  stderrTruncated?: boolean;
   durationMs: number;
   execution?: ExecutionMetadata;
   signal?: string;

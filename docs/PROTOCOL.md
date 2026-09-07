@@ -18,7 +18,7 @@ Context, result data, artifact metadata, and structured error details use `JsonO
 
 Use small normalized result data and summaries. Large process output and provider diagnostics belong in artifacts, with references in results/events. Never put raw SDK objects, credentials, or unrestricted provider responses into persisted state.
 
-`VerificationResult` describes deterministic evidence: command, success, exit code, retained output, duration, and optional execution identity/error/artifacts. An unavailable exit code is `null`, such as when a process cannot start. A review remains an agent result and must not be presented as deterministic verification.
+`VerificationResult` describes deterministic evidence: command, success, exit code, retained output, optional truncation flags, duration, and optional execution identity/error/artifacts. An unavailable exit code is `null`, such as when a process cannot start. A review remains an agent result and must not be presented as deterministic verification.
 
 ## Errors and events
 
