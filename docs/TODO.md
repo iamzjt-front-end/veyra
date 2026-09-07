@@ -124,6 +124,8 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, and `pnpm 
 
 ## M0.3 — Add CI for pull requests and main
 
+**Status:** [-] In progress.
+
 **Depends on:** M0.1, M0.2
 
 **Primary areas:** `.github/workflows/`
