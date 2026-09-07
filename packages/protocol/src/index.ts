@@ -33,6 +33,12 @@ export interface UsageMetadata {
   };
 }
 
+/** Optional declared ceilings; accounting/reservation is supplied by an application budget hook. */
+export interface BudgetLimits {
+  maxTokens?: number;
+  maxCost?: { amount: number; currency: string };
+}
+
 /** Persist a normalized failure, never a native Error or a raw provider response. */
 export interface SerializedError {
   code: string;
@@ -192,7 +198,18 @@ export type VeyraEvent = EventMetadata &
     | { type: "run.paused"; stepId?: string; reason?: string }
     | { type: "run.resumed"; stepId?: string }
     | (StepEventMetadata & { type: "step.started" })
-    | (StepEventMetadata & { type: "step.retrying"; retryCount: number; maxRetries: number })
+    | (StepEventMetadata & {
+        type: "step.retrying";
+        retryCount: number;
+        maxRetries: number;
+        delayMs?: number;
+      })
+    | (StepEventMetadata & {
+        type: "budget.checked";
+        phase: "before" | "after";
+        allowed: boolean;
+        reason?: string;
+      })
     | (StepEventMetadata & { type: "step.completed"; outcome?: string; artifacts?: ArtifactRef[] })
     | (StepEventMetadata & { type: "step.failed"; message: string; error?: SerializedError })
     | (StepEventMetadata & {

@@ -50,6 +50,9 @@
           }
         ]
       }
+    },
+    "policy": {
+      "$ref": "#/definitions/policy"
     }
   },
   "definitions": {
@@ -75,6 +78,9 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "backoff": {
+          "$ref": "#/definitions/backoff"
         }
       }
     },
@@ -108,6 +114,11 @@
         },
         "inputs": {
           "$ref": "#/definitions/inputs"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
         }
       }
     },
@@ -137,6 +148,11 @@
         },
         "metadata": {
           "$ref": "#/definitions/metadata"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
         }
       }
     },
@@ -386,6 +402,101 @@
           }
         }
       ]
+    },
+    "backoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["initialMs"],
+      "properties": {
+        "initialMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600000
+        },
+        "multiplier": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "maxMs": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600000
+        }
+      }
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "maxTokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "maxCost": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["amount", "currency"],
+          "properties": {
+            "amount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currency": {
+              "type": "string",
+              "pattern": "\\S",
+              "maxLength": 16
+            }
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "stepTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400000
+        },
+        "retry": {
+          "$ref": "#/definitions/retry"
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "approval": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["before"],
+          "properties": {
+            "before": {
+              "type": "array",
+              "maxItems": 128,
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/text"
+              }
+            }
+          }
+        },
+        "failureStrategy": {
+          "enum": ["branch", "stop"]
+        },
+        "budget": {
+          "$ref": "#/definitions/budget"
+        },
+        "maxSteps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1000
+        }
+      }
     }
   }
 }

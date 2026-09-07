@@ -8,6 +8,22 @@ export interface WorkflowDefinition {
   version: 1;
   start: string;
   steps: Record<string, WorkflowStep>;
+  policy?: WorkflowPolicy;
+}
+
+export interface RetryBackoff {
+  initialMs: number;
+  multiplier?: number;
+  maxMs?: number;
+}
+export interface WorkflowPolicy {
+  stepTimeoutMs?: number;
+  retry?: { max: number; backoff?: RetryBackoff };
+  concurrency?: number;
+  approval?: { before: string[] };
+  failureStrategy?: "branch" | "stop";
+  budget?: BudgetLimits;
+  maxSteps?: number;
 }
 
 export interface WorkflowStep {
@@ -18,7 +34,10 @@ export interface WorkflowStep {
   on?: Record<string, string>;
   retry?: {
     max: number;
+    backoff?: RetryBackoff;
   };
+  /** Agent/command wall-clock deadline; inherited workflow caps cannot be weakened. */
+  timeoutMs?: number;
   message?: string;
   /** Named, explicit references delivered as AgentInput.context.inputs or gate context.inputs. */
   inputs?: Record<string, StepInputReference>;
@@ -66,9 +85,16 @@ import { parseWorkflow } from "./parser.js";
 
 export { loadWorkflow } from "./loader.js";
 export { parseWorkflow, WorkflowError } from "./parser.js";
-export { withRetryDefaults, nextRetry, type RetryDecision } from "./retry.js";
+export {
+  withRetryDefaults,
+  withExecutionDefaults,
+  retryDelay,
+  nextRetry,
+  type RetryDecision,
+} from "./retry.js";
 export { resolveStepInputs, InputResolutionError, MAX_RESOLVED_INPUT_BYTES } from "./inputs.js";
 export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";
 export { resolveRoute, RouterError, type RouteDecision } from "./router.js";
 export { buildWorkflowGraph, type ExecutionGraph, type WorkflowScope } from "./graph.js";
 export { aggregateReviews } from "./consensus.js";
+import type { BudgetLimits } from "@veyra/protocol";

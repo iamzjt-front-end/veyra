@@ -1,4 +1,9 @@
-import type { StepInputReference, WorkflowDefinition, WorkflowStep } from "./index.js";
+import type {
+  StepInputReference,
+  WorkflowDefinition,
+  WorkflowStep,
+  WorkflowPolicy,
+} from "./index.js";
 import { parseWorkflow, WorkflowError } from "./parser.js";
 
 export interface WorkflowScope {
@@ -8,16 +13,24 @@ export interface WorkflowScope {
   stepIds: string[];
   parent?: string;
   outputs?: Record<string, StepInputReference>;
+  policy?: WorkflowPolicy;
 }
 export interface ExecutionGraph {
   steps: Record<string, WorkflowStep>;
   scopes: Map<string, WorkflowScope>;
   scopeOf: Map<string, string>;
+  /** Protected step ID to generated human gate ID. */
+  policyGates: Map<string, string>;
 }
 
 /** Namespace child graphs without changing the author-facing or persisted definitions. */
 export function buildWorkflowGraph(definition: WorkflowDefinition): ExecutionGraph {
-  const graph: ExecutionGraph = { steps: {}, scopes: new Map(), scopeOf: new Map() };
+  const graph: ExecutionGraph = {
+    steps: {},
+    scopes: new Map(),
+    scopeOf: new Map(),
+    policyGates: new Map(),
+  };
   const qualify = (scope: string, id: string) =>
     scope ? `${scope}/${id.replace(/~/g, "~0").replace(/\//g, "~1")}` : id;
   const references = (refs: Record<string, StepInputReference>, scope: string) =>
@@ -37,6 +50,7 @@ export function buildWorkflowGraph(definition: WorkflowDefinition): ExecutionGra
       stepIds: [],
       ...(parent !== undefined ? { parent } : {}),
       ...(outputs ? { outputs } : {}),
+      ...(workflow.policy ? { policy: workflow.policy } : {}),
     });
     for (const [localId, step] of Object.entries(workflow.steps)) {
       const id = qualify(scope, localId);
@@ -85,6 +99,42 @@ export function buildWorkflowGraph(definition: WorkflowDefinition): ExecutionGra
           );
         visit(step.workflow, id, scope, compiled.outputs);
       }
+    }
+    const gates = new Map<string, string>();
+    for (const localId of workflow.policy?.approval?.before ?? []) {
+      const target = qualify(scope, localId);
+      const gateId = qualify(scope, `@approval/${localId}`);
+      if (Object.hasOwn(graph.steps, gateId))
+        throw new WorkflowError(
+          `steps.${gateId}`,
+          "step ID collides with a generated policy approval gate",
+        );
+      gates.set(target, gateId);
+      graph.policyGates.set(target, gateId);
+    }
+    const current = graph.scopes.get(scope) as WorkflowScope;
+    current.start = gates.get(current.start) ?? current.start;
+    for (const id of current.stepIds) {
+      const step = graph.steps[id] as WorkflowStep;
+      if (step.next) step.next = gates.get(step.next) ?? step.next;
+      if (step.on)
+        step.on = Object.fromEntries(
+          Object.entries(step.on).map(([label, target]) => [label, gates.get(target) ?? target]),
+        );
+    }
+    for (const [target, gateId] of gates) {
+      Object.defineProperty(graph.steps, gateId, {
+        value: {
+          type: "human",
+          message: `Workflow policy requires approval before step '${target}'.`,
+          next: target,
+        },
+        enumerable: true,
+        configurable: true,
+        writable: true,
+      });
+      graph.scopeOf.set(gateId, scope);
+      current.stepIds.push(gateId);
     }
   }
   visit(parseWorkflow(definition), "");

@@ -31,6 +31,15 @@ const consensus = {
   verification: [{ stepId: "verify", success: true, outputEventId: "check-result" }],
 };
 const events: VeyraEvent[] = [
+  { ...metadata, type: "step.retrying", retryCount: 2, maxRetries: 3, delayMs: 1000 },
+  { ...metadata, type: "budget.checked", phase: "before", allowed: true },
+  {
+    ...metadata,
+    type: "budget.checked",
+    phase: "after",
+    allowed: false,
+    reason: "Budget exhausted",
+  },
   consensus,
   {
     ...metadata,
@@ -161,6 +170,10 @@ describe("persisted event validation", () => {
   });
 
   it.each([
+    { ...metadata, type: "step.retrying", retryCount: 1, maxRetries: 3, delayMs: -1 },
+    { ...metadata, type: "step.retrying", retryCount: 1, maxRetries: 3, delayMs: 3_600_001 },
+    { ...metadata, type: "budget.checked", phase: "before", allowed: "yes" },
+    { ...metadata, type: "budget.checked", phase: "later", allowed: true },
     { ...consensus, mode: "all-pass", quorum: undefined },
     { ...consensus, quorum: 2 },
     { ...consensus, mode: "judge", quorum: undefined },

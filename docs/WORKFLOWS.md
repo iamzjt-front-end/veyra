@@ -9,7 +9,7 @@
 
 ## Version 1 structure
 
-Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step ID, and a `steps` object. Step IDs and transition outcome keys must be non-empty strings. The start step and every `next`/`on` destination must exist as actual entries in the step map.
+Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step ID, and a `steps` object. Optional `policy` declares the execution limits described below. Step IDs and transition outcome keys must be non-empty strings. The start step and every `next`/`on` destination must exist as actual entries in the step map.
 
 | Node type     | Fields specific to this type                                                                |
 | ------------- | ------------------------------------------------------------------------------------------- |
@@ -22,7 +22,7 @@ Required fields are a non-empty `name`, `version: 1`, a non-empty `start` step I
 | `consensus`   | Required `reviewers` IDs; optional `mode`, `quorum`, `judge`, `verification`, `concurrency` |
 | `end`         | Terminal node; no transitions or retry settings                                             |
 
-Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer> }`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected.
+Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe integer>, backoff?: { initialMs, multiplier?, maxMs? } }`. Agent and command leaves also accept `timeoutMs`. All nodes may have an optional JSON-compatible `metadata` object. Unknown fields and fields belonging to a different node type are rejected.
 
 Agent, human and subworkflow nodes support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
 
@@ -40,6 +40,8 @@ For a YAML language server, select the schema with a comment containing its rela
 | [parallel.yaml](../examples/workflows/v1/parallel.yaml)       | Independent syntax and test commands for the disposable fixture project, with a bounded join.                                               |
 | [router.yaml](../examples/workflows/v1/router.yaml)           | Routes persisted verification success to completion and failure to a human gate.                                                            |
 | [subworkflow.yaml](../examples/workflows/v1/subworkflow.yaml) | Calls a reusable child file, maps its verification result, and presents it at a parent human gate.                                          |
+| [consensus.yaml](../examples/workflows/v1/consensus.yaml)     | Collects independent reviews and a judge decision after required command evidence.                                                          |
+| [policy.yaml](../examples/workflows/v1/policy.yaml)           | Applies approval, deadline, retry, concurrency and lifetime limits to fixture checks.                                                       |
 
 Schema validation covers data shape, exact supported node types, required fields, unknown fields, non-blank strings, and retry integer bounds. `parseWorkflow`/`loadWorkflow` additionally check actual start/transition destinations and reject non-JSON in-memory metadata and YAML alias problems. A schema-valid object is not necessarily a valid graph, and validation never grants permission to execute commands. Always use the runtime loader before execution. Tests validate every preset/example and compare invalid structural cases through both validators; Ajv is a development-only dependency, not another runtime parser.
 
@@ -114,7 +116,7 @@ steps:
     type: end
 ```
 
-Loading validates data and does not run commands, call agents, or resolve approvals. Repair-loop cycles are intentionally accepted, including the loop in [`dev.yaml`](../workflows/dev.yaml). Core enforces the retry policy below; richer workflow policies remain planned.
+Loading validates data and does not run commands, call agents, or resolve approvals. Repair-loop cycles are intentionally accepted, including the loop in [`dev.yaml`](../workflows/dev.yaml). Core enforces the snapshotted retry and lifetime limits below.
 
 ### Branch behavior and graph diagnostics
 
@@ -264,9 +266,47 @@ Judge input includes every review and the separate command evidence under `conte
 
 `consensus.started/paused/completed` exposes the saved policy, pause phase and final outcome to every surface. The final `StepOutput` has type `consensus`, mode/threshold, ordered `reviews`, optional `judge`, separate `verification`, and a failure reason when applicable. Each vote identifies the child step/attempt and an `outputEventId`; full review text and data remain in their own redacted `agent.completed` events. Downstream named inputs may select this output or an individual reviewer/judge output.
 
-## v0.1 retry policy
+## Workflow execution policies
 
-Each executable step (`agent`, `command`, `parallel`, `router`, `subworkflow` or `consensus`) has an independent repair budget. Parallel children and namespaced child workflow steps also have individual budgets. Resuming an unfinished group/call retains its parent attempt while retried children spend their own budgets; a fresh child scope starts with normal entry semantics. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits throughout the saved tree. Resume uses that snapshot even if the current config changes.
+M3.8 adds the following optional version 1 fields in the `0.1.0` development checkout. Use the matching schema and implementation; older readers reject these fields. [policy.yaml](../examples/workflows/v1/policy.yaml) is a complete provider-free example for the disposable fixture project.
+
+```yaml
+policy:
+  stepTimeoutMs: 60000
+  retry:
+    max: 3
+    backoff: { initialMs: 1000, multiplier: 2, maxMs: 10000 }
+  concurrency: 2
+  approval: { before: [execute] }
+  failureStrategy: branch
+  maxSteps: 100
+```
+
+| Field             | Meaning and limits                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------------------- |
+| `stepTimeoutMs`   | Agent/command deadline, integer 1–86,400,000 ms.                                                          |
+| `retry`           | Default repair limit and optional exponential backoff for this scope and descendants.                     |
+| `concurrency`     | Cap of 1–32 active leaves in each parallel/consensus group.                                               |
+| `approval.before` | Up to 128 unique local executable step IDs that require human approval.                                   |
+| `failureStrategy` | `branch` preserves explicit recovery branches; `stop` ends the run when a step/group fails.               |
+| `budget`          | Optional `maxTokens` and/or `maxCost: { amount, currency }` ceilings supplied to an injected budget hook. |
+| `maxSteps`        | Lifetime limit of 1–1000 starts in this scope, including all descendants.                                 |
+
+`withExecutionDefaults()` copies and validates the workflow, then materializes retry defaults and deadline/concurrency caps throughout its resolved child tree before persistence. A scope's `policy.retry` overrides its inherited retry default; a step's `retry.max` overrides that default, and its explicit backoff overrides inherited backoff. Without a workflow retry policy, `config.runtime.maxFixIterations` supplies the default. Deadlines and concurrency caps use the smallest applicable parent, child and leaf/group limit, so a child cannot weaken an ancestor's cap. A request-level timeout may tighten the saved deadline. Resume uses the saved policy rather than edited YAML or new config defaults.
+
+A leaf deadline starts before resolving and persisting its input. It covers the whole agent invocation or complete command list, rather than resetting for each command. Runtime receives an abort signal and timeout; Core waits for active cleanup before reporting `step_timeout`. Native processes are cancelled and drained by Runtime. Third-party adapters must honor cancellation: JavaScript that ignores the signal cannot be forcibly stopped by Core. Retry backoff occurs before the leaf deadline begins, is recorded as `step.retrying.delayMs`, and is cancellable, including when a fail-fast peer stops the group. Delays have no jitter: `min(maxMs, initialMs × multiplier^(retryCount − 1))`. Initial/capped delays are integers from 0–3,600,000 ms; multiplier is an integer from 1–32, default 2; the default cap is the greater of 30,000 ms and the initial delay. No configured backoff means no delay.
+
+Approval policy compiles into ordinary persisted human nodes. Every graph entry into a protected step passes through its generated `@approval/<local-id>` gate (namespaced inside children). Each visit needs a fresh approval ID. A protected standalone agent that returns `needs_input` also requires a new decision before its next invocation. Approving retains the incoming repair outcome and all retry counts; rejection stops without invoking the target. Resuming an already approved pending group/subworkflow retains that invocation's approval. Approve a group rather than its owned leaves; missing, human, end, duplicate and owned-child targets are rejected. Explicit/generated ID collisions are rejected. This uses the normal Core/CLI approval controls and does not classify shell commands or bypass native provider permissions.
+
+`failureStrategy: stop` applies to descendant scopes too, and disallows their recovery branches. Group failure is evaluated after the group's configured join/drain behavior; use `failurePolicy: fail-fast` to also cancel peers early. With the default `branch`, failures still require explicit matching recovery branches. Persistence errors, external cancellation, execution limits and budget denials remain fatal regardless of ordinary failure branches.
+
+`maxSteps` counts actual `step.started` events, including groups, their leaves, routers, calls, human gates and end nodes. Counts accumulate across retries, repeated child calls and resume; opening an already pending group/call does not count twice. Each ancestor's limit applies to its descendants, and the root always has a 1000-start maximum even when no policy is declared. Exhaustion is `transition_limit`; approval cannot reset it. Retry exhaustion without an invocation does not count as a start. Interrupted backoff is still an unproven attempt and is not replayed automatically.
+
+Budget enforcement is an optional programmatic Core hook, not a pricing engine. Construct `VeyraEngine({ budget })` with a `BudgetHook` that receives `before`/`after`, the attempt identity, enclosing scope ceilings and all persisted agent usage observations; return `{ allowed, reason? }`. Hooks can reserve estimated tokens/cost before invocation and reconcile actual observations afterwards. Missing usage stays unknown. The application owns estimates, currency handling, reservations for concurrent attempts and accounting, and must reattach its hook on resume. Declaring a budget without a hook fails before the agent runs (`missing_budget_hook`); malformed/throwing hooks fail with `budget_hook_failed`. A denial persists `budget.checked`, stops with `budget_exceeded`, and aborts/drains peers. Normal decisions are persisted too. Command costs are not inferred. The CLI has no built-in accounting hook, so budget-declaring workflows currently require programmatic composition.
+
+## Retry accounting
+
+Each executable step (`agent`, `command`, `parallel`, `router`, `subworkflow` or `consensus`) has an independent repair budget. Parallel children and namespaced child workflow steps also have individual budgets. Resuming an unfinished group/call retains its parent attempt while retried children spend their own budgets; a fresh child scope starts with normal entry semantics. Effective limits follow the policy precedence above. `withRetryDefaults()` remains an alias of `withExecutionDefaults()` for existing callers. Resume uses the saved snapshot even if the current config changes.
 
 `nextRetry()` evaluates the next execution without mutating state:
 
@@ -275,7 +315,7 @@ Each executable step (`agent`, `command`, `parallel`, `router`, `subworkflow` or
 - Every revisit, including resuming a paused agent, increments that step's count. Successful cycles therefore consume a finite budget too.
 - No execution occurs when it would exceed the maximum. Counters are saved before invoking the runtime/verifier; interrupted work never refunds a used budget automatically.
 
-For default `dev`, `fix.retry.max: 3` allows exactly three fix calls after the initial executor call. The repeated verifier has its own default budget: one initial check plus three repeats. A step override changes only that step; raising a whole loop's limit may require adjusting other repeated steps too. Human and end nodes do not consume repair budgets. A fixed 1000-step lifetime backstop, retained across resume, additionally bounds very large configured limits.
+For default `dev`, `fix.retry.max: 3` allows exactly three fix calls after the initial executor call. The repeated verifier has its own default budget: one initial check plus three repeats. A step override changes only that step; raising a whole loop's limit may require adjusting other repeated steps too. Human and end nodes do not consume repair budgets, but do count against the lifetime start limit.
 
 Exhaustion fails the run with `retry_exhausted` and identifies the step and used/maximum counts. A standalone step or parent group may instead provide `on.retry_exhausted` pointing directly to a `human` gate; Core follows that explicit gate and pauses. An owned parallel child's exhaustion is persisted in its failure result and makes the parent group fail. An ordinary `next` or a non-human exhaustion target cannot turn exhausted retries into success. Approval does not reset budgets.
 

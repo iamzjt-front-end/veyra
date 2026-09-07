@@ -39,6 +39,42 @@ function commands(cwd: string, dependencies: CliServices = {}) {
 }
 
 describe("CLI application commands", () => {
+  it("uses the normal approval and resume commands for workflow policy gates", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const worker = new FakeAgent({ status: "success", summary: "Approved work completed" });
+      const ve = commands(path, { createAgent: () => worker });
+      await writeFile(
+        join(path, "veyra.yaml"),
+        JSON.stringify({
+          version: 1,
+          agents: { worker: { provider: "fixture" } },
+          workflow: { use: "guarded.yaml" },
+        }),
+      );
+      await writeFile(
+        join(path, "guarded.yaml"),
+        JSON.stringify({
+          name: "guarded",
+          version: 1,
+          start: "work",
+          policy: { approval: { before: ["work"] }, stepTimeoutMs: 5000, maxSteps: 2 },
+          steps: { work: { type: "agent", agent: "worker" } },
+        }),
+      );
+      const paused = await ve(["run", "Policy gate", "--json", "--non-interactive"]);
+      expect(paused.code, paused.stderr).toBe(3);
+      expect(worker.calls).toHaveLength(0);
+      const runId = paused.records().at(-1).runId as string;
+      const status = await ve(["status", runId, "--json"]);
+      expect(status.records()[0]).toMatchObject({
+        currentStep: "@approval/work",
+        approval: { stepId: "@approval/work" },
+      });
+      const result = await ve(["resume", "--run-id", runId, "--approve", "--json"]);
+      expect(result.code, result.stderr).toBe(0);
+      expect(worker.calls).toHaveLength(1);
+    });
+  });
   it("discovers consensus reviewers and judge and renders the persisted decision", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const constructed: string[] = [];

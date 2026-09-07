@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: controlled-checks
+version: 1
+start: checks
+policy:
+  stepTimeoutMs: 10000
+  retry:
+    max: 1
+    backoff: { initialMs: 100, multiplier: 2, maxMs: 1000 }
+  concurrency: 2
+  approval:
+    before: [checks]
+  failureStrategy: branch
+  maxSteps: 8
+steps:
+  checks:
+    type: parallel
+    children: [syntax, tests]
+    on:
+      success: done
+      failure: inspect
+  syntax:
+    type: command
+    run: ["node --check src/message.js"]
+  tests:
+    type: command
+    run: ["node --test"]
+  inspect:
+    type: human
+    message: Inspect the failing checks before continuing.
+    on:
+      approved: done
+  done:
+    type: end

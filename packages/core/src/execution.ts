@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import type {
   AgentAdapter,
   AgentRunOptions,
@@ -14,13 +15,15 @@ import {
   buildWorkflowGraph,
   InputResolutionError,
   nextRetry,
+  retryDelay,
   resolveNextStep,
   RouterError,
   type WorkflowStep,
 } from "@veyra/workflow";
 import { RunContext } from "./context.js";
 import type { RunResult } from "./engine.js";
-import { ExecutionError } from "./execution-error.js";
+import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
+import { checkBudget, type BudgetHook } from "./budget.js";
 import { executeLeaf, type LeafResult } from "./leaf.js";
 import { executeParallel, pendingParallel } from "./parallel.js";
 import { executeConsensus, pendingConsensus } from "./consensus.js";
@@ -42,6 +45,7 @@ interface ExecuteRunOptions {
   runtime: AgentRuntime;
   verifier: Verifier;
   emit?: EventSink;
+  budget?: BudgetHook;
 }
 
 /** Coordinate one persisted run with isolated, resumable scopes for nested workflows. */
@@ -58,7 +62,20 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
     if (event.type === "step.started")
       attempts.set(event.stepId, (attempts.get(event.stepId) ?? 0) + 1);
   let retryCounts = { ...run.state.retryCounts };
-  let transitions = history.filter((event) => event.type === "step.started").length;
+  const ancestors = (scopeId: string): string[] => {
+    const ids: string[] = [];
+    let id: string | undefined = scopeId;
+    while (id !== undefined) {
+      ids.push(id);
+      id = graph.scopes.get(id)?.parent;
+    }
+    return ids;
+  };
+  const starts = new Map<string, number>();
+  for (const event of history)
+    if (event.type === "step.started")
+      for (const id of ancestors(graph.scopeOf.get(event.stepId) ?? ""))
+        starts.set(id, (starts.get(id) ?? 0) + 1);
   let listenerFailed = false;
   const record = async (event: VeyraEvent, propagateListenerError = true): Promise<VeyraEvent> => {
     const saved = await store.appendEvent(runId, event);
@@ -75,14 +92,44 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
           );
       }
     }
+    if (saved.type === "agent.input" || saved.type === "agent.completed")
+      await checkBudget(options.budget, saved, graph, eventLog, record);
     return saved;
   };
-  const tick = () => {
-    if (++transitions > 1000)
-      throw new ExecutionError(
-        "transition_limit",
-        "Run exceeded the 1000-step execution safety limit.",
-      );
+  const tick = (scopeId: string) => {
+    for (const id of ancestors(scopeId)) {
+      const limit = graph.scopes.get(id)?.policy?.maxSteps ?? (id === "" ? 1000 : undefined);
+      if (limit !== undefined && (starts.get(id) ?? 0) >= limit)
+        throw new ExecutionError(
+          "transition_limit",
+          `Workflow scope '${id || "root"}' exceeded its ${limit}-step execution safety limit.`,
+        );
+    }
+    for (const id of ancestors(scopeId)) starts.set(id, (starts.get(id) ?? 0) + 1);
+  };
+  const backoff = async (
+    step: WorkflowStep,
+    retryCount: number,
+    active: ExecutionMetadata,
+    signal = controls.signal,
+  ) => {
+    if (retryCount < 1 || !step.retry) return;
+    const delayMs = retryDelay(step, retryCount);
+    await record({
+      type: "step.retrying",
+      ...active,
+      retryCount,
+      maxRetries: step.retry.max,
+      ...(delayMs ? { delayMs } : {}),
+      at: now(),
+    });
+    if (delayMs) {
+      try {
+        await delay(delayMs, undefined, { signal });
+      } catch {
+        throw new ExecutionError("run_cancelled", "Run was cancelled during retry backoff.");
+      }
+    }
   };
   const resumeAt = (scope: string): string => {
     const current = run.state.currentStep as string;
@@ -182,7 +229,6 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
       while (stepId) {
         if (controls.signal?.aborted)
           throw new ExecutionError("run_cancelled", "Run was cancelled.");
-        tick();
         const step: WorkflowStep | undefined = steps[stepId];
         if (!step || graph.scopeOf.get(stepId) !== scopeId)
           throw new ExecutionError(
@@ -229,6 +275,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
           }
           retryCounts = { ...retryCounts, [stepId]: decision.retryCount };
         }
+        if (!pending) tick(scopeId);
         const attempt = pending?.attempt ?? (attempts.get(stepId) ?? 0) + 1;
         if (!pending) attempts.set(stepId, attempt);
         active = { runId, stepId, attemptId: pending?.attemptId ?? randomUUID(), attempt };
@@ -236,14 +283,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
         await store.updateRun(runId, { status: "running", currentStep: stepId, retryCounts });
         if (!pending) await record({ type: "step.started", ...active, at: now() });
         const retryCount = retryCounts[stepId] ?? 0;
-        if (!pending && retryCount > 0 && step.retry)
-          await record({
-            type: "step.retrying",
-            ...active,
-            retryCount,
-            maxRetries: step.retry.max,
-            at: now(),
-          });
+        if (!pending) await backoff(step, retryCount, active);
         if (step.type === "end") {
           await record({ type: "step.completed", ...active, at: now() });
           stepSettled = true;
@@ -338,8 +378,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
             consensus,
             scopeSequence: boundary?.sequence,
             contextBefore,
-            startChild: async (childId) => {
-              tick();
+            startChild: async (childId, signal) => {
               const child = steps[childId];
               if (!child)
                 throw new ExecutionError("missing_step", "Parallel child step is missing.");
@@ -353,6 +392,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
                   "retry_exhausted",
                   `Retry budget exhausted at parallel child '${childId}': ${decision.retryCount} of ${decision.maxRetries} repairs used.`,
                 );
+              tick(scopeId);
               retryCounts = { ...retryCounts, [childId]: decision.retryCount };
               const childAttempt = (attempts.get(childId) ?? 0) + 1;
               attempts.set(childId, childAttempt);
@@ -365,14 +405,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
               };
               await store.updateRun(runId, { retryCounts });
               await record({ type: "step.started", ...execution, at: now() });
-              if (decision.retryCount > 0)
-                await record({
-                  type: "step.retrying",
-                  ...execution,
-                  retryCount: decision.retryCount,
-                  maxRetries: decision.maxRetries,
-                  at: now(),
-                });
+              await backoff(child, decision.retryCount, execution, signal);
               return execution;
             },
           });
@@ -392,6 +425,14 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
           await record({ type: "step.failed", ...active, message: failureMessage, at: now() });
         else await record({ type: "step.completed", ...active, outcome, at: now() });
         stepSettled = true;
+        if (
+          failureMessage &&
+          ancestors(scopeId).some((id) => graph.scopes.get(id)?.policy?.failureStrategy === "stop")
+        )
+          throw new ExecutionError(
+            "failure_policy_stop",
+            `Workflow failure policy stopped at step '${stepId}'.`,
+          );
         if (failureMessage && !Object.hasOwn(step.on ?? {}, outcome))
           throw new ExecutionError(
             "unhandled_step_failure",
@@ -421,7 +462,9 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
         status: "failure",
         lastStep: stepId,
         error: failure,
-        fatal: ["run_cancelled", "event_sink_failed", "transition_limit"].includes(failure.code),
+        fatal:
+          fatalExecutionCodes.has(failure.code) ||
+          ancestors(scopeId).some((id) => graph.scopes.get(id)?.policy?.failureStrategy === "stop"),
       };
     }
   };

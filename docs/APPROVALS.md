@@ -50,9 +50,11 @@ Decisions are auditable through ID, run/step/attempt, decision, timestamp, and o
 
 ## Boundaries
 
+Workflow `policy.approval.before` lists standalone step IDs that require approval before each invocation. The Workflow graph compiles these into ordinary `human` gates with stable `@approval/<id>` identifiers (escaped inside child scopes). Every incoming control-flow edge and the workflow start pass through the gate; resolving it resumes the protected step while retaining the incoming repair outcome. Re-entering through a loop or resuming a protected agent after `needs_input` requires a fresh approval ID. Resuming an already approved pending group/subworkflow retains that invocation's approval. Rejection fails that scope without invoking the step. Approve a parallel/consensus group rather than an owned child. Explicit gate nodes remain available for custom messages or rejection branches. Generated-ID collisions are rejected before execution.
+
 Gates inside subworkflows use qualified IDs such as `suite/gate` and the same approval API. Resolving a terminal child gate leaves the containing run paused; resume closes that child scope and follows the parent's success/failure branch. An unhandled child rejection becomes child failure and requires an explicit parent `on.failure` to recover. No provider executes during decision recording, and completed child work is retained across resume.
 
-The same Core API serves CLI, TUI, and Dashboard. `approval.requiredFor` remains configuration for later operation-policy work; it does not automatically classify arbitrary provider commands or insert gates. Use explicit `human` nodes for the implemented guarantee. Installed coding agents retain their own command/sandbox permission system.
+The same Core API serves CLI, TUI, and Dashboard. Config `approval.requiredFor` remains reserved for later operation-policy work; it does not automatically classify arbitrary provider commands. Use explicit `human` nodes or workflow `policy.approval.before` for step-level guarantees. Installed coding agents retain their own command/sandbox permission system.
 
 Competing decisions are serialized within one engine instance. The existing single-writer boundary still applies across engines/processes; project locking is a later hardening task. Decision events and the new state are persisted before subscriber notification. If notification fails, `approval_recorded_notification_failed` tells the caller that the decision is already saved; refresh state instead of resubmitting it.
 

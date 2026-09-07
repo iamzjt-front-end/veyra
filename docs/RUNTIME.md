@@ -1,5 +1,7 @@
 # Local process runtime
 
+`createDeadline(timeoutMs?, signal?)` creates an abort signal for a bounded operation and exposes `timedOut()` plus `dispose()`. Core uses it for workflow agent/command deadlines spanning an entire invocation, including multi-command verification. Cancellation signals active work; the caller must await its cleanup and dispose the timer/listener. It does not forcibly interrupt arbitrary JavaScript or replace provider process cancellation.
+
 `@veyra/runtime` owns generic local execution. Adapters and verifiers use `runProcess`; Core does not spawn provider executables.
 
 ```ts

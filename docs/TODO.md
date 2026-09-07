@@ -1004,13 +1004,17 @@ Verified all five baseline commands (673 tests total). Thirty-seven workflow tes
 
 ## M3.8 — Workflow-level execution policies
 
-- [ ] step timeout
-- [ ] retry/backoff policy
-- [ ] concurrency limit
-- [ ] human approval policy
-- [ ] failure strategy
-- [ ] optional cost/token budget hooks
-- [ ] loop/cycle safety guards
+**Status:** [x] Complete and verified.
+
+- [x] step timeout
+- [x] retry/backoff policy
+- [x] concurrency limit
+- [x] human approval policy
+- [x] failure strategy
+- [x] optional cost/token budget hooks
+- [x] loop/cycle safety guards
+
+Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, and `pnpm build` (736 tests). Policies are validated against the version 1 DSL, materialized into the saved workflow, and enforced through inherited deadline/concurrency caps, cancellable exponential backoff, generated human gates, stop/branch failure handling and lifetime scope limits. Tests cover real command cancellation/drain, cooperative agent deadlines, no invocation after an expired input-persistence deadline, parallel fail-fast cancellation during backoff, approval/reapproval across fresh engines, preservation of repair limits through gates, child limits across resume, schema rejection and the CLI's existing approval controls. Optional token/cost hooks receive persisted usage and declared scope ceilings before/after agent calls; missing hooks, invalid decisions and denials stop execution and drain peers. Pricing, reservations and unknown-usage accounting remain the application's hook responsibility; the CLI has no built-in budget accounting. Example and public policy/runtime/state/approval documentation are aligned. Arbitrary adapters must honor cancellation; filesystem isolation and general crash reconciliation remain their later TODOs.
 
 ---
 
@@ -1568,4 +1572,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.8 — Workflow-level execution policies.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.9 — Harden built-in presets.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

@@ -18,6 +18,8 @@ Initialization prints setup guidance for `OPENAI_API_KEY` and the installed Code
 
 Review the chosen workflow's verifier commands before running it in a project. The built-in dev preset uses `pnpm check`, `pnpm test`, and `pnpm build`; a project with different commands needs its own workflow. Coding agents modify the configured project directory under their own permission system. The CLI does not create isolated worktrees yet.
 
+[Workflow execution policies](WORKFLOWS.md#workflow-execution-policies) enforce saved deadlines, retry/backoff, group concurrency and lifetime limits. Policy approval gates use the same status/resume/approve commands as explicit human nodes. Token/cost budgets require a programmatically injected Core `BudgetHook`; the CLI does not provide accounting or infer prices and fails before agent execution when a workflow declares a budget without that hook.
+
 ## Inspect saved runs
 
 Workflow loading resolves and snapshots nested `subworkflow` references before constructing providers, including agents used only inside a child. Status/approval IDs use namespaced child steps such as `suite/gate`; the existing resume/approve commands handle them. Subworkflow boundary events appear in both text and JSON output. Resume executes the saved child definitions even if their source files change or disappear.

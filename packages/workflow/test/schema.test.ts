@@ -21,6 +21,52 @@ const minimal = () => ({
 });
 
 describe("published version 1 workflow schema", () => {
+  it("agrees with runtime validation for workflow policies and leaf deadlines", () => {
+    const base = {
+      ...minimal(),
+      start: "work",
+      steps: { work: { type: "agent", agent: "worker", timeoutMs: 1000 } },
+    };
+    const policy = {
+      stepTimeoutMs: 1000,
+      retry: { max: 2, backoff: { initialMs: 10, multiplier: 2, maxMs: 100 } },
+      concurrency: 2,
+      maxSteps: 20,
+      failureStrategy: "stop",
+      approval: { before: ["work"] },
+      budget: { maxTokens: 100, maxCost: { amount: 0.5, currency: "USD" } },
+    };
+    expect(validate({ ...base, policy }), JSON.stringify(validate.errors)).toBe(true);
+    expect(() => parseWorkflow({ ...base, policy })).not.toThrow();
+    for (const patch of [
+      { stepTimeoutMs: 0 },
+      { stepTimeoutMs: 86400001 },
+      { concurrency: 33 },
+      { maxSteps: 1001 },
+      { retry: { max: -1 } },
+      { retry: { max: 2, backoff: { initialMs: 1, multiplier: 1.5 } } },
+      { retry: { max: 2, backoff: { initialMs: 1, maxMs: 3600001 } } },
+      { failureStrategy: "ignore" },
+      { approval: { before: ["work", "work"] } },
+      { budget: {} },
+      { budget: { maxTokens: -1 } },
+      { budget: { maxCost: { amount: -1, currency: "USD" } } },
+      { budget: { maxCost: { amount: 1, currency: " " } } },
+      { unknown: true },
+    ]) {
+      const value = { ...base, policy: { ...policy, ...patch } };
+      expect(validate(value), JSON.stringify(value)).toBe(false);
+      expect(() => parseWorkflow(value)).toThrow();
+    }
+    for (const step of [
+      { ...base.steps.work, timeoutMs: 0 },
+      { type: "human", timeoutMs: 1 },
+    ]) {
+      const value = { ...base, steps: { work: step } };
+      expect(validate(value)).toBe(false);
+      expect(() => parseWorkflow(value)).toThrow();
+    }
+  });
   it("validates consensus policy fields and requires mode-specific quorum or judge", () => {
     const base = {
       ...minimal(),
@@ -96,6 +142,7 @@ describe("published version 1 workflow schema", () => {
     "subworkflow",
     "subworkflow-child",
     "consensus",
+    "policy",
   ])("validates the documented %s example and editor schema path", async (name) => {
     const file = fileURLToPath(
       new URL(`../../../examples/workflows/v1/${name}.yaml`, import.meta.url),

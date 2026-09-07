@@ -6,7 +6,7 @@ import type {
 } from "@veyra/protocol";
 import { InputResolutionError, type WorkflowStep } from "@veyra/workflow";
 import type { RunContext } from "./context.js";
-import { ExecutionError } from "./execution-error.js";
+import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { executeLeaf, type LeafOptions, type LeafResult } from "./leaf.js";
 import { StateStoreError } from "./state.js";
 
@@ -36,7 +36,7 @@ export interface ParallelOptions extends LeafOptions {
   /** Live append-only ledger; record() adds each persisted event before notifying observers. */
   events: VeyraEvent[];
   batch?: ParallelBatch;
-  startChild: (stepId: string) => Promise<ExecutionMetadata>;
+  startChild: (stepId: string, signal?: AbortSignal) => Promise<ExecutionMetadata>;
   contextBefore: (sequence: number) => RunContext;
   invoke?: (options: LeafOptions) => Promise<LeafResult>;
 }
@@ -119,7 +119,7 @@ export async function executeParallel(options: ParallelOptions): Promise<LeafRes
         parentStepId: execution.stepId,
       };
       try {
-        child = await startChild(childId);
+        child = await startChild(childId, controller.signal);
         if (controller.signal.aborted)
           throw new ExecutionError(
             "parallel_cancelled",
@@ -159,7 +159,9 @@ export async function executeParallel(options: ParallelOptions): Promise<LeafRes
       } catch (error) {
         if (
           error instanceof StateStoreError ||
-          (error instanceof ExecutionError && error.code === "event_sink_failed")
+          (error instanceof ExecutionError &&
+            fatalExecutionCodes.has(error.code) &&
+            error.code !== "run_cancelled")
         ) {
           fatal ??= error;
           abort();

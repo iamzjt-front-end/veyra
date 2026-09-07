@@ -18,4 +18,5 @@ export {
 } from "./state.js";
 
 export { RunControlError } from "./control-error.js";
+export type { BudgetCheck, BudgetHook } from "./budget.js";
 export type { PendingApproval, ReadRunRequest, ResolveApprovalRequest } from "./approval.js";

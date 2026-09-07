@@ -30,6 +30,7 @@ All events carry a run ID and ISO timestamp. Persistence can add an event ID and
 
 - Run started/completed/failed/paused/resumed.
 - Step started/completed/failed and `step.retrying`, including its used count, maximum, and attempt identity.
+- `step.retrying.delayMs` optionally records bounded backoff. `BudgetLimits` declares optional token/cost ceilings; `budget.checked` records a hook's before/after phase, allowed flag and optional reason. Actual usage remains in the independent agent result, including absence when unknown.
 - Router selection through `router.selected`: route label, target, static/input selection kind, and source step/pointer for an input reference. The normalized `StepOutput` uses type `router`, outcome equal to that label, target and selection kind.
 - Subworkflow started/paused/completed: workflow name, qualified child start, and mapped inputs at entry; current child step/reason at pause; mapped outputs or normalized error at completion. All records use the containing run ID. The call's normalized `StepOutput` has type `subworkflow`, outcome `success/failure` and outputs/error; child agents receive mapped parameters in `context.workflowInputs`.
 - Parallel started/paused/completed and independently persisted `parallel.child.completed`. Start records child IDs, concurrency and failure policy; joins record ordered child states. Child events include `parentStepId` so surfaces can track active children while the run's current step stays the group.

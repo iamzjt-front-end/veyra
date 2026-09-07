@@ -11,7 +11,7 @@ export interface WorkflowAnalysis {
 export function analyzeWorkflow(definition: WorkflowDefinition): WorkflowAnalysis {
   const graph = buildWorkflowGraph(definition);
   const reachable = new Set<string>();
-  const pending = [definition.start];
+  const pending = [graph.scopes.get("")?.start as string];
   while (pending.length) {
     const id = pending.pop() as string;
     if (reachable.has(id)) continue;

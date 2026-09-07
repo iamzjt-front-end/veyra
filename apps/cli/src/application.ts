@@ -113,7 +113,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       else if (event.type === "approval.required")
         line += `: ${event.message}\nApproval ID: ${event.approvalId}`;
       else if (event.type === "step.retrying")
-        line += `: repair ${event.retryCount}/${event.maxRetries}`;
+        line += `: repair ${event.retryCount}/${event.maxRetries}${event.delayMs ? ` after ${event.delayMs}ms` : ""}`;
+      else if (event.type === "budget.checked")
+        line += `: ${event.allowed ? "allowed" : "denied"} (${event.phase})${event.reason ? ` — ${event.reason}` : ""}`;
       else if (event.type === "run.failed" || event.type === "step.failed")
         line += `: ${event.message}`;
       write(event, line);

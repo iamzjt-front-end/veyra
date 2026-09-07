@@ -339,7 +339,17 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
         )
       );
     case "step.retrying":
-      return integer(value.retryCount) && integer(value.maxRetries);
+      return (
+        integer(value.retryCount) &&
+        integer(value.maxRetries) &&
+        optional(value.delayMs, (value) => integer(value) && (value as number) <= 3_600_000)
+      );
+    case "budget.checked":
+      return (
+        ["before", "after"].includes(value.phase as string) &&
+        boolean(value.allowed) &&
+        optional(value.reason, string)
+      );
     case "step.completed":
       return (
         optional(value.outcome, string) &&

@@ -124,7 +124,7 @@ export class LocalRunStore {
         version: 1,
         runId,
         status: "running",
-        currentStep: workflow.start,
+        currentStep: buildWorkflowGraph(workflow).scopes.get("")?.start as string,
         retryCounts: {},
         createdAt: at,
         updatedAt: at,

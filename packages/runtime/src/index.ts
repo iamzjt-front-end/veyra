@@ -1,4 +1,5 @@
 import type { AgentAdapter, AgentInput, AgentResult, AgentRunOptions } from "@veyra/protocol";
+export { createDeadline } from "./deadline.js";
 
 export interface AgentRuntime {
   runAgent(

@@ -1,4 +1,10 @@
-import type { StepInputReference, WorkflowDefinition, WorkflowStep } from "./index.js";
+import type {
+  StepInputReference,
+  WorkflowDefinition,
+  WorkflowPolicy,
+  WorkflowStep,
+  RetryBackoff,
+} from "./index.js";
 import { pointerSegments } from "./inputs.js";
 
 export class WorkflowError extends Error {
@@ -95,9 +101,12 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
                           : "message",
                   ]),
           ...(type === "agent" || type === "human" || type === "subworkflow" ? ["inputs"] : []),
+          ...(type === "agent" || type === "command" ? ["timeoutMs"] : []),
         ];
   object(raw, field, keys);
   const step: WorkflowStep = { type };
+  if (raw.timeoutMs !== undefined)
+    step.timeoutMs = boundedInteger(raw.timeoutMs, `${field}.timeoutMs`, 1, 86_400_000);
   if (type === "consensus") {
     if (!Array.isArray(raw.reviewers) || raw.reviewers.length < 2 || raw.reviewers.length > 32)
       throw new WorkflowError(
@@ -232,11 +241,7 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
     );
   }
   if (raw.retry !== undefined) {
-    const retry = object(raw.retry, `${field}.retry`, ["max"]);
-    if (typeof retry.max !== "number" || !Number.isSafeInteger(retry.max) || retry.max < 0) {
-      throw new WorkflowError(`${field}.retry.max`, "must be a non-negative safe integer");
-    }
-    step.retry = { max: retry.max };
+    step.retry = parseRetry(raw.retry, `${field}.retry`);
   }
   if (raw.metadata !== undefined) {
     step.metadata = json(object(raw.metadata, `${field}.metadata`), `${field}.metadata`) as Record<
@@ -292,7 +297,8 @@ export function parseWorkflow(value: unknown): WorkflowDefinition {
 function parseDefinition(value: unknown, depth: number): WorkflowDefinition {
   if (depth > 8)
     throw new WorkflowError("workflow", "subworkflow nesting exceeds the maximum depth of 8");
-  const root = object(value, "root", ["name", "version", "start", "steps"]);
+  const root = object(value, "root", ["name", "version", "start", "steps", "policy"]);
+  const policy = root.policy !== undefined ? parsePolicy(root.policy, "policy") : undefined;
   const name = text(root.name, "name");
   if (root.version !== 1) throw new WorkflowError("version", "expected schema version 1");
   const start = text(root.start, "start");
@@ -397,5 +403,116 @@ function parseDefinition(value: unknown, depth: number): WorkflowDefinition {
           "enter the owning parallel or consensus group instead of a child",
         );
   }
-  return { name, version: 1, start, steps };
+  for (const id of policy?.approval?.before ?? []) {
+    if (
+      !Object.hasOwn(steps, id) ||
+      steps[id]?.type === "human" ||
+      steps[id]?.type === "end" ||
+      owners.has(id)
+    )
+      throw new WorkflowError(
+        "policy.approval.before",
+        "must reference standalone executable nodes; approve an owning group instead of its children",
+      );
+  }
+  return { name, version: 1, start, steps, ...(policy ? { policy } : {}) };
+}
+
+function boundedInteger(value: unknown, field: string, minimum: number, maximum: number): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < minimum ||
+    value > maximum
+  )
+    throw new WorkflowError(field, `must be an integer from ${minimum} to ${maximum}`);
+  return value;
+}
+function parseRetry(value: unknown, field: string): NonNullable<WorkflowStep["retry"]> {
+  const raw = object(value, field, ["max", "backoff"]);
+  const max = boundedInteger(raw.max, `${field}.max`, 0, Number.MAX_SAFE_INTEGER);
+  let backoff: RetryBackoff | undefined;
+  if (raw.backoff !== undefined) {
+    const data = object(raw.backoff, `${field}.backoff`, ["initialMs", "multiplier", "maxMs"]);
+    const initialMs = boundedInteger(data.initialMs, `${field}.backoff.initialMs`, 0, 3_600_000);
+    const multiplier =
+      data.multiplier === undefined
+        ? 2
+        : boundedInteger(data.multiplier, `${field}.backoff.multiplier`, 1, 32);
+    const maxMs =
+      data.maxMs === undefined
+        ? Math.max(initialMs, 30_000)
+        : boundedInteger(data.maxMs, `${field}.backoff.maxMs`, initialMs, 3_600_000);
+    backoff = { initialMs, multiplier, maxMs };
+  }
+  return { max, ...(backoff ? { backoff } : {}) };
+}
+function parsePolicy(value: unknown, field: string): WorkflowPolicy {
+  const raw = object(value, field, [
+    "stepTimeoutMs",
+    "retry",
+    "concurrency",
+    "approval",
+    "failureStrategy",
+    "budget",
+    "maxSteps",
+  ]);
+  const policy: WorkflowPolicy = {};
+  if (raw.stepTimeoutMs !== undefined)
+    policy.stepTimeoutMs = boundedInteger(
+      raw.stepTimeoutMs,
+      `${field}.stepTimeoutMs`,
+      1,
+      86_400_000,
+    );
+  if (raw.retry !== undefined) policy.retry = parseRetry(raw.retry, `${field}.retry`);
+  if (raw.concurrency !== undefined)
+    policy.concurrency = boundedInteger(raw.concurrency, `${field}.concurrency`, 1, 32);
+  if (raw.maxSteps !== undefined)
+    policy.maxSteps = boundedInteger(raw.maxSteps, `${field}.maxSteps`, 1, 1000);
+  if (raw.failureStrategy !== undefined) {
+    if (raw.failureStrategy !== "stop" && raw.failureStrategy !== "branch")
+      throw new WorkflowError(`${field}.failureStrategy`, "expected branch or stop");
+    policy.failureStrategy = raw.failureStrategy;
+  }
+  if (raw.approval !== undefined) {
+    const approval = object(raw.approval, `${field}.approval`, ["before"]);
+    if (!Array.isArray(approval.before) || approval.before.length > 128)
+      throw new WorkflowError(`${field}.approval.before`, "must list up to 128 unique step IDs");
+    const before = approval.before.map((id, index) =>
+      text(id, `${field}.approval.before[${index}]`),
+    );
+    if (new Set(before).size !== before.length)
+      throw new WorkflowError(`${field}.approval.before`, "step IDs must be unique");
+    policy.approval = { before };
+  }
+  if (raw.budget !== undefined) {
+    const budget = object(raw.budget, `${field}.budget`, ["maxTokens", "maxCost"]);
+    if (budget.maxTokens === undefined && budget.maxCost === undefined)
+      throw new WorkflowError(`${field}.budget`, "must declare maxTokens or maxCost");
+    policy.budget = {};
+    if (budget.maxTokens !== undefined)
+      policy.budget.maxTokens = boundedInteger(
+        budget.maxTokens,
+        `${field}.budget.maxTokens`,
+        0,
+        Number.MAX_SAFE_INTEGER,
+      );
+    if (budget.maxCost !== undefined) {
+      const cost = object(budget.maxCost, `${field}.budget.maxCost`, ["amount", "currency"]);
+      if (typeof cost.amount !== "number" || !Number.isFinite(cost.amount) || cost.amount < 0)
+        throw new WorkflowError(
+          `${field}.budget.maxCost.amount`,
+          "must be a non-negative finite number",
+        );
+      const currency = text(cost.currency, `${field}.budget.maxCost.currency`);
+      if ([...currency].length > 16)
+        throw new WorkflowError(
+          `${field}.budget.maxCost.currency`,
+          "must be at most 16 characters",
+        );
+      policy.budget.maxCost = { amount: cost.amount, currency };
+    }
+  }
+  return policy;
 }

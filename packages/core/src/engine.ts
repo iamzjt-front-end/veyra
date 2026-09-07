@@ -12,7 +12,7 @@ import { ShellVerifier, type Verifier } from "@veyra/verifier";
 import {
   buildWorkflowGraph,
   resolveNextStep,
-  withRetryDefaults,
+  withExecutionDefaults,
   type WorkflowDefinition,
 } from "@veyra/workflow";
 import {
@@ -24,6 +24,7 @@ import {
 } from "./approval.js";
 import { RunControlError } from "./control-error.js";
 import { executeRun } from "./execution.js";
+import type { BudgetHook } from "./budget.js";
 import { LocalRunStore, type StoredRun } from "./state.js";
 
 export interface RunRequest extends AgentRunOptions {
@@ -54,6 +55,7 @@ export interface VeyraEngineOptions {
   store?: LocalRunStore;
   runtime?: AgentRuntime;
   verifier?: Verifier;
+  budget?: BudgetHook;
   /** Known secret values, passed to a default run store; configure injected stores directly. */
   redactValues?: readonly string[];
 }
@@ -71,7 +73,10 @@ export class VeyraEngine {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
-    const workflow = withRetryDefaults(request.workflow, request.config.runtime.maxFixIterations);
+    const workflow = withExecutionDefaults(
+      request.workflow,
+      request.config.runtime.maxFixIterations,
+    );
     buildWorkflowGraph(workflow);
     const cwd = resolve(request.cwd ?? process.cwd());
     const store = this.#store(request);
@@ -87,7 +92,7 @@ export class VeyraEngine {
       const history = await store.readEvents(request.runId);
       const last = history.at(-1);
       let next: string | undefined;
-      if (last?.type === "run.started" && run.state.currentStep === run.input.workflow.start)
+      if (last?.type === "run.started" && run.state.currentStep === graph.scopes.get("")?.start)
         next = run.state.currentStep;
       if (
         last?.type === "step.completed" &&
@@ -152,6 +157,22 @@ export class VeyraEngine {
         "incomplete_pause",
         "Paused state has no completed pause boundary; inspect its events before continuing.",
       );
+    const protectedStep = run.state.currentStep as string;
+    const policyGate = graph.policyGates.get(protectedStep);
+    if (policyGate && graph.steps[protectedStep]?.type === "agent") {
+      const lastResult = [...events]
+        .reverse()
+        .find((event) => event.type === "agent.completed" && event.stepId === protectedStep);
+      const lastApproval = [...events]
+        .reverse()
+        .find((event) => event.type === "approval.resolved" && event.stepId === policyGate);
+      if (
+        lastResult?.type === "agent.completed" &&
+        lastResult.result.status === "needs_input" &&
+        (lastResult.sequence ?? 0) > (lastApproval?.sequence ?? 0)
+      )
+        run.state = await store.updateRun(request.runId, { currentStep: policyGate });
+    }
     await store.setActiveRun(request.runId);
     return this.#execute(request, store, run, events);
   }
@@ -210,6 +231,7 @@ export class VeyraEngine {
       runtime: this.#runtime,
       verifier: this.#verifier,
       emit: this.#options.emit,
+      budget: this.#options.budget,
     });
   }
 }

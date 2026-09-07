@@ -8,11 +8,12 @@ import type {
   VeyraEvent,
 } from "@veyra/protocol";
 import { isJsonValue } from "@veyra/protocol";
-import type { AgentRuntime } from "@veyra/runtime";
+import { createDeadline, type AgentRuntime } from "@veyra/runtime";
 import type { VerificationReport, Verifier } from "@veyra/verifier";
 import type { WorkflowStep } from "@veyra/workflow";
 import type { RunContext } from "./context.js";
-import { ExecutionError } from "./execution-error.js";
+import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
+import { StateStoreError } from "./state.js";
 import { isStoredEvent } from "./state-events.js";
 
 export type RecordEvent = (
@@ -42,6 +43,45 @@ export interface LeafOptions {
 
 /** Shared agent/command invocation for sequential and parallel scheduling. */
 export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
+  const caps = [options.step.timeoutMs, options.controls.timeoutMs].filter(
+    (value): value is number => value !== undefined,
+  );
+  const timeoutMs = caps.length ? Math.min(...caps) : undefined;
+  if (timeoutMs === undefined) return executeLeafWithinDeadline(options);
+  const deadline = createDeadline(timeoutMs, options.controls.signal);
+  try {
+    const result = await executeLeafWithinDeadline({
+      ...options,
+      controls: { ...options.controls, timeoutMs, signal: deadline.signal },
+    });
+    if (deadline.timedOut() && !options.controls.signal?.aborted)
+      throw new ExecutionError(
+        "step_timeout",
+        `Step '${options.execution.stepId}' exceeded its ${timeoutMs}ms deadline; active work was cancelled and drained.`,
+      );
+    return result;
+  } catch (error) {
+    if (
+      !(error instanceof StateStoreError) &&
+      !(
+        error instanceof ExecutionError &&
+        fatalExecutionCodes.has(error.code) &&
+        error.code !== "run_cancelled"
+      ) &&
+      deadline.timedOut() &&
+      !options.controls.signal?.aborted
+    )
+      throw new ExecutionError(
+        "step_timeout",
+        `Step '${options.execution.stepId}' exceeded its ${timeoutMs}ms deadline; active work was cancelled and drained.`,
+      );
+    throw error;
+  } finally {
+    deadline.dispose();
+  }
+}
+
+async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResult> {
   const {
     step,
     execution: active,
@@ -53,6 +93,8 @@ export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
     runtime,
     verifier,
   } = options;
+  if (controls.signal?.aborted)
+    throw new ExecutionError("run_cancelled", "Run was cancelled before invocation.");
   const stepId = active.stepId;
   let outputEvent: VeyraEvent | undefined;
   let outcome: string;
@@ -97,6 +139,8 @@ export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
       );
     await record({ type: "agent.started", ...metadata, at: now() });
     let result: AgentResult;
+    if (controls.signal?.aborted)
+      throw new ExecutionError("run_cancelled", "Run was cancelled before invoking the agent.");
     try {
       result = await runtime.runAgent(adapter, savedInput.input, { ...controls });
     } catch (error) {
@@ -139,6 +183,8 @@ export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
       at: now(),
     });
     let report: VerificationReport;
+    if (controls.signal?.aborted)
+      throw new ExecutionError("run_cancelled", "Run was cancelled before invoking the verifier.");
     try {
       report = await verifier.verify({
         commands: [...commands],

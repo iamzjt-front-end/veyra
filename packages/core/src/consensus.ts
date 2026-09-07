@@ -1,6 +1,6 @@
 import type { JsonObject, ReviewVote, VerificationEvidence, VeyraEvent } from "@veyra/protocol";
 import { aggregateReviews, InputResolutionError, type WorkflowStep } from "@veyra/workflow";
-import { ExecutionError } from "./execution-error.js";
+import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { executeLeaf, type LeafResult } from "./leaf.js";
 import { executeParallel, pendingParallel, type ParallelOptions } from "./parallel.js";
 import { StateStoreError } from "./state.js";
@@ -187,7 +187,7 @@ export async function executeConsensus(options: ConsensusOptions): Promise<LeafR
   } as Parameters<typeof executeLeaf>[0]["execution"];
   let judge: ReviewVote;
   try {
-    child = await options.startChild(started.judge);
+    child = await options.startChild(started.judge, options.controls.signal);
     const result = await executeLeaf({
       ...options,
       step: judgeStep,
@@ -232,8 +232,7 @@ export async function executeConsensus(options: ConsensusOptions): Promise<LeafR
   } catch (error) {
     if (
       error instanceof StateStoreError ||
-      (error instanceof ExecutionError &&
-        ["event_sink_failed", "run_cancelled", "transition_limit"].includes(error.code))
+      (error instanceof ExecutionError && fatalExecutionCodes.has(error.code))
     )
       throw error;
     const detail =

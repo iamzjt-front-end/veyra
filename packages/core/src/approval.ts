@@ -118,7 +118,10 @@ export async function resolveApprovalDecision(
   );
   await store.updateRun(request.runId, {
     status,
-    lastOutcome: request.decision,
+    // Generated gates must not turn an incoming repair into a free initial execution.
+    ...(![...graph.policyGates.values()].includes(pending.stepId) || request.decision === "rejected"
+      ? { lastOutcome: request.decision }
+      : {}),
     ...(next ? { currentStep: next } : status === "completed" ? { currentStep: null } : {}),
   });
   saved.push(
