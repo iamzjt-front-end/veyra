@@ -16,6 +16,7 @@
     "dev": "turbo dev --parallel",
     "check": "turbo check && tsc -p tsconfig.test.json",
     "test": "turbo test && vitest run --config vitest.config.ts",
+    "smoke:live": "pnpm build && tsx test/smoke/manual-smoke.ts",
     "clean": "turbo clean && rm -rf node_modules",
     "ve": "tsx apps/cli/src/index.ts"
   },

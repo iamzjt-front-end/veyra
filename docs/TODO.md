@@ -739,23 +739,31 @@ Verified all nine scenarios through separate CLI application processes and dispo
 
 ## M1.14 — Add opt-in real GPT + Codex integration smoke test
 
+**Status:** [!] Live acceptance blocked; implementation and deterministic tooling tests verified.
+
 **Depends on:** M1.13
 
 ### Requirements
 
-- [ ] Never run in default CI.
-- [ ] Require explicit environment flag/command.
-- [ ] Use a disposable fixture repository/worktree.
+- [x] Never run in default CI.
+- [x] Require explicit environment flag/command.
+- [x] Use a disposable fixture repository/worktree.
 - [ ] Planner asks for a tiny deterministic change.
 - [ ] Codex makes the change.
 - [ ] Verifier checks it.
 - [ ] Reviewer evaluates evidence.
-- [ ] Test cleans up or prints the retained fixture location for debugging.
-- [ ] Document approximate API use/cost considerations.
+- [x] Test cleans up or prints the retained fixture location for debugging.
+- [x] Document approximate API use/cost considerations.
 
 ### Acceptance criteria
 
 On a developer machine with OpenAI credentials and logged-in Codex CLI, one command demonstrates the real closed loop.
+
+**Blocker (September 8, 2026):** `OPENAI_API_KEY` is absent from this task's environment. Attempted `VEYRA_LIVE_SMOKE=1 pnpm smoke:live`: the workspace build passed, then the smoke exited `2` with `Set OPENAI_API_KEY in the environment before running the live closed-loop smoke test.` No live provider request was made. To unblock, make a valid API key available through the environment and rerun that command with the installed, logged-in Codex CLI; optionally select an accessible Responses/structured-output model with `VEYRA_SMOKE_MODEL`. Do not paste or commit credentials.
+
+The opt-in entry point, one-repair limit, disposable Git fixture, check/test/build verification, protected-file checks, usage report, cancellation, cleanup and optional retention are implemented. Five deterministic tooling tests pass, including a forged passing test being rejected and secret redaction in retained failure evidence. Running without the opt-in flag also exits `2` before provider checks. All five baseline commands passed (372 tests). This does not establish live planner/executor/reviewer success, so those requirements and this item remain open. See `docs/LIVE_SMOKE.md`.
+
+M1.15 and the M2 foundation remain dependent on live v0.1 completion. M3.1 can proceed independently against the implemented workflow loader; no TUI foundation or live provider access is needed to document and validate its existing schema.
 
 ---
 
@@ -1532,4 +1540,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.14 — Add opt-in real GPT + Codex integration smoke test.**
+**Next eligible: M3.1 — Versioned Workflow DSL schema.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

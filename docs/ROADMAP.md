@@ -38,7 +38,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Human approval node
 - [x] Working `ve init/run/status/review/resume/doctor`
 - [x] Deterministic E2E tests
-- [ ] Opt-in real GPT + Codex smoke test
+- [ ] Opt-in real GPT + Codex smoke test (tooling tested; live run blocked by missing OpenAI API credential)
 
 ## v0.2 — TUI
 

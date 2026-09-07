@@ -37,3 +37,5 @@ pnpm exec vitest run test/e2e/vertical-slice.test.ts --config vitest.config.ts
 ```
 
 They also run in the default `pnpm test` suite and CI. Each scenario has a 60-second test deadline and each CLI process has a 45-second execution timeout; these are bounds, not sleeps.
+
+The separate [real closed-loop smoke](LIVE_SMOKE.md) uses `VEYRA_LIVE_SMOKE=1 pnpm smoke:live` and existing credentials. Its manual entry point is excluded from default test discovery. Tests of that smoke's setup, guards, and cleanup inject fake providers and remain safe in normal CI.
