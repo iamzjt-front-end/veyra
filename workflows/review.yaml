@@ -1,14 +1,25 @@
+# Read-only agent review; inspect trusted project scripts first. See docs/PRESETS.md#review.
 name: review
 version: 1
-start: verify
+start: inspect
+policy:
+  retry: { max: 1 }
+  maxSteps: 12
 
 steps:
+  inspect:
+    type: command
+    run:
+      - git --no-optional-locks status --short
+      - git --no-pager diff --no-ext-diff --no-textconv --
+      - git --no-pager diff --cached --no-ext-diff --no-textconv --
+    next: verify
+
   verify:
     type: command
     run:
       - pnpm check
       - pnpm test
-      - pnpm build
     on:
       success: review
       failure: review
@@ -16,6 +27,30 @@ steps:
   review:
     type: agent
     agent: reviewer
+    instructions: >-
+      Inspect the staged/unstaged diff, status and deterministic checks. Report actionable
+      findings, missing evidence and explicit pass or fail. Failed checks remain failures even
+      when the code looks correct. This preset is read-only: do not edit files, invoke repair
+      commands, install dependencies, commit, push, publish or deploy. Untracked file contents
+      and truncated diff content are not included; request evidence rather than guessing.
+    inputs:
+      inspectOutcome: { from: inspect, path: /outcome }
+      checksOutcome: { from: verify, path: /outcome }
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      mutatesWorkspace: false
+    on:
+      pass: report
+      fail: report
+  report:
+    type: human
+    message: >-
+      Review the findings and deterministic check outcome. Approval acknowledges delivery of
+      this report; it does not declare that checks passed or authorize code changes.
+    inputs:
+      checks: { from: verify, path: /outcome }
+      review: { from: review, path: /summary }
+      verdict: { from: review, path: /outcome }
     next: done
 
   done:

@@ -29,6 +29,8 @@ export interface WorkflowPolicy {
 export interface WorkflowStep {
   type: StepType;
   agent?: string;
+  /** Literal task guidance, appended to the provider-neutral input instructions. */
+  instructions?: string;
   run?: string[];
   next?: string;
   on?: Record<string, string>;

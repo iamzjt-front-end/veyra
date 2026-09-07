@@ -1,16 +1,35 @@
+# Purpose and required capabilities: docs/PRESETS.md#dev
 name: default-dev
 version: 1
 start: plan
+policy:
+  retry: { max: 3 }
+  maxSteps: 40
 
 steps:
   plan:
     type: agent
     agent: planner
+    instructions: >-
+      Plan the requested change from the supplied goal and evidence. State acceptance checks,
+      constraints and the smallest implementation steps. Do not modify project files or claim
+      checks ran without evidence. Request input when essential requirements are missing.
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      mutatesWorkspace: false
     next: execute
 
   execute:
     type: agent
     agent: executor
+    instructions: >-
+      Implement only the requested change using the plan. Preserve unrelated work and project
+      instructions. Do not delete user data, commit, push, publish, deploy or install dependencies
+      unless the user's goal explicitly authorizes that action and native permissions allow it.
+      Report changed files and checks actually run; deterministic verification follows separately.
+    metadata:
+      requiredCapabilities: [code-execution, tool-use]
+      mutatesWorkspace: true
     next: verify
 
   verify:
@@ -26,6 +45,13 @@ steps:
   review:
     type: agent
     agent: reviewer
+    instructions: >-
+      Review the requested change and the latest deterministic verification evidence independently.
+      Return explicit pass or fail with concrete findings and required fixes. Missing or failed
+      verification is not a pass. Do not modify files or execute repair commands.
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      mutatesWorkspace: false
     on:
       pass: done
       fail: fix
@@ -33,6 +59,14 @@ steps:
   fix:
     type: agent
     agent: executor
+    instructions: >-
+      Repair only the failures in the latest verification or review evidence. Preserve the
+      intended behavior and unrelated work; do not weaken tests to obtain a pass. Do not commit,
+      push, publish, deploy, delete user data or install dependencies without explicit user
+      authorization and native permission. Report changes for the next verification pass.
+    metadata:
+      requiredCapabilities: [code-execution, tool-use]
+      mutatesWorkspace: true
     next: verify
     retry:
       max: 3

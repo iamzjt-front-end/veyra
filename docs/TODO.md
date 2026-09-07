@@ -1020,6 +1020,8 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, and `pnpm 
 
 ## M3.9 — Harden built-in presets
 
+**Status:** [x] Complete and verified.
+
 ### `dev.yaml`
 
 - planner → executor → verify → reviewer → fix loop
@@ -1038,11 +1040,13 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, and `pnpm 
 
 For each preset:
 
-- [ ] documented purpose
-- [ ] declared required roles/capabilities
-- [ ] tests with fake adapters
-- [ ] sane bounded retries
-- [ ] no surprising destructive behavior
+- [x] documented purpose
+- [x] declared required roles/capabilities
+- [x] tests with fake adapters
+- [x] sane bounded retries
+- [x] no surprising destructive behavior
+
+Verified all five repository baseline commands (752 tests). Eleven Core preset tests execute the actual YAML with fake adapters, checking dev repair limits, bug reproduction/targeted/broader ordering, failed-check evidence alongside both review verdicts, explicit report approval, bounded research refinement and no research commands. A real Git/pnpm review in a disposable fixture passed both verification stages without changing project sources. Four workflow tests validate reachable graphs, declared capabilities/mutation expectations and limits; schema tests cover literal per-agent instructions and invalid fields/lengths. The minimal `instructions` DSL field is necessary to deliver each preset's task guidance through the existing persisted AgentInput; it does not add role profiles or automatic capability selection. Capability metadata remains advisory until M4.1. `docs/PRESETS.md` documents role bindings, required scripts (including bugfix's project-specific `test:targeted`), mutation expectations, bounded evidence and report acknowledgment. Review/research use human reports without coding executors, installs, commits or deployment commands. Project scripts and native provider permissions remain the execution boundary.
 
 ---
 
@@ -1572,4 +1576,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.9 — Harden built-in presets.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.10 — User-defined workflow UX.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

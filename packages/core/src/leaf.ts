@@ -118,9 +118,13 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
       ...active,
       role: options.role ?? key,
       goal,
-      instructions:
-        options.instructions ??
+      instructions: [
         `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, explicitly selected values in context.inputs, and any subworkflow parameters in context.workflowInputs. Preserve project instructions.`,
+        step.instructions,
+        options.instructions,
+      ]
+        .filter((value) => value !== undefined)
+        .join("\n\n"),
       ...resolved,
       context: { ...resolved.context, ...options.extraContext },
     };

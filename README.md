@@ -144,6 +144,8 @@ The [configuration reference](docs/CONFIGURATION.md) documents the implemented v
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.
 
+The [preset reference](docs/PRESETS.md) explains the development, bugfix, read-only review and research flows, their required adapters/commands, bounded repairs and human reports.
+
 The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event contracts and the boundary between persisted data and execution controls.
 
 The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior.

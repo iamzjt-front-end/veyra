@@ -1,25 +1,62 @@
+# Requires a project-specific test:targeted script. See docs/PRESETS.md#bugfix.
 name: bugfix
 version: 1
-start: analyze
+start: reproduce
+policy:
+  retry: { max: 3 }
+  maxSteps: 40
 
 steps:
+  reproduce:
+    type: command
+    run: [pnpm test:targeted]
+    on:
+      success: analyze
+      failure: analyze
+
   analyze:
     type: agent
     agent: planner
+    instructions: >-
+      Diagnose the reported bug using the reproduction evidence and supplied context. Distinguish
+      a reproduced assertion failure from a missing script, environment error or passing test.
+      Request input if the bug cannot be identified safely. Do not change files. Produce a
+      minimal fix plan and identify the targeted regression check; never invent reproduction.
+    inputs:
+      reproductionOutcome: { from: reproduce, path: /outcome }
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      mutatesWorkspace: false
     next: fix
 
   fix:
     type: agent
     agent: executor
-    next: verify
+    instructions: >-
+      Fix the diagnosed bug and its regression coverage using the latest plan/check/review
+      evidence. Keep the change narrow and preserve unrelated work and existing checks.
+      Do not commit, push, publish, deploy, delete user data or install dependencies without
+      explicit user authorization and native permission. Targeted and broader checks follow.
+    metadata:
+      requiredCapabilities: [code-execution, tool-use]
+      mutatesWorkspace: true
+    next: targeted
     retry:
       max: 3
+
+  targeted:
+    type: command
+    run: [pnpm test:targeted]
+    on:
+      success: verify
+      failure: fix
 
   verify:
     type: command
     run:
       - pnpm check
       - pnpm test
+      - pnpm build
     on:
       success: review
       failure: fix
@@ -27,6 +64,16 @@ steps:
   review:
     type: agent
     agent: reviewer
+    instructions: >-
+      Review the bug fix, regression coverage, and both latest targeted and broader verification
+      results. Return explicit pass or fail with required fixes. Do not modify files or treat
+      a passing targeted test as proof that broader checks passed.
+    inputs:
+      targetedOutcome: { from: targeted, path: /outcome }
+      broaderOutcome: { from: verify, path: /outcome }
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      mutatesWorkspace: false
     on:
       pass: done
       fail: fix

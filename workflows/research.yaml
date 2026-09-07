@@ -1,24 +1,63 @@
+# Research supplied sources, synthesize, then present to a human. See docs/PRESETS.md#research.
 name: research
 version: 1
 start: plan
+policy:
+  retry: { max: 2 }
+  maxSteps: 16
 
 steps:
   plan:
     type: agent
     agent: planner
+    instructions: >-
+      Plan research for the question, identifying supplied sources, missing evidence and
+      criteria for a useful answer. Do not modify project files or claim access to tools or
+      sources that are unavailable. Request input when the question lacks essential context.
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      mutatesWorkspace: false
     next: research
 
   research:
     type: agent
     agent: researcher
-    next: review
+    instructions: >-
+      Research the question using supplied sources and any explicitly configured research tools.
+      Record source references, supported findings, uncertainty and unresolved gaps. Do not
+      invent citations or claim live browsing when no browsing tool is available. Address the
+      latest synthesis feedback on revisits. Do not modify files, run coding commands, install
+      dependencies, commit, publish or deploy; request missing sources when necessary.
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      optionalCapabilities: [web-research]
+      mutatesWorkspace: false
+    next: synthesize
 
-  review:
+  synthesize:
     type: agent
-    agent: reviewer
+    agent: judge
+    instructions: >-
+      Synthesize the research into an answer with source references, tradeoffs and explicit
+      uncertainty. Judge whether the question is adequately answered: return pass with the
+      synthesized answer in the summary, or fail with concrete research gaps for another pass.
+      Do not invent citations, claim deterministic verification, or modify files.
+    inputs:
+      research: { from: research, path: /summary }
+    metadata:
+      requiredCapabilities: [reasoning, structured-output]
+      mutatesWorkspace: false
     on:
-      pass: done
+      pass: output
       fail: research
+
+  output:
+    type: human
+    message: Review the research synthesis and source evidence. Approve to acknowledge delivery.
+    inputs:
+      synthesis: { from: synthesize, path: /summary }
+      research: { from: research, path: /summary }
+    next: done
 
   done:
     type: end

@@ -18,6 +18,8 @@ Initialization prints setup guidance for `OPENAI_API_KEY` and the installed Code
 
 Review the chosen workflow's verifier commands before running it in a project. The built-in dev preset uses `pnpm check`, `pnpm test`, and `pnpm build`; a project with different commands needs its own workflow. Coding agents modify the configured project directory under their own permission system. The CLI does not create isolated worktrees yet.
 
+The [preset reference](PRESETS.md) lists required agent bindings, commands and retry limits. `bugfix` requires a project-specific `test:targeted` script. `review` uses a Git diff and checks without an executor; `research` uses a researcher and synthesis judge without shell commands. Both finish at a human report gate, so non-interactive execution returns exit code 3 until its report is acknowledged.
+
 [Workflow execution policies](WORKFLOWS.md#workflow-execution-policies) enforce saved deadlines, retry/backoff, group concurrency and lifetime limits. Policy approval gates use the same status/resume/approve commands as explicit human nodes. Token/cost budgets require a programmatically injected Core `BudgetHook`; the CLI does not provide accounting or infer prices and fails before agent execution when a workflow declares a budget without that hook.
 
 ## Inspect saved runs

@@ -21,6 +21,25 @@ const minimal = () => ({
 });
 
 describe("published version 1 workflow schema", () => {
+  it("accepts literal agent instructions and rejects invalid limits/types in both validators", () => {
+    const make = (instructions: unknown) => ({
+      ...minimal(),
+      steps: { done: { type: "agent", agent: "reviewer", instructions } },
+    });
+    const literal = `Review \${literal}; do not evaluate $(commands) or templates.`;
+    expect(validate(make(literal))).toBe(true);
+    expect(parseWorkflow(make(literal)).steps.done?.instructions).toBe(literal);
+    for (const instructions of [" ", 42, {}, "x".repeat(16385)]) {
+      expect(validate(make(instructions))).toBe(false);
+      expect(() => parseWorkflow(make(instructions))).toThrow("instructions");
+    }
+    const command = {
+      ...minimal(),
+      steps: { done: { type: "command", run: ["node --version"], instructions: literal } },
+    };
+    expect(validate(command)).toBe(false);
+    expect(() => parseWorkflow(command)).toThrow("instructions");
+  });
   it("agrees with runtime validation for workflow policies and leaf deadlines", () => {
     const base = {
       ...minimal(),

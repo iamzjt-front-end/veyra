@@ -100,6 +100,11 @@
         "agent": {
           "$ref": "#/definitions/text"
         },
+        "instructions": {
+          "type": "string",
+          "pattern": "\\S",
+          "maxLength": 16384
+        },
         "next": {
           "$ref": "#/definitions/text"
         },

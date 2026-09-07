@@ -1,0 +1,42 @@
+# Built-in workflow presets
+
+Presets are version 1 workflows loaded by `loadWorkflow("dev" | "bugfix" | "review" | "research")` or `ve run --workflow <name>`. They use named adapters and the same Core scheduler as user workflows. Configure only the referenced agents; the Workflow layer does not select a vendor. Copy a preset into your project to change commands, instructions, limits or gates, then select that file with `--workflow` or `workflow.use`. Saved runs retain their original definition on resume.
+
+Each agent node declares its required capabilities and expected mutation behavior in `metadata`. These are author-facing requirements, not capability discovery or a sandbox; enforced provider capability matching remains M4.1. The `agent` name declares the required role binding. All roles require provider-neutral structured `AgentResult` output. No preset installs dependencies, commits, pushes, publishes or deploys. Native provider permissions still apply. Coding presets can edit project files; review and research instructions prohibit edits. Review your project's package scripts before running deterministic commands, since those scripts may generate files or have other side effects.
+
+| Preset     | Required agent names and capabilities                                                                               | Default commands                                                                                   | Result and repair limit                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `dev`      | `planner` and `reviewer`: reasoning, structured output; `executor`: code execution, tool use                        | `pnpm check`, `pnpm test`, `pnpm build`                                                            | Completes after verification and review pass; at most three fix calls after the initial implementation.  |
+| `bugfix`   | Same as `dev`                                                                                                       | `pnpm test:targeted` for reproduction and regression; then `pnpm check`, `pnpm test`, `pnpm build` | Completes after targeted checks, broader checks and review pass; initial fix plus at most three repairs. |
+| `review`   | `reviewer`: reasoning, structured output                                                                            | Git status plus staged/unstaged diffs; then `pnpm check`, `pnpm test`                              | Pauses with a report containing both check outcome and review verdict; no repair loop or executor.       |
+| `research` | `planner`, `researcher`, `judge`: reasoning, structured output; researcher may additionally have web/research tools | None                                                                                               | Synthesized answer and sources presented at a human gate; initial research plus at most two refinements. |
+
+All repeated steps have their own bounded retry budgets; a provider `needs_input` also consumes that step's budget on resume. Dev/bugfix use a default of three, review one, and research two, frozen into the run independently of `config.runtime.maxFixIterations`. Lifetime start limits are respectively 40, 40, 12 and 16. Exhaustion stops with `retry_exhausted` or `transition_limit`; approvals do not replenish limits. No unconditional retry on provider exceptions is implied. See [policy and retry semantics](WORKFLOWS.md#workflow-execution-policies).
+
+## Dev
+
+[`dev.yaml`](../workflows/dev.yaml) runs `plan → execute → verify → review`, with verifier failure or review `fail` routing to `fix → verify`. The planner defines the smallest requested change and its checks. The executor implements it, while the fix node specifically addresses the latest failed checks/review without weakening tests. The reviewer must produce an explicit `pass` or `fail`; a generic successful provider response does not approve the change. A reviewer cannot bypass the verifier, since failed commands never enter review in this preset.
+
+The `ve init` configuration supplies an OpenAI planner/reviewer and Codex executor, but injected adapters or other configured providers may fill those roles. Those providers' credentials and project permissions are necessary only for live use. Normal tests use fake adapters. Adapt the verification commands before running in a project without these pnpm scripts.
+
+## Bugfix
+
+[`bugfix.yaml`](../workflows/bugfix.yaml) runs `reproduce → analyze → fix → targeted → verify → review`. Define `test:targeted` in the target project's package scripts to reproduce the reported defect and exercise its regression test. There is no universal targeted-test command; copying/editing the preset is appropriate when a project uses another test runner. Veyra does not install a test runner or guess a test path.
+
+Both passing and failing reproduction results reach diagnosis, with the actual outcome and bounded command evidence. The planner must distinguish a reproduced defect from a missing script, environment problem or passing test and request missing information when needed. Targeted failure retries the fix before broader verification; broader failure or review `fail` also repairs and reruns targeted checks first. Review receives both check outcomes separately. No model-generated command string is interpolated into the shell.
+
+## Review
+
+[`review.yaml`](../workflows/review.yaml) requires a Git working tree. It reads status and both staged/unstaged diffs, with pagers, external diff helpers and text conversion disabled. Untracked paths are listed, but their contents and unrelated repository files are not loaded automatically. Then it runs type checks and tests; building is omitted by default. Project scripts remain trusted executable code, so this is a read-only agent workflow, not a filesystem sandbox.
+
+Check failure still reaches the reviewer as failed evidence; it does not trigger an executor. Both valid review verdicts reach the `report` human gate. The report includes the deterministic outcome and reviewer verdict independently, so a positive model review cannot erase failed checks. Approval acknowledges report delivery and completes the review task; it does not approve a merge, declare tests passed or authorize edits. Rejection fails the run. A provider error or a missing/invalid verdict fails instead of producing a successful report.
+
+Command outputs and automatic agent context remain bounded; large diffs/logs may be marked as truncated. The reviewer is instructed to identify missing evidence instead of inventing findings. Inspect the saved events or run a narrower custom workflow for a large review. Gate summaries use the existing 32 KiB named-input limit.
+
+## Research
+
+[`research.yaml`](../workflows/research.yaml) runs `plan → research → synthesize → output`. The judge synthesizes an answer, source references and uncertainty, then returns `pass` or concrete research gaps with `fail`. Negative synthesis returns to research within the saved budget. The human output gate presents the synthesis and research summary before acknowledging delivery. No coding executor or shell command is included.
+
+Research can use supplied source text alone. Live browsing is optional and must be explicitly supported by the configured researcher; this preset does not create a browser or claim a model read sources it did not access. The current OpenAI adapter supports planner/reviewer/judge output modes. A supplied-source researcher can reuse its planner normalization by configuring the `researcher` agent with `options: { role: planner }`; the workflow still supplies research-specific instructions. A researcher with live tools requires a suitable adapter. Configure a separate `judge` binding for synthesis. This does not implement automatic role/provider selection or the later role-profile milestone.
+
+Preset tests execute these actual YAML definitions with fake adapters, verify repair ordering and limits, preserve failed verification in review reports, exercise report approvals, and confirm read-only fixture contents. Real-provider runs remain opt-in.

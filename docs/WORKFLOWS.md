@@ -26,6 +26,8 @@ Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe 
 
 Agent, human and subworkflow nodes support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
 
+M3.9 adds optional agent `instructions`, a non-blank literal string of at most 16,384 characters. Core appends this guidance to the normal context/project instructions and any consensus reviewer/judge instructions, persists it in `agent.input`, and passes that saved envelope to the adapter. There is no template evaluation or shell interpolation. Existing workflows keep their default guidance. This small field makes [built-in preset behavior](PRESETS.md) executable; provider capability discovery and reusable role profiles remain later milestones.
+
 ## JSON Schema and compatibility
 
 The editor/tooling schema is [workflow-v1.schema.json](../packages/workflow/schema/workflow-v1.schema.json), also available as the package export `@veyra/workflow/workflow-v1.schema.json`. It uses [JSON Schema draft-07](https://json-schema.org/draft-07/draft-handrews-json-schema-validation-01). Its `urn:veyra:workflow:1` identifier is an identifier, not a hosted download endpoint. Package publishing is separate roadmap work; the file is available in this checkout.

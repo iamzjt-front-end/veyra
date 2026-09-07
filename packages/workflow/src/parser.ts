@@ -101,10 +101,16 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
                           : "message",
                   ]),
           ...(type === "agent" || type === "human" || type === "subworkflow" ? ["inputs"] : []),
+          ...(type === "agent" ? ["instructions"] : []),
           ...(type === "agent" || type === "command" ? ["timeoutMs"] : []),
         ];
   object(raw, field, keys);
   const step: WorkflowStep = { type };
+  if (raw.instructions !== undefined) {
+    step.instructions = text(raw.instructions, `${field}.instructions`);
+    if ([...step.instructions].length > 16384)
+      throw new WorkflowError(`${field}.instructions`, "must be at most 16384 characters");
+  }
   if (raw.timeoutMs !== undefined)
     step.timeoutMs = boundedInteger(raw.timeoutMs, `${field}.timeoutMs`, 1, 86_400_000);
   if (type === "consensus") {

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import {
   assertWorkflow,
+  analyzeWorkflow,
   loadWorkflow,
   parseWorkflow,
   resolveNextStep,
@@ -140,6 +141,27 @@ describe("resolveNextStep", () => {
 });
 
 describe("loadWorkflow", () => {
+  it.each(["dev", "bugfix", "review", "research"])(
+    "keeps the %s preset's declared capabilities, reachable steps and bounds",
+    async (preset) => {
+      const workflow = await loadWorkflow(preset);
+      expect(analyzeWorkflow(workflow).unreachableSteps).toEqual([]);
+      expect(workflow.policy?.maxSteps).toBeLessThanOrEqual(40);
+      expect(workflow.policy?.retry?.max).toBeLessThanOrEqual(3);
+      for (const step of Object.values(workflow.steps)) {
+        if (step.type !== "agent") continue;
+        expect(step.instructions?.length).toBeGreaterThan(20);
+        expect(step.metadata?.requiredCapabilities).toEqual(
+          expect.arrayContaining([expect.any(String)]),
+        );
+        expect(typeof step.metadata?.mutatesWorkspace).toBe("boolean");
+        if (preset === "review" || preset === "research")
+          expect(step.metadata?.mutatesWorkspace).toBe(false);
+      }
+      if (preset === "research")
+        expect(Object.values(workflow.steps).some((step) => step.type === "command")).toBe(false);
+    },
+  );
   it.each(["dev", "bugfix", "review", "research"])(
     "loads built-in %s independently of the project directory",
     async (preset) => {
