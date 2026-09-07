@@ -32,8 +32,8 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Working Codex CLI executor adapter
 - [x] Local process runtime
 - [x] Shell verifier implementation
-- [ ] Core orchestration loop
-- [ ] Reviewer/fix loop
+- [x] Core orchestration loop
+- [x] Reviewer/fix loop
 - [ ] Retry limit enforcement
 - [ ] Human approval node
 - [ ] Working `ve init/run/status/review/resume/doctor`

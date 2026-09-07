@@ -545,23 +545,25 @@ Verified 40 mocked adapter/JSONL tests plus three supporting runtime stdin tests
 
 ## M1.9 — Implement the v0.1 Core orchestration loop
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.2–M1.8
 
 **Primary area:** `packages/core`
 
 ### Requirements
 
-- [ ] Core receives already-loaded config/workflow/providers; it does not parse YAML or instantiate vendor SDKs directly.
-- [ ] Execute `agent`, `command`, `human`, and `end` steps.
-- [ ] Resolve transitions through `packages/workflow`.
-- [ ] Persist state before/after meaningful transitions.
-- [ ] Emit structured events for run and step lifecycle.
-- [ ] Pass relevant previous outputs/artifacts to later steps without dumping unlimited historical text.
-- [ ] Convert verifier aggregate result into workflow outcome (`success`/`failure`).
-- [ ] Convert reviewer output into `pass`/`fail` outcome.
-- [ ] End with clear run status: completed, failed, paused.
-- [ ] Ensure thrown provider/runtime errors become persisted run failures with useful context.
-- [ ] No direct imports from `plugins/openai` or `plugins/codex`.
+- [x] Core receives already-loaded config/workflow/providers; it does not parse YAML or instantiate vendor SDKs directly.
+- [x] Execute `agent`, `command`, `human`, and `end` steps.
+- [x] Resolve transitions through `packages/workflow`.
+- [x] Persist state before/after meaningful transitions.
+- [x] Emit structured events for run and step lifecycle.
+- [x] Pass relevant previous outputs/artifacts to later steps without dumping unlimited historical text.
+- [x] Convert verifier aggregate result into workflow outcome (`success`/`failure`).
+- [x] Convert reviewer output into `pass`/`fail` outcome.
+- [x] End with clear run status: completed, failed, paused.
+- [x] Ensure thrown provider/runtime errors become persisted run failures with useful context.
+- [x] No direct imports from `plugins/openai` or `plugins/codex`.
 
 ### Tests
 
@@ -576,6 +578,8 @@ Use mock adapters/verifier to test:
 ### Acceptance criteria
 
 The whole default dev workflow executes deterministically using mocks and produces persisted state/events.
+
+Verified 21 Core orchestration integration tests and three bounded-context tests: the unchanged default dev workflow, verifier/reviewer repair routes, missing adapters, thrown/invalid results, redacted persisted evidence, pauses, cancellation, subscriber isolation, and a real fixture shell check. Frozen install and all five baseline commands passed (317 tests). Core uses injected protocol adapters plus runtime/verifier/store and has no concrete provider imports. The fixed execution backstop is a minimal safety prerequisite; configurable repair limits and approval resolution remain M1.10/M1.11. See `docs/CORE.md`.
 
 ---
 
@@ -1512,4 +1516,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.9 — Implement the v0.1 Core orchestration loop.**
+**Start with M1.10 — Enforce repair-loop retry limits.**

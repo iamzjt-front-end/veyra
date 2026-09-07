@@ -6,7 +6,10 @@
   "exports": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "dependencies": {
+    "@veyra/config": "workspace:*",
     "@veyra/protocol": "workspace:*",
+    "@veyra/runtime": "workspace:*",
+    "@veyra/verifier": "workspace:*",
     "@veyra/workflow": "workspace:*"
   },
   "scripts": {

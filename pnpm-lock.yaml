@@ -49,9 +49,18 @@ importers:
 
   packages/core:
     dependencies:
+      '@veyra/config':
+        specifier: workspace:*
+        version: link:../config
       '@veyra/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@veyra/verifier':
+        specifier: workspace:*
+        version: link:../verifier
       '@veyra/workflow':
         specifier: workspace:*
         version: link:../workflow

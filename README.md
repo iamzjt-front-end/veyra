@@ -90,7 +90,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | CLI                                      | ✓        | scaffolded                 |
 | TUI                                      | ✓        | scaffolded                 |
 | Dashboard                                | ✓        | planned                    |
-| Core                                     | ✓        | local run persistence      |
+| Core                                     | ✓        | persisted workflow loop    |
 | Workflow                                 | ✓        | YAML loader and validation |
 | Runtime                                  | ✓        | local process execution    |
 | Verifier                                 | ✓        | sequential shell checks    |
@@ -140,7 +140,7 @@ CI runs the same five checks for pull requests and pushes to `main`, using Node.
 
 See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
 
-The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader; workflow execution and provider connections remain planned.
+The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The programmatic Core loop and first adapters work; CLI workflow commands remain planned.
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.
 
@@ -151,6 +151,8 @@ The [runtime reference](docs/RUNTIME.md) covers local command execution, output 
 The [verification reference](docs/VERIFICATION.md) describes sequential command checks, aggregate results, and verification events.
 
 The [state reference](docs/STATE.md) documents local snapshots, event history, recovery errors, and the single-writer boundary.
+
+The [Core reference](docs/CORE.md) describes programmatic execution, outcome routing, persisted events, and bounded context.
 
 The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
 
