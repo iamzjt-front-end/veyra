@@ -15,7 +15,7 @@ The optional `project` object requires `name` when present. Unknown fields at th
 | `runtime.stateDir`         | `.veyra` | Non-empty path string                                    |
 | `approval.requiredFor`     | `[]`     | Array of non-empty operation names                       |
 
-Project name and model have no inferred default. Returned objects and arrays are independent copies. Paths remain as configured; callers resolve relative paths against the config directory when executing a project. Workflow contents are validated by [`@veyra/workflow`](WORKFLOWS.md). Provider readiness and approval execution remain part of their owning packages' later tasks.
+Project name and model have no inferred default. Returned objects and arrays are independent copies. Paths remain as configured; callers resolve relative paths against the config directory when executing a project. Workflow contents are validated by [`@veyra/workflow`](WORKFLOWS.md). Provider readiness belongs to the adapters; explicit human gates use the [Core approval API](APPROVALS.md). `approval.requiredFor` does not yet insert gates or classify provider commands automatically.
 
 Core snapshots effective retry limits when a run starts. An explicit step `retry.max` overrides `runtime.maxFixIterations` for that step; zero disables repairs for steps using that limit while allowing initial work. See the [retry policy](WORKFLOWS.md#v01-retry-policy) for counting, exhaustion, and resume semantics.
 

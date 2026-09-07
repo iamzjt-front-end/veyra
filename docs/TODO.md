@@ -616,18 +616,20 @@ Verified seven workflow retry tests, nine Core retry/resume integration tests, a
 
 ## M1.11 — Implement human approval nodes
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.9, M1.6
 
 **Primary areas:** `packages/core`, `packages/workflow`, `packages/protocol`
 
 ### Requirements
 
-- [ ] `human` step pauses the run and emits `approval.required`.
-- [ ] Persist approval message/context.
-- [ ] Support approved/rejected outcomes.
-- [ ] Approval resolution must be explicit and auditable in events.
-- [ ] A paused process may exit safely; later `resume` continues from persisted state.
-- [ ] Core API should expose a way for CLI/TUI/Dashboard to resolve approval without UI-specific logic inside Core.
+- [x] `human` step pauses the run and emits `approval.required`.
+- [x] Persist approval message/context.
+- [x] Support approved/rejected outcomes.
+- [x] Approval resolution must be explicit and auditable in events.
+- [x] A paused process may exit safely; later `resume` continues from persisted state.
+- [x] Core API should expose a way for CLI/TUI/Dashboard to resolve approval without UI-specific logic inside Core.
 
 ### Tests
 
@@ -639,6 +641,8 @@ Verified seven workflow retry tests, nine Core retry/resume integration tests, a
 ### Acceptance criteria
 
 A real workflow can stop before a risky step and continue only after explicit user approval.
+
+Verified ten approval integration tests, including explicit approve/resume, rejected branches, rejection without a branch, stale/duplicate IDs, consecutive gates, competing submissions within one engine, comment redaction, and notification failure after a durable decision. A real writer process exited at a gate; a separate caller approved it, and a fresh engine created the disposable fixture marker only on resume. All five baseline commands passed (345 tests). Approval logic remains in Core; cross-process locking and partial-transition recovery remain later hardening tasks. See `docs/APPROVALS.md`.
 
 ---
 
@@ -1520,4 +1524,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.11 — Implement human approval nodes.**
+**Start with M1.12 — Implement CLI application commands.**

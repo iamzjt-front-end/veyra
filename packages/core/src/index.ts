@@ -1,6 +1,5 @@
 export {
   VeyraEngine,
-  RunControlError,
   type RunRequest,
   type ResumeRequest,
   type RunResult,
@@ -17,3 +16,6 @@ export {
   type StoredRunInput,
   type StoredRunState,
 } from "./state.js";
+
+export { RunControlError } from "./control-error.js";
+export type { PendingApproval, ReadRunRequest, ResolveApprovalRequest } from "./approval.js";

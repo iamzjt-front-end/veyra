@@ -19,6 +19,14 @@ import {
   withRetryDefaults,
   type WorkflowDefinition,
 } from "@veyra/workflow";
+import {
+  pendingApproval,
+  resolveApprovalDecision,
+  type PendingApproval,
+  type ReadRunRequest,
+  type ResolveApprovalRequest,
+} from "./approval.js";
+import { RunControlError } from "./control-error.js";
 import { RunContext } from "./context.js";
 import { isStoredEvent } from "./state-events.js";
 import { LocalRunStore, StateStoreError, type StoredRun } from "./state.js";
@@ -44,16 +52,6 @@ export interface ResumeRequest extends AgentRunOptions {
   agents: Record<string, AgentAdapter>;
 }
 
-export class RunControlError extends Error {
-  override readonly name = "RunControlError";
-  constructor(
-    readonly code: string,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
 export interface VeyraEngineOptions {
   emit?: EventSink;
   store?: LocalRunStore;
@@ -76,6 +74,7 @@ export class VeyraEngine {
   readonly #options: VeyraEngineOptions;
   readonly #runtime: AgentRuntime;
   readonly #verifier: Verifier;
+  readonly #approvalControls = new Map<string, Promise<unknown>>();
 
   constructor(options: VeyraEngineOptions = {}) {
     this.#options = { ...options, redactValues: [...(options.redactValues ?? [])] };
@@ -99,11 +98,6 @@ export class VeyraEngine {
         "run_not_paused",
         "Only a paused run can resume; do not replay an interrupted running attempt blindly.",
       );
-    if (run.state.currentStep && run.input.workflow.steps[run.state.currentStep]?.type === "human")
-      throw new RunControlError(
-        "approval_required",
-        "The current human gate requires explicit approval resolution before resume.",
-      );
     if (
       Object.values(run.input.workflow.steps).some(
         (step) => (step.type === "agent" || step.type === "command") && step.retry === undefined,
@@ -114,6 +108,11 @@ export class VeyraEngine {
         "This run predates snapshotted retry limits; start a new run rather than silently changing its execution policy.",
       );
     const events = await store.readEvents(request.runId);
+    if (pendingApproval(events))
+      throw new RunControlError(
+        "approval_required",
+        "The current human gate requires an explicit approval decision before resume.",
+      );
     if (events.at(-1)?.type !== "run.paused")
       throw new RunControlError(
         "incomplete_pause",
@@ -121,6 +120,35 @@ export class VeyraEngine {
       );
     await store.setActiveRun(request.runId);
     return this.#execute(request, store, run, events);
+  }
+
+  async getPendingApproval(request: ReadRunRequest): Promise<PendingApproval | null> {
+    const pending = pendingApproval(await this.#store(request).readEvents(request.runId));
+    return pending
+      ? {
+          runId: pending.runId,
+          stepId: pending.stepId,
+          approvalId: pending.approvalId as string,
+          message: pending.message,
+          requestedAt: pending.at,
+          ...(pending.context ? { context: structuredClone(pending.context) } : {}),
+        }
+      : null;
+  }
+
+  resolveApproval(request: ResolveApprovalRequest): Promise<RunResult> {
+    const snapshot = { ...request };
+    const store = this.#store(snapshot);
+    // Serialize competing decisions in this engine; cross-process locking is a later task.
+    const previous = this.#approvalControls.get(snapshot.runId) ?? Promise.resolve();
+    const operation = previous
+      .catch(() => undefined)
+      .then(() => resolveApprovalDecision(snapshot, store, this.#options.emit));
+    this.#approvalControls.set(snapshot.runId, operation);
+    return operation.finally(() => {
+      if (this.#approvalControls.get(snapshot.runId) === operation)
+        this.#approvalControls.delete(snapshot.runId);
+    });
   }
 
   #store(request: Pick<RunRequest, "config" | "cwd">): LocalRunStore {
@@ -277,6 +305,7 @@ export class VeyraEngine {
             type: "approval.required",
             ...active,
             message: step.message ?? "Human approval required.",
+            approvalId: randomUUID(),
             context: context.input().context,
             at: now(),
           });

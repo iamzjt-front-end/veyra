@@ -154,6 +154,8 @@ The [state reference](docs/STATE.md) documents local snapshots, event history, r
 
 The [Core reference](docs/CORE.md) describes programmatic execution, outcome routing, persisted events, and bounded context.
 
+The [approval reference](docs/APPROVALS.md) covers explicit human gates, decision auditing, and safe pause/resume through the Core API.
+
 The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
 
 The [Codex adapter reference](docs/CODEX.md) covers CLI execution, permissions, readiness checks, and the disposable live smoke test.

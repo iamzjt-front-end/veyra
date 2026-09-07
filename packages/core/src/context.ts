@@ -30,6 +30,12 @@ export class RunContext {
         },
         event.results.flatMap((item) => item.artifacts ?? []),
       );
+    } else if (event.type === "approval.resolved") {
+      this.add(event.stepId, {
+        type: "human",
+        outcome: event.decision,
+        ...(event.comment !== undefined ? { comment: event.comment } : {}),
+      });
     }
   }
 
