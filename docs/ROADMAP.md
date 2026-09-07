@@ -6,7 +6,7 @@ For the canonical task-by-task implementation order, dependencies, tests, and ac
 
 ## M0 — Repository baseline
 
-- [ ] Reproducible pnpm install and lockfile
+- [x] Reproducible pnpm install and lockfile
 - [ ] Formatting/linting baseline
 - [ ] CI for pull requests/main
 - [ ] Test conventions and deterministic fixtures

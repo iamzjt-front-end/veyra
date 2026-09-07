@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 const args = process.argv.slice(2);
+// pnpm forwards the argument separator to the script.
+if (args[0] === "--") args.shift();
 const command = args[0] ?? "help";
 
 const commands: Record<string, () => void> = {

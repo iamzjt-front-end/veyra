@@ -55,19 +55,21 @@ Goal: make the scaffold reproducible, testable, and safe to evolve before connec
 
 ## M0.1 — Establish a reproducible local baseline
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** none
 
 **Primary areas:** repository root, all current workspace packages
 
 ### Requirements
 
-- [ ] Run `corepack enable` and `pnpm install` locally.
-- [ ] Commit the generated `pnpm-lock.yaml`.
-- [ ] Confirm Node.js `>=20` and the declared pnpm version work.
-- [ ] Fix any existing TypeScript/build errors in the scaffold without changing architecture.
-- [ ] Confirm all workspace packages are detected by pnpm.
-- [ ] Confirm `pnpm ve -- doctor` runs from the repository root.
-- [ ] Confirm `ve` is the only public executable name in `apps/cli/package.json`.
+- [x] Run `corepack enable` and `pnpm install` locally.
+- [x] Commit the generated `pnpm-lock.yaml`.
+- [x] Confirm Node.js `>=20` and the declared pnpm version work.
+- [x] Fix any existing TypeScript/build errors in the scaffold without changing architecture.
+- [x] Confirm all workspace packages are detected by pnpm.
+- [x] Confirm `pnpm ve -- doctor` runs from the repository root.
+- [x] Confirm `ve` is the only public executable name in `apps/cli/package.json`.
 
 ### Acceptance criteria
 
@@ -80,6 +82,8 @@ pnpm ve -- doctor
 ```
 
 All commands pass on a clean checkout after dependencies are installed.
+
+Verified in a clean temporary Git worktree with Node.js 22.22.0, Corepack 0.34.7, and pnpm 10.15.1. All five commands passed; `check`, `test`, and `build` also passed with `TURBO_FORCE=true` after removing build outputs. pnpm detected all 11 workspace packages plus the root. Three CLI regression tests passed. Corepack 0.30.0 initially failed with `Cannot find matching keyid`; updating the local Corepack installation resolved it.
 
 ### Deliverables
 
@@ -1454,4 +1458,4 @@ When finished:
 
 ## Next task
 
-**Start with M0.1 — Establish a reproducible local baseline.**
+**Start with M0.2 — Add formatting and linting.**

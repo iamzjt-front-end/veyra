@@ -117,7 +117,7 @@ The current next task is defined at the bottom of `docs/TODO.md`.
 Requirements:
 
 - Node.js >= 20
-- pnpm 10
+- pnpm 10.15.1 (pinned in `package.json`)
 
 ```bash
 corepack enable
@@ -127,6 +127,8 @@ pnpm test
 pnpm build
 pnpm ve -- doctor
 ```
+
+If Corepack reports `Cannot find matching keyid`, [update Corepack](https://pnpm.io/10.x/installation#using-corepack) to a release compatible with your Node.js version, then retry. On Node.js 22.22.0, `npm install --global corepack@0.34.7` was verified with the pinned pnpm version.
 
 Formatting/lint scripts are part of the repository baseline TODO and become mandatory once implemented.
 
