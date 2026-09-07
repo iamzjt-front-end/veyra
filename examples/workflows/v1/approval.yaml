@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: explicit-approval
+version: 1
+start: approval
+steps:
+  approval:
+    type: human
+    message: Approve running the read-only Node version check?
+    on:
+      approved: check
+      rejected: stopped
+  check:
+    type: command
+    run:
+      - node --version
+    next: done
+  done:
+    type: end
+  stopped:
+    type: end

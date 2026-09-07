@@ -906,11 +906,15 @@ Goal: turn the initial fixed loop into a general, declarative agent workflow eng
 
 ## M3.1 — Versioned Workflow DSL schema
 
-- [ ] publish/document version 1 schema
-- [ ] strict validation with actionable paths/errors
-- [ ] forward-version rejection behavior
-- [ ] define compatibility policy
-- [ ] add schema examples
+**Status:** [x] Complete and verified.
+
+- [x] publish/document version 1 schema
+- [x] strict validation with actionable paths/errors
+- [x] forward-version rejection behavior
+- [x] define compatibility policy
+- [x] add schema examples
+
+Verified 35 schema tests against Ajv and the runtime parser: all four presets, three editor-linked examples, invalid fields/types/nodes/retry limits, future-version rejection, unchanged data, and the graph-validation boundary. The schema is available as a local file/package subpath export; no package was published. Compatibility policy documents strict readers, additive changes, versioned semantic changes and saved-run stability. Frozen install and all five baseline commands passed (407 tests).
 
 ---
 
@@ -1540,4 +1544,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M3.1 — Versioned Workflow DSL schema.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M3.2 — Typed context and step outputs.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

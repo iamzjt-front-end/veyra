@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: bounded-review
+version: 1
+start: execute
+steps:
+  execute:
+    type: agent
+    agent: executor
+    next: verify
+  verify:
+    type: command
+    run:
+      - pnpm test
+    on:
+      success: review
+      failure: fix
+    retry:
+      max: 1
+  review:
+    type: agent
+    agent: reviewer
+    on:
+      pass: done
+      fail: fix
+    retry:
+      max: 1
+  fix:
+    type: agent
+    agent: executor
+    next: verify
+    retry:
+      max: 1
+  done:
+    type: end

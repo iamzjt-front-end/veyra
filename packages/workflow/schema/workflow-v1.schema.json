@@ -1,0 +1,100 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "urn:veyra:workflow:1",
+  "title": "Veyra Workflow version 1",
+  "description": "Structural validation for the implemented Workflow DSL. Use parseWorkflow/loadWorkflow as well to check start and transition destinations. Reserved node types are rejected until implemented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "version", "start", "steps"],
+  "properties": {
+    "name": { "$ref": "#/definitions/text" },
+    "version": { "const": 1 },
+    "start": { "$ref": "#/definitions/text" },
+    "steps": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "$ref": "#/definitions/text" },
+      "additionalProperties": {
+        "oneOf": [
+          { "$ref": "#/definitions/agent" },
+          { "$ref": "#/definitions/command" },
+          { "$ref": "#/definitions/human" },
+          { "$ref": "#/definitions/end" }
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "text": { "type": "string", "pattern": "\\S" },
+    "on": {
+      "type": "object",
+      "propertyNames": { "$ref": "#/definitions/text" },
+      "additionalProperties": { "$ref": "#/definitions/text" }
+    },
+    "retry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max"],
+      "properties": {
+        "max": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 }
+      }
+    },
+    "metadata": {
+      "description": "JSON-compatible annotations, not execution instructions or a credential store.",
+      "type": "object",
+      "additionalProperties": true
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "agent"],
+      "properties": {
+        "type": { "const": "agent" },
+        "agent": { "$ref": "#/definitions/text" },
+        "next": { "$ref": "#/definitions/text" },
+        "on": { "$ref": "#/definitions/on" },
+        "retry": { "$ref": "#/definitions/retry" },
+        "metadata": { "$ref": "#/definitions/metadata" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "run"],
+      "properties": {
+        "type": { "const": "command" },
+        "run": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/definitions/text" }
+        },
+        "next": { "$ref": "#/definitions/text" },
+        "on": { "$ref": "#/definitions/on" },
+        "retry": { "$ref": "#/definitions/retry" },
+        "metadata": { "$ref": "#/definitions/metadata" }
+      }
+    },
+    "human": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "human" },
+        "message": { "$ref": "#/definitions/text" },
+        "next": { "$ref": "#/definitions/text" },
+        "on": { "$ref": "#/definitions/on" },
+        "retry": { "$ref": "#/definitions/retry" },
+        "metadata": { "$ref": "#/definitions/metadata" }
+      }
+    },
+    "end": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "end" },
+        "metadata": { "$ref": "#/definitions/metadata" }
+      }
+    }
+  }
+}
