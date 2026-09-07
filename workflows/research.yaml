@@ -1,0 +1,24 @@
+name: research
+version: 1
+start: plan
+
+steps:
+  plan:
+    type: agent
+    agent: planner
+    next: research
+
+  research:
+    type: agent
+    agent: researcher
+    next: review
+
+  review:
+    type: agent
+    agent: reviewer
+    on:
+      pass: done
+      fail: research
+
+  done:
+    type: end

@@ -1,0 +1,22 @@
+name: review
+version: 1
+start: verify
+
+steps:
+  verify:
+    type: command
+    run:
+      - pnpm check
+      - pnpm test
+      - pnpm build
+    on:
+      success: review
+      failure: review
+
+  review:
+    type: agent
+    agent: reviewer
+    next: done
+
+  done:
+    type: end

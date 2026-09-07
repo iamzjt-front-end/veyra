@@ -1,0 +1,35 @@
+name: bugfix
+version: 1
+start: analyze
+
+steps:
+  analyze:
+    type: agent
+    agent: planner
+    next: fix
+
+  fix:
+    type: agent
+    agent: executor
+    next: verify
+    retry:
+      max: 3
+
+  verify:
+    type: command
+    run:
+      - pnpm check
+      - pnpm test
+    on:
+      success: review
+      failure: fix
+
+  review:
+    type: agent
+    agent: reviewer
+    on:
+      pass: done
+      fail: fix
+
+  done:
+    type: end
