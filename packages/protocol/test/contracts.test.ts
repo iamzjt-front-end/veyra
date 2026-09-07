@@ -128,6 +128,7 @@ describe("provider-neutral contracts", () => {
       { type: "run.paused", ...execution, at, reason: "Awaiting approval" },
       { type: "run.resumed", ...execution, at },
       { type: "step.started", ...execution, at },
+      { type: "step.retrying", ...execution, at, retryCount: 1, maxRetries: 3 },
       { type: "step.completed", ...execution, at, outcome: "pass" },
       { type: "step.failed", ...execution, at, message: failure.message, error: failure },
       { type: "agent.started", ...execution, at, agentId: "fixture-agent" },

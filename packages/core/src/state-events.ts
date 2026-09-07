@@ -130,6 +130,8 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
   switch (value.type) {
     case "step.started":
       return true;
+    case "step.retrying":
+      return integer(value.retryCount) && integer(value.maxRetries);
     case "step.completed":
       return (
         optional(value.outcome, string) &&

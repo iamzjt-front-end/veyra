@@ -1,4 +1,4 @@
-import type { ArtifactRef, JsonObject } from "@veyra/protocol";
+import type { ArtifactRef, JsonObject, JsonValue, VeyraEvent } from "@veyra/protocol";
 
 /** Recent outputs only; complete evidence remains in the persisted event log. */
 export class RunContext {
@@ -6,6 +6,32 @@ export class RunContext {
   readonly #artifacts = new Map<string, ArtifactRef>();
   #omittedSteps = 0;
   #omittedArtifacts = 0;
+
+  addEvent(event: VeyraEvent) {
+    if (event.type === "agent.completed") {
+      const result = event.result;
+      this.add(
+        event.stepId,
+        {
+          type: "agent",
+          outcome: result.status === "success" ? (result.outcome ?? "success") : result.status,
+          summary: result.summary,
+          ...(result.data ? { data: result.data } : {}),
+        },
+        result.artifacts,
+      );
+    } else if (event.type === "verification.completed") {
+      this.add(
+        event.stepId,
+        {
+          type: "command",
+          outcome: event.success ? "success" : "failure",
+          results: event.results as unknown as JsonValue[],
+        },
+        event.results.flatMap((item) => item.artifacts ?? []),
+      );
+    }
+  }
 
   add(stepId: string, value: JsonObject, artifacts: ArtifactRef[] = []) {
     this.#steps.delete(stepId);

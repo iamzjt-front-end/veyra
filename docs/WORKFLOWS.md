@@ -43,4 +43,21 @@ steps:
     type: end
 ```
 
-Loading validates data and does not run commands, call agents, or resolve approvals. Retry counts are validated here; enforcement and execution semantics belong to the later Core/runtime tasks. Repair-loop cycles are intentionally accepted, including the loop in [`dev.yaml`](../workflows/dev.yaml). General cycle safety and richer workflow policies remain planned.
+Loading validates data and does not run commands, call agents, or resolve approvals. Repair-loop cycles are intentionally accepted, including the loop in [`dev.yaml`](../workflows/dev.yaml). Core enforces the retry policy below; richer workflow policies remain planned.
+
+## v0.1 retry policy
+
+Each executable step (`agent` or `command`) has an independent repair budget. Its explicit `retry.max` wins; otherwise `config.runtime.maxFixIterations` supplies the limit. `withRetryDefaults()` copies and validates the workflow, materializing these effective limits in the saved run snapshot. Resume uses that snapshot even if the current config changes.
+
+`nextRetry()` evaluates the next execution without mutating state:
+
+- The first normal entry uses count `0` and is allowed even when the maximum is zero.
+- The first entry reached through `failure`/`fail` is a repair and uses count `1`.
+- Every revisit, including resuming a paused agent, increments that step's count. Successful cycles therefore consume a finite budget too.
+- No execution occurs when it would exceed the maximum. Counters are saved before invoking the runtime/verifier; interrupted work never refunds a used budget automatically.
+
+For default `dev`, `fix.retry.max: 3` allows exactly three fix calls after the initial executor call. The repeated verifier has its own default budget: one initial check plus three repeats. A step override changes only that step; raising a whole loop's limit may require adjusting other repeated steps too. Human and end nodes do not consume repair budgets. A fixed 1000-step lifetime backstop, retained across resume, additionally bounds very large configured limits.
+
+Exhaustion fails the run with `retry_exhausted` and identifies the step and used/maximum counts. A step may instead provide `on.retry_exhausted` pointing directly to a `human` gate; Core follows that explicit gate and pauses. An ordinary `next` or a non-human exhaustion target cannot turn exhausted retries into success. Approval does not reset budgets.
+
+`retryCounts` stores the per-step used counts. `step.retrying` reports the count, maximum, and attempt identity when a repair starts. Attempt numbers count actual invocations and are distinct from repair counts: the first `fix` call can be attempt `1` and repair count `1`.

@@ -8,13 +8,15 @@ Required fields are `version: 1`, an `agents` object, and `workflow.use` (a non-
 
 The optional `project` object requires `name` when present. Unknown fields at the root and inside project, agent, workflow, runtime, or approval objects are rejected; arbitrary provider settings belong under the agent's `options` object.
 
-| Optional value             | Default  | Validation                                              |
-| -------------------------- | -------- | ------------------------------------------------------- |
-| Agent `options`            | `{}`     | JSON-compatible object, no cycles or non-finite numbers |
-| `runtime.maxFixIterations` | `3`      | Non-negative safe integer; `0` disables repairs         |
-| `runtime.stateDir`         | `.veyra` | Non-empty path string                                   |
-| `approval.requiredFor`     | `[]`     | Array of non-empty operation names                      |
+| Optional value             | Default  | Validation                                               |
+| -------------------------- | -------- | -------------------------------------------------------- |
+| Agent `options`            | `{}`     | JSON-compatible object, no cycles or non-finite numbers  |
+| `runtime.maxFixIterations` | `3`      | Non-negative safe integer; default per-step repair limit |
+| `runtime.stateDir`         | `.veyra` | Non-empty path string                                    |
+| `approval.requiredFor`     | `[]`     | Array of non-empty operation names                       |
 
 Project name and model have no inferred default. Returned objects and arrays are independent copies. Paths remain as configured; callers resolve relative paths against the config directory when executing a project. Workflow contents are validated by [`@veyra/workflow`](WORKFLOWS.md). Provider readiness and approval execution remain part of their owning packages' later tasks.
+
+Core snapshots effective retry limits when a run starts. An explicit step `retry.max` overrides `runtime.maxFixIterations` for that step; zero disables repairs for steps using that limit while allowing initial work. See the [retry policy](WORKFLOWS.md#v01-retry-policy) for counting, exhaustion, and resume semantics.
 
 See [`veyra.example.yaml`](../veyra.example.yaml) for the full shape. Keep credentials in environment variables or the provider's native login, never in generated config or committed examples. The loader does not interpolate environment variables or log config values. File errors include the absolute path; validation errors identify the field; malformed YAML errors include the parser error code and line/column without displaying a source excerpt.

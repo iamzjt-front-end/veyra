@@ -27,7 +27,7 @@ Use small normalized result data and summaries. Large process output and provide
 All events carry a run ID and ISO timestamp. Persistence can add an event ID and monotonic sequence; step/agent events also carry the step ID and optional attempt identity. The event union covers:
 
 - Run started/completed/failed/paused/resumed.
-- Step started/completed/failed.
+- Step started/completed/failed and `step.retrying`, including its used count, maximum, and attempt identity.
 - Agent started/completed/failed, with normalized results or errors.
 - Verification started/completed, with deterministic command results.
 - Approval required/resolved, with explicit `approved`/`rejected` decisions.

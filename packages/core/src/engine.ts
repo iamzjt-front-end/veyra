@@ -8,16 +8,20 @@ import {
   type EventSink,
   type ExecutionMetadata,
   isJsonValue,
-  type JsonValue,
   type SerializedError,
   type VeyraEvent,
 } from "@veyra/protocol";
 import { type AgentRuntime, LocalAgentRuntime } from "@veyra/runtime";
 import { ShellVerifier, type VerificationReport, type Verifier } from "@veyra/verifier";
-import { parseWorkflow, resolveNextStep, type WorkflowDefinition } from "@veyra/workflow";
+import {
+  nextRetry,
+  resolveNextStep,
+  withRetryDefaults,
+  type WorkflowDefinition,
+} from "@veyra/workflow";
 import { RunContext } from "./context.js";
 import { isStoredEvent } from "./state-events.js";
-import { LocalRunStore, StateStoreError } from "./state.js";
+import { LocalRunStore, StateStoreError, type StoredRun } from "./state.js";
 
 export interface RunRequest extends AgentRunOptions {
   goal: string;
@@ -32,6 +36,22 @@ export interface RunResult {
   status: "completed" | "failed" | "paused";
   lastStep?: string;
   error?: SerializedError;
+}
+
+export interface ResumeRequest extends AgentRunOptions {
+  runId: string;
+  config: VeyraConfig;
+  agents: Record<string, AgentAdapter>;
+}
+
+export class RunControlError extends Error {
+  override readonly name = "RunControlError";
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+  }
 }
 
 export interface VeyraEngineOptions {
@@ -64,23 +84,80 @@ export class VeyraEngine {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
-    const workflow = parseWorkflow(request.workflow);
+    const workflow = withRetryDefaults(request.workflow, request.config.runtime.maxFixIterations);
     const cwd = resolve(request.cwd ?? process.cwd());
-    const agents = Object.fromEntries(Object.entries(request.agents));
-    const controls: AgentRunOptions = { cwd, signal: request.signal, timeoutMs: request.timeoutMs };
-    const store =
+    const store = this.#store(request);
+    const run = await store.createRun({ goal: request.goal, workflow, cwd });
+    return this.#execute(request, store, run, []);
+  }
+
+  async resume(request: ResumeRequest): Promise<RunResult> {
+    const store = this.#store(request);
+    const run = await store.loadRun(request.runId);
+    if (run.state.status !== "paused")
+      throw new RunControlError(
+        "run_not_paused",
+        "Only a paused run can resume; do not replay an interrupted running attempt blindly.",
+      );
+    if (run.state.currentStep && run.input.workflow.steps[run.state.currentStep]?.type === "human")
+      throw new RunControlError(
+        "approval_required",
+        "The current human gate requires explicit approval resolution before resume.",
+      );
+    if (
+      Object.values(run.input.workflow.steps).some(
+        (step) => (step.type === "agent" || step.type === "command") && step.retry === undefined,
+      )
+    )
+      throw new RunControlError(
+        "missing_retry_snapshot",
+        "This run predates snapshotted retry limits; start a new run rather than silently changing its execution policy.",
+      );
+    const events = await store.readEvents(request.runId);
+    if (events.at(-1)?.type !== "run.paused")
+      throw new RunControlError(
+        "incomplete_pause",
+        "Paused state has no completed pause boundary; inspect its events before continuing.",
+      );
+    await store.setActiveRun(request.runId);
+    return this.#execute(request, store, run, events);
+  }
+
+  #store(request: Pick<RunRequest, "config" | "cwd">): LocalRunStore {
+    return (
       this.#options.store ??
       new LocalRunStore({
-        stateDir: resolve(cwd, request.config.runtime.stateDir),
+        stateDir: resolve(request.cwd ?? process.cwd(), request.config.runtime.stateDir),
         redactValues: this.#options.redactValues,
-      });
-    const run = await store.createRun({ goal: request.goal, workflow, cwd });
+      })
+    );
+  }
+
+  async #execute(
+    request: Pick<RunRequest, "agents" | "signal" | "timeoutMs">,
+    store: LocalRunStore,
+    run: StoredRun,
+    history: VeyraEvent[],
+  ): Promise<RunResult> {
+    const agents = Object.fromEntries(Object.entries(request.agents));
+    const controls: AgentRunOptions = {
+      cwd: run.input.cwd,
+      signal: request.signal,
+      timeoutMs: request.timeoutMs,
+    };
     const runId = run.state.runId;
     // Execute the validated, redacted snapshot that a later reader will see.
     const goal = run.input.goal;
     const steps = run.input.workflow.steps;
     const context = new RunContext();
     const attempts = new Map<string, number>();
+    for (const event of history) {
+      context.addEvent(event);
+      if (event.type === "step.started")
+        attempts.set(event.stepId, (attempts.get(event.stepId) ?? 0) + 1);
+    }
+    let retryCounts = { ...run.state.retryCounts };
+    let incomingOutcome = run.state.lastOutcome;
     let stepId: string | undefined = run.state.currentStep;
     let active: ExecutionMetadata | undefined;
     let stepSettled = false;
@@ -117,18 +194,23 @@ export class VeyraEngine {
     };
 
     try {
-      await record({
-        type: "run.started",
-        runId,
-        goal,
-        workflowName: run.input.workflow.name,
-        at: now(),
-      });
-      let transitions = 0;
+      if (history.length) {
+        await store.updateRun(runId, { status: "running" });
+        await record({ type: "run.resumed", runId, stepId, at: now() });
+      } else {
+        await record({
+          type: "run.started",
+          runId,
+          goal,
+          workflowName: run.input.workflow.name,
+          at: now(),
+        });
+      }
+      let transitions = history.filter((event) => event.type === "step.started").length;
       while (stepId) {
         if (controls.signal?.aborted)
           throw new ExecutionError("run_cancelled", "Run was cancelled.");
-        // A final backstop only; workflow-specific repair limits are the next TODO.
+        // The lifetime backstop also bounds very large or misconfigured per-step limits.
         if (++transitions > 1000)
           throw new ExecutionError(
             "transition_limit",
@@ -137,12 +219,53 @@ export class VeyraEngine {
         const step = steps[stepId];
         if (!step)
           throw new ExecutionError("missing_step", `Workflow step '${stepId}' is missing.`);
+        if (step.type === "agent" || step.type === "command") {
+          const decision = nextRetry(
+            step,
+            Object.hasOwn(retryCounts, stepId) ? retryCounts[stepId] : undefined,
+            incomingOutcome,
+          );
+          if (!decision.allowed) {
+            const message = `Retry budget exhausted at step '${stepId}': ${decision.retryCount} of ${decision.maxRetries} repairs used.`;
+            active = { runId, stepId };
+            stepSettled = false;
+            await store.updateRun(runId, { currentStep: stepId, lastOutcome: "retry_exhausted" });
+            const gate = Object.hasOwn(step.on ?? {}, "retry_exhausted")
+              ? resolveNextStep(step, { status: "retry_exhausted" })
+              : undefined;
+            if (gate && steps[gate]?.type === "human") {
+              await record({
+                type: "step.failed",
+                ...active,
+                message,
+                error: { code: "retry_exhausted", message },
+                at: now(),
+              });
+              await store.updateRun(runId, { currentStep: gate });
+              stepId = gate;
+              active = undefined;
+              incomingOutcome = "retry_exhausted";
+              continue;
+            }
+            throw new ExecutionError("retry_exhausted", message);
+          }
+          retryCounts = { ...retryCounts, [stepId]: decision.retryCount };
+        }
         const attempt = (attempts.get(stepId) ?? 0) + 1;
         attempts.set(stepId, attempt);
         active = { runId, stepId, attemptId: randomUUID(), attempt };
         stepSettled = false;
-        await store.updateRun(runId, { status: "running", currentStep: stepId });
+        await store.updateRun(runId, { status: "running", currentStep: stepId, retryCounts });
         await record({ type: "step.started", ...active, at: now() });
+        const retryCount = retryCounts[stepId] ?? 0;
+        if (retryCount > 0 && step.retry)
+          await record({
+            type: "step.retrying",
+            ...active,
+            retryCount,
+            maxRetries: step.retry.max,
+            at: now(),
+          });
 
         if (step.type === "end") {
           await record({ type: "step.completed", ...active, at: now() });
@@ -214,16 +337,7 @@ export class VeyraEngine {
             throw new ExecutionError("invalid_event", "Stored agent event type changed.");
           result = saved.result;
           outcome = result.status === "success" ? (result.outcome ?? "success") : result.status;
-          context.add(
-            stepId,
-            {
-              type: "agent",
-              outcome,
-              summary: result.summary,
-              ...(result.data ? { data: result.data } : {}),
-            },
-            result.artifacts,
-          );
+          context.addEvent(saved);
           if (controls.signal?.aborted)
             throw new ExecutionError("run_cancelled", "Run was cancelled.");
           if (result.status === "needs_input") return await pause(result.summary);
@@ -286,11 +400,7 @@ export class VeyraEngine {
           if (saved.type !== "verification.completed")
             throw new ExecutionError("invalid_event", "Stored verification event type changed.");
           outcome = saved.success ? "success" : "failure";
-          context.add(
-            stepId,
-            { type: "command", outcome, results: saved.results as unknown as JsonValue[] },
-            saved.results.flatMap((item) => item.artifacts ?? []),
-          );
+          context.addEvent(saved);
           if (!saved.success)
             failureMessage = `Deterministic verification failed at step '${stepId}'.`;
         } else {
@@ -302,6 +412,7 @@ export class VeyraEngine {
         if (controls.signal?.aborted)
           throw new ExecutionError("run_cancelled", "Run was cancelled.");
         await store.updateRun(runId, { lastOutcome: outcome });
+        incomingOutcome = outcome;
         if (failureMessage) {
           await record({ type: "step.failed", ...active, message: failureMessage, at: now() });
         } else {

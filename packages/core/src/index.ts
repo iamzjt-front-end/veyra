@@ -1,4 +1,11 @@
-export { VeyraEngine, type RunRequest, type RunResult, type VeyraEngineOptions } from "./engine.js";
+export {
+  VeyraEngine,
+  RunControlError,
+  type RunRequest,
+  type ResumeRequest,
+  type RunResult,
+  type VeyraEngineOptions,
+} from "./engine.js";
 export {
   type CreateRunInput,
   LocalRunStore,

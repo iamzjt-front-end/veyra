@@ -29,6 +29,7 @@ const events: VeyraEvent[] = [
   { ...metadata, type: "run.paused", reason: "approval" },
   { ...metadata, type: "run.resumed" },
   { ...metadata, type: "step.started" },
+  { ...metadata, type: "step.retrying", retryCount: 1, maxRetries: 3 },
   { ...metadata, type: "step.completed", artifacts: [artifact] },
   { ...metadata, type: "step.failed", message: "Failed", error },
   { ...metadata, type: "agent.started", agentId: "fake" },
@@ -78,6 +79,7 @@ describe("persisted event validation", () => {
 
   it.each([
     { ...metadata, type: "future.unsupported" },
+    { ...metadata, type: "step.retrying", retryCount: -1, maxRetries: 3 },
     { ...metadata, type: "run.completed", usage: { inputTokens: -1 } },
     { ...metadata, type: "run.completed", timing: { startedAt: "bad timestamp" } },
     { ...metadata, type: "step.failed", message: "Failed", error: new Error("native error") },

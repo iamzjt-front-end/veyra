@@ -128,6 +128,7 @@ export type VeyraEvent = EventMetadata &
     | { type: "run.paused"; stepId?: string; reason?: string }
     | { type: "run.resumed"; stepId?: string }
     | (StepEventMetadata & { type: "step.started" })
+    | (StepEventMetadata & { type: "step.retrying"; retryCount: number; maxRetries: number })
     | (StepEventMetadata & { type: "step.completed"; outcome?: string; artifacts?: ArtifactRef[] })
     | (StepEventMetadata & { type: "step.failed"; message: string; error?: SerializedError })
     | (AgentEventMetadata & { type: "agent.started" })

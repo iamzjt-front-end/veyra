@@ -39,3 +39,4 @@ import { parseWorkflow } from "./parser.js";
 
 export { loadWorkflow } from "./loader.js";
 export { parseWorkflow, WorkflowError } from "./parser.js";
+export { withRetryDefaults, nextRetry, type RetryDecision } from "./retry.js";

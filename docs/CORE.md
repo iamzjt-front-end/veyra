@@ -26,7 +26,7 @@ Core saves the goal, working directory, and workflow snapshot before starting. E
 
 - `agent`: invoke the registered adapter through the runtime. Successful provider completion uses `result.outcome` when present (including reviewer `pass`/`fail`); otherwise it uses `success`. A provider `failure` cannot be overridden by a claimed successful outcome. `needs_input` pauses at the current step.
 - `command`: call the deterministic verifier with the configured command list and convert its aggregate result into `success`/`failure`. Core emits verification events; an injected verifier should not independently append duplicate events to the same run.
-- `human`: persist `approval.required` with its message/context and pause at the gate. Approval resolution and resume are the following TODOs.
+- `human`: persist `approval.required` with its message/context and pause at the gate. Approval resolution is the following TODO.
 - `end`: complete the step, save terminal state, and emit `run.completed`.
 
 Transitions are resolved by `@veyra/workflow`. Failures require an explicit matching `on.failure` or `on.fail` recovery transition; they cannot silently fall through `next` to completion. A branch with no matching outcome and no fallback fails with an actionable error. A successful leaf with no transitions completes the run. Results report `completed`, `failed`, or `paused` plus the run ID and last step.
@@ -39,6 +39,12 @@ Later agents receive `context.steps` containing the latest result for at most ei
 
 Agent/verification result events are capped at 1 MiB each. Verifier command output retention is 64 KiB per stream. Larger evidence should eventually use the artifact system tracked separately in the TODO. Known secret values can be supplied via `redactValues` when Core creates the store, or configured on an injected store. Persisted redacted results are also the source of subsequent prompt context. The application must supply its known credentials; Core does not inspect vendor authentication files or load environment secrets itself.
 
-`cwd`, optional per-step `timeoutMs`, and `AbortSignal` are forwarded to runtime/verifier and remain outside persisted input. Cancellation ends the run as failed with `run_cancelled`; adapters and the runtime own active execution cancellation. At this stage a fixed 1000-step backstop prevents unbounded scheduling. Workflow-specific repair limits, persisted retry policy, approval resolution, and resume are subsequent tasks.
+`cwd`, optional per-step `timeoutMs`, and `AbortSignal` are forwarded to runtime/verifier and remain outside persisted input. Cancellation ends the run as failed with `run_cancelled`; adapters and the runtime own active execution cancellation. Core enforces [per-step retry budgets](WORKFLOWS.md#v01-retry-policy), saves counters before execution, and emits `step.retrying`. A fixed 1000-step lifetime backstop remains effective across resume.
+
+## Resuming a paused agent
+
+`engine.resume({ runId, config, agents, cwd?, signal?, timeoutMs? })` reloads the original goal, workflow, working directory, retry counters, and bounded context reconstructed from saved result events. It emits `run.resumed` and continues the paused step with a new attempt. Successful preceding steps are not rerun. Current provider instances and execution controls are supplied by the caller; effective retry limits stay frozen in the workflow snapshot. `cwd` locates the state directory when no store is injected; execution always uses the saved working directory.
+
+Only a fully recorded `paused` run can resume. A human gate remains blocked until explicit approval resolution is implemented in M1.11. Completed/failed runs and stale `running` attempts are refused. Runs created before effective retry limits were saved are refused with `missing_retry_snapshot`, without rewriting old state. The initial resume API is necessary here to verify that retry budgets survive process restart; approval decisions remain a separate task.
 
 State and event writes are individually durable, not a single transaction across a provider's filesystem edits. Automatic recovery of an interrupted running attempt, process locking, and worktree isolation remain later hardening tasks. Do not treat a saved `running` state as permission to replay an interrupted mutating step blindly.

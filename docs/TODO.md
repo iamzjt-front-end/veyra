@@ -585,18 +585,20 @@ Verified 21 Core orchestration integration tests and three bounded-context tests
 
 ## M1.10 — Enforce repair-loop retry limits
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M1.9
 
 **Primary areas:** `packages/core`, `packages/workflow`
 
 ### Requirements
 
-- [ ] Track retry count per relevant step/loop, not one ambiguous global counter.
-- [ ] Respect workflow retry max and/or runtime default according to documented precedence.
-- [ ] Avoid infinite loops even with malformed workflows.
-- [ ] When max retries are reached, fail or pause according to documented v0.1 policy; default should be fail with clear reason unless a human gate explicitly handles it.
-- [ ] Persist retry state across `resume`.
-- [ ] Emit retry-related event/metadata.
+- [x] Track retry count per relevant step/loop, not one ambiguous global counter.
+- [x] Respect workflow retry max and/or runtime default according to documented precedence.
+- [x] Avoid infinite loops even with malformed workflows.
+- [x] When max retries are reached, fail or pause according to documented v0.1 policy; default should be fail with clear reason unless a human gate explicitly handles it.
+- [x] Persist retry state across `resume`.
+- [x] Emit retry-related event/metadata.
 
 ### Tests
 
@@ -607,6 +609,8 @@ Verified 21 Core orchestration integration tests and three bounded-context tests
 ### Acceptance criteria
 
 A workflow that repeatedly fails cannot run forever.
+
+Verified seven workflow retry tests, nine Core retry/resume integration tests, and updated protocol event validation. Repeated failures and success cycles stop; default dev allows exactly three fix calls; explicit exhaustion gates pause; counters and effective limits survive a real writer-process exit and multiple new-engine resumes even with changed config. All five baseline commands passed (335 tests). The minimal paused-agent resume API is needed for this task’s persistence acceptance; human approval resolution remains M1.11. See `docs/WORKFLOWS.md` and `docs/CORE.md`.
 
 ---
 
@@ -1516,4 +1520,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.10 — Enforce repair-loop retry limits.**
+**Start with M1.11 — Implement human approval nodes.**
