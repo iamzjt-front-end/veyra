@@ -32,6 +32,7 @@ The repository uses a complete architecture scaffold even when some modules are 
 8. CLI, TUI, and Dashboard consume the same core/event model.
 9. Do not bind the architecture to GPT + Codex even if they are the first fully working adapters.
 10. Planned provider/dashboard directories may remain placeholders until their roadmap milestone; do not remove them as "unused".
+11. The product/brand name is `Veyra`, but the public CLI command is `ve`. Do not reintroduce `veyra` as the executable name. Brand-owned config/state names such as `veyra.yaml` and `.veyra/` remain unchanged unless explicitly redesigned.
 
 ## First implementation target
 

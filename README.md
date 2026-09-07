@@ -32,7 +32,7 @@ The repository keeps the long-term architecture visible from day one. A director
 ```text
 veyra/
 ├── apps/
-│   ├── cli/                 # veyra command line
+│   ├── cli/                 # `ve` command line
 │   ├── tui/                 # terminal mission control
 │   └── dashboard/           # Web GUI / control center (planned)
 │
@@ -69,15 +69,17 @@ veyra/
 
 ## Planned user experience
 
+The project is **Veyra**; the public CLI command is intentionally short: **`ve`**.
+
 ```bash
-veyra init
-veyra run "finish the current milestone"
-veyra status
-veyra review
-veyra resume
+ve init
+ve run "finish the current milestone"
+ve status
+ve review
+ve resume
 ```
 
-Running `veyra` without arguments will eventually open the TUI. The Web dashboard is a later management surface built on the same core event stream.
+Running `ve` without arguments will eventually open the TUI. The Web dashboard is a later management surface built on the same core event stream.
 
 ## Architecture vs implementation
 
@@ -112,7 +114,7 @@ pnpm install
 pnpm check
 pnpm test
 pnpm build
-pnpm veyra -- doctor
+pnpm ve -- doctor
 ```
 
 ## Current milestone

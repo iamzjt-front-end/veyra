@@ -21,7 +21,7 @@ The repository keeps the full target architecture visible from the start. Roadma
 - [ ] Reviewer loop
 - [ ] Retry limit enforcement
 - [ ] Human approval node
-- [ ] Working `veyra run`
+- [ ] Working `ve run`
 
 ## v0.2 — TUI
 

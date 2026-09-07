@@ -13,7 +13,7 @@
     "check": "turbo check",
     "test": "turbo test",
     "clean": "turbo clean && rm -rf node_modules",
-    "veyra": "pnpm --filter @veyra/cli dev"
+    "ve": "pnpm --filter @veyra/cli dev"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

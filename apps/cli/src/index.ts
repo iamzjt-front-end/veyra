@@ -6,7 +6,7 @@ const command = args[0] ?? "help";
 const commands: Record<string, () => void> = {
   help: printHelp,
   doctor: doctor,
-  version: () => console.log("veyra 0.1.0-dev"),
+  version: () => console.log("ve 0.1.0-dev"),
 };
 
 (commands[command] ?? unknownCommand)();
@@ -16,7 +16,7 @@ function printHelp(): void {
 Veyra — one goal, many agents, verified execution.
 
 Usage:
-  veyra <command>
+  ve <command>
 
 Commands:
   doctor      inspect the local environment

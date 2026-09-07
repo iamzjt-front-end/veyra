@@ -16,7 +16,7 @@ Veyra separates the system into explicit layers so orchestration remains provide
 
 ```text
 apps/
-  cli/          automation/headless surface
+  cli/          automation/headless surface (`ve`)
   tui/          interactive terminal surface
   dashboard/    Web control center
 
@@ -39,6 +39,8 @@ plugins/
 ```
 
 The directory layout represents the target architecture, not the percentage of implementation complete.
+
+The project name is **Veyra** while its public terminal command is **`ve`**. Brand-owned configuration/state names (`veyra.yaml`, `.veyra/`) are intentionally independent from the short executable name.
 
 ## Dependency direction
 
