@@ -24,7 +24,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Verifier package scaffold
 - [x] Built-in workflow preset scaffolds
 - [x] Provider/dashboard placeholders
-- [ ] YAML config loader
+- [x] YAML config loader
 - [ ] Workflow loader/validator
 - [ ] Hardened protocol contracts
 - [ ] Persistent local run state

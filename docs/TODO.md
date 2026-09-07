@@ -220,16 +220,18 @@ The v0.1 implementation should favor transparency and reliability over abstracti
 
 ## M1.1 — Define and load `veyra.yaml`
 
+**Status:** [x] Complete and verified.
+
 **Depends on:** M0.1
 
 **Primary area:** `packages/config`
 
 ### Requirements
 
-- [ ] Add YAML parsing dependency.
-- [ ] Add runtime validation for config data; do not trust parsed YAML types.
-- [ ] Define config schema version (`version: 1`).
-- [ ] Support at minimum:
+- [x] Add YAML parsing dependency.
+- [x] Add runtime validation for config data; do not trust parsed YAML types.
+- [x] Define config schema version (`version: 1`).
+- [x] Support at minimum:
   - project name
   - workflow preset/path
   - named agents (`planner`, `executor`, `reviewer`)
@@ -239,10 +241,10 @@ The v0.1 implementation should favor transparency and reliability over abstracti
   - runtime max-fix-iterations
   - runtime state directory
   - approval policy
-- [ ] Add defaults for optional values.
-- [ ] Reject unknown/invalid critical fields with actionable messages.
-- [ ] Never store API secrets in generated config.
-- [ ] Expose `loadConfig(path)` and a pure `parseConfig(value)` for testing.
+- [x] Add defaults for optional values.
+- [x] Reject unknown/invalid critical fields with actionable messages.
+- [x] Never store API secrets in generated config.
+- [x] Expose `loadConfig(path)` and a pure `parseConfig(value)` for testing.
 
 ### Tests
 
@@ -257,6 +259,8 @@ The v0.1 implementation should favor transparency and reliability over abstracti
 ### Acceptance criteria
 
 A fixture `veyra.yaml` can be loaded into a typed `VeyraConfig`, and invalid input produces human-readable errors with the config path/field.
+
+Verified 48 config tests covering minimal/full inputs, defaults, invalid fields/types/versions, malformed YAML, file diagnostics, immutable copies, and invalid provider option data. Frozen install and all five baseline commands passed (56 Vitest tests total). The compiled package also loaded `veyra.example.yaml` directly with Node.js. `docs/CONFIGURATION.md` documents the schema; config loading performs no writes or provider calls, and diagnostics omit source values.
 
 ---
 
@@ -1480,4 +1484,4 @@ When finished:
 
 ## Next task
 
-**Start with M1.1 — Define and load `veyra.yaml`.**
+**Start with M1.2 — Load and validate workflow YAML.**

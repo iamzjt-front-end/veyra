@@ -85,21 +85,21 @@ Running `ve` without arguments will eventually open the TUI. The Web dashboard i
 
 The **architecture scaffold is intentionally stable** while implementation lands incrementally:
 
-| Area                                     | Scaffold | Current status     |
-| ---------------------------------------- | -------- | ------------------ |
-| CLI                                      | ✓        | scaffolded         |
-| TUI                                      | ✓        | scaffolded         |
-| Dashboard                                | ✓        | planned            |
-| Core                                     | ✓        | scaffolded         |
-| Workflow                                 | ✓        | scaffolded         |
-| Runtime                                  | ✓        | scaffolded         |
-| Verifier                                 | ✓        | scaffolded         |
-| Protocol                                 | ✓        | scaffolded         |
-| Config                                   | ✓        | scaffolded         |
-| SDK                                      | ✓        | scaffolded         |
-| OpenAI                                   | ✓        | adapter scaffolded |
-| Codex                                    | ✓        | adapter scaffolded |
-| Claude / Claude Code / Gemini / OpenCode | ✓        | planned            |
+| Area                                     | Scaffold | Current status             |
+| ---------------------------------------- | -------- | -------------------------- |
+| CLI                                      | ✓        | scaffolded                 |
+| TUI                                      | ✓        | scaffolded                 |
+| Dashboard                                | ✓        | planned                    |
+| Core                                     | ✓        | scaffolded                 |
+| Workflow                                 | ✓        | scaffolded                 |
+| Runtime                                  | ✓        | scaffolded                 |
+| Verifier                                 | ✓        | scaffolded                 |
+| Protocol                                 | ✓        | scaffolded                 |
+| Config                                   | ✓        | YAML loader and validation |
+| SDK                                      | ✓        | scaffolded                 |
+| OpenAI                                   | ✓        | adapter scaffolded         |
+| Codex                                    | ✓        | adapter scaffolded         |
+| Claude / Claude Code / Gemini / OpenCode | ✓        | planned                    |
 
 ## Implementation plan
 
@@ -139,6 +139,8 @@ Run `pnpm format` to format the repository. Prettier handles TypeScript, JSON, M
 CI runs the same five checks for pull requests and pushes to `main`, using Node.js 22, Corepack, a cached pnpm store, and `pnpm install --frozen-lockfile`. The default suite does not require provider credentials or live API calls.
 
 See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
+
+The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader; workflow execution and provider connections remain planned.
 
 ## Current milestone
 
