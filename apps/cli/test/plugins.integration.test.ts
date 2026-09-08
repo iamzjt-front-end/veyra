@@ -87,6 +87,56 @@ const invoke = async (path: string, args: string[], services: CliServices = {}) 
 };
 
 describe("CLI plugin composition", () => {
+  it("discovers the Claude built-in and checks only credential presence through doctor", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      await fixture(path);
+      await writeFile(
+        join(path, "veyra.yaml"),
+        JSON.stringify({
+          version: 1,
+          workflow: { use: "workflow.yaml" },
+          agents: {
+            analysis: { provider: "claude", model: "fixture-model", options: { role: "planner" } },
+          },
+        }),
+      );
+      const validation = await invoke(path, [
+        "workflow",
+        "validate",
+        "workflow.yaml",
+        "--config",
+        "veyra.yaml",
+      ]);
+      expect(validation.code, validation.stdout).toBe(0);
+      const runner: ProcessRunner = async () => ({
+        exitCode: 0,
+        signal: null,
+        stdout: "10.15.1",
+        stderr: "",
+        stdoutTruncated: false,
+        stderrTruncated: false,
+        durationMs: 0,
+      });
+      const missing = await invoke(path, ["doctor"], { runProcess: runner });
+      expect(missing.code).toBe(1);
+      expect(missing.stdout).toContain("ANTHROPIC_API_KEY");
+      const ready = await invoke(path, ["doctor"], {
+        runProcess: runner,
+        env: { ANTHROPIC_API_KEY: "fixture-anthropic-key" },
+      });
+      expect(ready.code, ready.stdout).toBe(0);
+      expect(ready.records[0].providers[0]).toMatchObject({
+        provider: "claude",
+        ready: true,
+        scope: "configuration",
+        descriptor: { roles: ["planner"], capabilities: ["reasoning", "structured-output"] },
+      });
+      expect(ready.stdout).not.toContain("fixture-anthropic-key");
+      const run = await invoke(path, ["run", "Plan"]);
+      expect(run.code).toBe(1);
+      expect(run.stdout).toContain("claude_missing_api_key");
+    });
+  });
   it("preserves a plugin setup diagnosis when its adapter cannot yet be constructed", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       await fixture(path);

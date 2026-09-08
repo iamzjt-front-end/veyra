@@ -1,0 +1,14 @@
+# Copy into a disposable project as veyra.yaml and choose an accessible model.
+# Set ANTHROPIC_API_KEY in the environment and use the Codex CLI's native login.
+version: 1
+workflow:
+  use: dev
+agents:
+  planner:
+    provider: claude
+    model: your-claude-model
+  executor:
+    provider: codex
+  reviewer:
+    provider: claude
+    model: your-claude-model

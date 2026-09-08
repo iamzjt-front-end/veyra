@@ -1107,14 +1107,20 @@ Verified frozen install, all five baseline commands (856 tests), and `pnpm ve --
 
 ## M4.3 — Claude API provider
 
+**Status:** [!] Implementation and deterministic checks verified; live smoke blocked.
+
 **Primary area:** `plugins/claude`
 
-- [ ] reasoning/reviewer adapter
-- [ ] structured result normalization
-- [ ] usage metadata
-- [ ] cancellation/timeouts
-- [ ] mocked tests
-- [ ] opt-in smoke test
+- [x] reasoning/reviewer adapter
+- [x] structured result normalization
+- [x] usage metadata
+- [x] cancellation/timeouts
+- [x] mocked tests
+- [!] opt-in smoke test — command implemented; live verification requires an Anthropic API credential
+
+Verified frozen installation, all five baseline commands (920 tests), and `pnpm ve -- workflow validate dev --config examples/providers/claude.yaml --json`. Sixty-three adapter tests cover planner/reviewer/judge normalization, evidence and verdict guards, missing/invalid usage, safe errors, credential redaction, configured endpoint/auth isolation, cancellation and real SDK transports with mocked fetch, including a stalled response body. CLI coverage confirms built-in registration, read-only validation, scoped credential-presence readiness and actionable missing-key execution. The official SDK is pinned at 0.124.0; protocol/Core stay provider-neutral. Runtime's cooperative deadline covers the complete SDK call, since the SDK's own transport timer ends after headers. No live API call is required by default tests. See `docs/CLAUDE.md` and the provider example.
+
+Live blocker: `ANTHROPIC_API_KEY` is absent (presence only was inspected). Attempted `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/claude smoke -- claude-opus-4-6`; it exited 2 with `Set VEYRA_LIVE_SMOKE=1 and ANTHROPIC_API_KEY, then run: pnpm --filter @veyra/claude smoke -- <model>`. Supply the key in the environment and an accessible structured-output model, then rerun the two-request planner/reviewer smoke. Mocked success is not live verification. M4.4 is independent and can proceed.
 
 ---
 
@@ -1588,4 +1594,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.3 — Claude API provider.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M4.4 — Claude Code executor.** M1.14 and M4.3 have live checks blocked by missing OpenAI/Anthropic API credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

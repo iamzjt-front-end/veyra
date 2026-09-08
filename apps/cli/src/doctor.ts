@@ -6,7 +6,7 @@ import type { AgentDescriptor } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
 import { loadWorkflow } from "@veyra/workflow";
 import { redact, requiredAgents, secretValues } from "./providers.js";
-import { pluginAgent, registryForProviders } from "./plugins.js";
+import { builtinPlugins, pluginAgent, registryForProviders } from "./plugins.js";
 
 interface ProviderReadiness {
   agent: string;
@@ -111,7 +111,7 @@ export async function inspectEnvironment(
         agent ?? {
           provider,
           options: {},
-          ...(provider === "openai" ? { model: "unconfigured" } : {}),
+          model: "unconfigured",
         },
       );
       const result = await registry.checkReadiness(provider, request, {
@@ -155,10 +155,7 @@ export async function inspectEnvironment(
   };
   const configured = config
     ? Object.entries(config.agents).map(([name, agent]) => [name, agent.provider] as const)
-    : ([
-        ["openai", "openai"],
-        ["codex", "codex"],
-      ] as const);
+    : builtinPlugins().map(({ provider }) => [provider, provider] as const);
   const [packageManager, readable, writable, providers] = await Promise.all([
     pnpm(),
     permission(constants.R_OK),

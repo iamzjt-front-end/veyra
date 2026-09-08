@@ -68,7 +68,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 
 - [x] Provider capability model
 - [x] Public plugin registry/SDK
-- [ ] Claude API
+- [ ] Claude API (adapter and deterministic tests implemented; live smoke blocked by missing Anthropic API credential)
 - [ ] Claude Code
 - [ ] Gemini API
 - [ ] Gemini CLI

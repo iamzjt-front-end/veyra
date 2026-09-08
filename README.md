@@ -48,7 +48,7 @@ veyra/
 ├── plugins/
 │   ├── openai/
 │   ├── codex/
-│   ├── claude/              # planned
+│   ├── claude/              # API reasoning adapter
 │   ├── claude-code/         # planned
 │   ├── gemini/              # planned
 │   └── opencode/            # planned
@@ -87,21 +87,22 @@ In this checkout use `pnpm ve -- <command>` after building. The commands above w
 
 The **architecture scaffold is intentionally stable** while implementation lands incrementally:
 
-| Area                                     | Scaffold | Current status                |
-| ---------------------------------------- | -------- | ----------------------------- |
-| CLI                                      | ✓        | headless workflow commands    |
-| TUI                                      | ✓        | scaffolded                    |
-| Dashboard                                | ✓        | planned                       |
-| Core                                     | ✓        | persisted workflow loop       |
-| Workflow                                 | ✓        | YAML loader and validation    |
-| Runtime                                  | ✓        | local process execution       |
-| Verifier                                 | ✓        | sequential shell checks       |
-| Protocol                                 | ✓        | contracts and JSON guard      |
-| Config                                   | ✓        | YAML loader and validation    |
-| SDK                                      | ✓        | plugin registry and contracts |
-| OpenAI                                   | ✓        | planner/reviewer adapter      |
-| Codex                                    | ✓        | CLI executor adapter          |
-| Claude / Claude Code / Gemini / OpenCode | ✓        | planned                       |
+| Area                            | Scaffold | Current status                  |
+| ------------------------------- | -------- | ------------------------------- |
+| CLI                             | ✓        | headless workflow commands      |
+| TUI                             | ✓        | scaffolded                      |
+| Dashboard                       | ✓        | planned                         |
+| Core                            | ✓        | persisted workflow loop         |
+| Workflow                        | ✓        | YAML loader and validation      |
+| Runtime                         | ✓        | local process execution         |
+| Verifier                        | ✓        | sequential shell checks         |
+| Protocol                        | ✓        | contracts and JSON guard        |
+| Config                          | ✓        | YAML loader and validation      |
+| SDK                             | ✓        | plugin registry and contracts   |
+| OpenAI                          | ✓        | planner/reviewer adapter        |
+| Codex                           | ✓        | CLI executor adapter            |
+| Claude                          | ✓        | API adapter; live smoke blocked |
+| Claude Code / Gemini / OpenCode | ✓        | planned                         |
 
 ## Implementation plan
 
@@ -167,6 +168,8 @@ The [approval reference](docs/APPROVALS.md) covers explicit human gates, decisio
 The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
 
 The [Codex adapter reference](docs/CODEX.md) covers CLI execution, permissions, readiness checks, and the disposable live smoke test.
+
+The [Claude adapter reference](docs/CLAUDE.md) covers planner/reviewer/judge results, usage accounting, deadlines and the opt-in API smoke test.
 
 ## Current milestone
 
