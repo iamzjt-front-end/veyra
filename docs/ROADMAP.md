@@ -80,7 +80,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 
 ## v0.5 — Dashboard
 
-Dashboard implementation is waiting for the requested stable TUI prerequisite; M2 remains dependent on the blocked live v0.1 smoke. The independent remote-control design document can proceed without enabling remote execution.
+Dashboard implementation is waiting for the requested stable TUI prerequisite; M2 remains dependent on the blocked live v0.1 smoke. The independent remote-control design document is complete; remote execution remains deferred.
 
 - [ ] Local Web control center foundation
 - [ ] Local project/run bridge and event streaming
@@ -91,7 +91,7 @@ Dashboard implementation is waiting for the requested stable TUI prerequisite; M
 - [ ] Human approval inbox
 - [ ] Cost/token/duration metrics
 - [ ] Multi-project runs
-- [ ] Remote worker/control-plane design
+- [x] Remote worker/control-plane design (documentation only; remote implementation requires explicit approval)
 
 ## Hardening and open-source productization
 

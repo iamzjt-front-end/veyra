@@ -1369,12 +1369,16 @@ The Autopilot request, section 25, says: “Do not prematurely build a large Web
 
 ## M5.10 — Remote worker/control-plane design
 
-- [ ] write design doc before implementation
-- [ ] authentication
-- [ ] secure transport
-- [ ] worker identity/capabilities
-- [ ] no arbitrary unauthenticated remote command execution
-- [ ] local-only mode remains first-class
+**Status:** [x] Design complete and verified; remote implementation remains deferred.
+
+- [x] write design doc before implementation
+- [x] authentication
+- [x] secure transport
+- [x] worker identity/capabilities
+- [x] no arbitrary unauthenticated remote command execution
+- [x] local-only mode remains first-class
+
+`docs/REMOTE-CONTROL-DESIGN.md` defines the proposed topology/package ownership, mutual worker authentication and enrollment/revocation, encrypted transport, per-project/action authorization, explicit capabilities, bounded assignments/artifacts, durable deduplication and conservative interrupted-work recovery. It preserves local-only execution and lists the future approval and verification gates. The design references current primary TLS/HTTP/OWASP guidance; no remote protocol, daemon, credential or deployment was created. Reviewed each requirement against the document, validated 42 local link targets across the changed documents, and ran all five baseline commands successfully (1453 tests). Remote integration tests are specified for future implementation and are not claimed as executed.
 
 ### v0.5 exit criteria
 
@@ -1646,4 +1650,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M5.10 — Remote worker/control-plane design (documentation only).** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M6.1 — Workspace isolation strategy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and independent hardening work can proceed.

@@ -149,3 +149,5 @@ Start with transparent local files:
 ```
 
 A database or remote control plane can be introduced later without changing workflow semantics.
+
+The [remote-control design](REMOTE-CONTROL-DESIGN.md) records M5.10's proposed trust, transport, worker and recovery boundaries. It is documentation only; remote execution remains deferred and requires explicit approval before implementation. Local-only operation and the package ownership above remain authoritative.
