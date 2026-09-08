@@ -114,4 +114,4 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] security/community policies, private vulnerability channel, issue/PR templates and dependency review policy
 - [x] complete example gallery with deterministic CLI execution and explicit provider prerequisites
 - [ ] documentation polish (README/index verified; stable TUI demo blocked by M2)
-- [ ] evaluation/benchmark harness
+- [x] versioned local evaluation harness, pristine grading and explicit known/unknown metrics (no live model-quality claims)

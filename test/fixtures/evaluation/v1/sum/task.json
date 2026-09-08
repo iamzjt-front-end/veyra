@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "id": "sum",
+  "goal": "Implement solution(a, b) as addition, including negative and zero values."
+}

@@ -1,0 +1,8 @@
+{
+  "name": "veyra-eval-immutable-sort",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}

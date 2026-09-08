@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "id": "greeting",
+  "goal": "Return exactly \"Hello Veyra\" from solution()."
+}

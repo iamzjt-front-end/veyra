@@ -24,5 +24,6 @@ The root [README](../README.md) is the product overview and quick start. [Archit
 ## Contribute and release
 
 - [Contributor guide](../CONTRIBUTING.md), [local development](DEVELOPMENT.md), [test strategy](TESTING.md), [architecture decisions](decisions/README.md)
+- [Evaluation harness](EVALUATION.md) — versioned tasks, explicit comparison limits and local metrics
 - [Package strategy](PACKAGES.md), [versioning](VERSIONING.md), [changelog](../CHANGELOG.md), [release CI and approval](RELEASING.md)
 - [Dependency updates](DEPENDENCIES.md), [community channels](COMMUNITY.md), [Code of Conduct](../CODE_OF_CONDUCT.md)

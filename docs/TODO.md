@@ -1664,11 +1664,15 @@ The README now leads with the implemented value proposition, provider-free local
 
 ## M7.9 — Benchmark/evaluation harness
 
-- [ ] define reproducible tasks for orchestration quality
-- [ ] measure completion rate, retries, time, provider cost where known
-- [ ] compare single-agent vs orchestrated workflows carefully
-- [ ] keep evaluation fixtures versioned
-- [ ] avoid marketing claims unsupported by evaluation data
+**Status:** [x] Complete and verified.
+
+- [x] define reproducible tasks for orchestration quality
+- [x] measure completion rate, retries, time, provider cost where known
+- [x] compare single-agent vs orchestrated workflows carefully
+- [x] keep evaluation fixtures versioned
+- [x] avoid marketing claims unsupported by evaluation data
+
+Added a [versioned local evaluation harness](EVALUATION.md) with three real Node acceptance tasks, equal two-executor-call limits, fresh disposable projects, pristine grading, protected-file checks and explicit live-provider opt-in. Reports include complete/failed samples, repair/retry counts, wall time, known/unknown tokens and per-currency costs, provider metadata, source/config/fixture identifiers and trial order. Twelve tests verify calibration, tamper/symlink/error cleanup, initially failing tasks, unknown usage, live guards and the configured local-plugin path with credential-free grading. `pnpm evaluate` passed with the designed scripted result of 2/3 completion and two repairs per variant; a two-trial JSON export produced 12 rows with mode 0600. These are harness calibration results, not live model-quality evidence. All five baseline commands passed (1,725 tests), and documentation links resolved. Actual model comparisons remain unrun while provider setup is blocked.
 
 ---
 
@@ -1739,4 +1743,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.9 — Benchmark/evaluation harness.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.10 — Telemetry policy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.

@@ -40,6 +40,8 @@ Prompt provenance tests inspect separate captured project/workflow/role/group so
 
 ## End-to-end CLI scenarios
 
+The [evaluation harness](EVALUATION.md) has three versioned, initially failing code tasks. Its default tests measure real fixture grading and repair counts with scripted adapters, reject test tampering/symlinks, check cleanup and unknown usage, and exercise explicit provider consent through a trusted local plugin. `pnpm evaluate` runs the separate scripted calibration; actual model evaluation requires both `VEYRA_LIVE_EVAL=1` and `--live --config` and is never part of normal tests.
+
 `test/gallery.test.ts` loads every [gallery configuration](../examples/gallery/README.md) through the real CLI and runs its commands in a disposable fixture with injected test-only providers. It verifies gate/resume, a retained negative consensus review and headless command failure before build. These tests validate executable examples without claiming live provider behavior.
 
 `pnpm installation:check` is an explicit network-dependent check, excluded from the default suite. It installs real candidate tarballs and pnpm into a temporary global npm prefix, verifies the `ve` command, bundled presets, missing-tool setup guidance and readiness, and then verifies uninstall. Temporary npm configs exclude user credentials; all test files are removed in `finally`. See [installation verification](INSTALLATION.md#verify-installation-without-publishing).

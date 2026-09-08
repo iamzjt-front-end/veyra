@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "id": "immutable-sort",
+  "goal": "Return a numerically sorted copy of the input array from solution(values), preserving the original array."
+}

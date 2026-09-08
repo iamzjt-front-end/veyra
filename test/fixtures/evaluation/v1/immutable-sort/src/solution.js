@@ -1,0 +1,3 @@
+export function solution(values) {
+  return values.sort((a, b) => a - b);
+}
