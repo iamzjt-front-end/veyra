@@ -113,5 +113,5 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] contributor guides, runnable plugin/workflow tutorials and architecture decision process
 - [x] security/community policies, private vulnerability channel, issue/PR templates and dependency review policy
 - [x] complete example gallery with deterministic CLI execution and explicit provider prerequisites
-- [ ] documentation polish and stable TUI demo
+- [ ] documentation polish (README/index verified; stable TUI demo blocked by M2)
 - [ ] evaluation/benchmark harness

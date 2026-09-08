@@ -1,134 +1,110 @@
 # Veyra
 
-> **One goal. Many agents. Verified execution.**
+[![CI](https://github.com/iamzjt-front-end/veyra/actions/workflows/ci.yml/badge.svg)](https://github.com/iamzjt-front-end/veyra/actions/workflows/ci.yml)
 
-Veyra is an agent control plane for orchestrating heterogeneous AI agents and deterministic tools in one verifiable workflow.
+**One goal. Many agents. Verified execution.**
 
-Instead of asking one model to do everything, Veyra is designed around a simple idea: **use the best agent for each job, then verify the result.**
-
-```text
-Goal
-  ↓
-Planner (GPT / Claude / Gemini)
-  ↓
-Executor (Codex / Claude Code / Gemini CLI / OpenCode)
-  ↓
-Verifier (tests / lint / build / benchmark)
-  ↓
-Reviewer (same or different model)
-  ↓
-PASS → next step
-FAIL → repair loop
-```
-
-## Why Veyra?
-
-Developers increasingly act as the human message bus between planning models, coding agents, test tools, and reviewers. Veyra is intended to remove that manual coordination layer while keeping deterministic verification, resumable state, and explicit human approval gates.
-
-## Architecture scaffold
-
-The repository keeps the long-term architecture visible from day one. A directory may exist before its implementation milestone is complete.
+Veyra coordinates planners, coding agents, deterministic checks and reviewers in provider-neutral local workflows. Declare the steps in YAML, inspect their evidence, and resume from saved state with explicit human approval where needed.
 
 ```text
-veyra/
-├── apps/
-│   ├── cli/                 # `ve` command line
-│   ├── tui/                 # terminal mission control
-│   └── dashboard/           # Web GUI / control center (planned)
-│
-├── packages/
-│   ├── core/                # orchestration engine
-│   ├── workflow/            # Workflow DSL / state machine
-│   ├── runtime/             # agent/process runtime
-│   ├── verifier/            # shell/test/build verification
-│   ├── protocol/            # provider-neutral contracts
-│   ├── config/              # configuration parsing
-│   └── sdk/                 # third-party extension SDK
-│
-├── plugins/
-│   ├── openai/
-│   ├── codex/
-│   ├── claude/              # API reasoning adapter
-│   ├── claude-code/         # CLI executor adapter
-│   ├── gemini/              # API reasoning adapter
-│   └── opencode/            # planned
-│
-├── workflows/
-│   ├── dev.yaml
-│   ├── bugfix.yaml
-│   ├── review.yaml
-│   └── research.yaml
-│
-├── docs/
-├── examples/
-├── AGENTS.md
-├── package.json
-├── pnpm-workspace.yaml
-└── README.md
+plan → execute → verify → review → complete
+          ↑        │        │
+          └── fix ←┴────────┘
 ```
 
-## CLI workflow
+The product is **Veyra**. Its command is **`ve`**, its official npm scope is **`@veyraoss`**, and project files remain **`veyra.yaml`** and **`.veyra/`**.
 
-The project is **Veyra**; the public CLI command is intentionally short: **`ve`**.
+**Current state:** the headless CLI, workflow engine and provider adapters are implemented and covered by deterministic tests. The full live v0.1 smoke remains blocked by provider setup. TUI and Dashboard are planned surfaces. npm packages are verified local candidates and **have not been published**; use the source checkout today. See the [roadmap](docs/ROADMAP.md) and [exact implementation status](docs/TODO.md).
 
-```bash
-ve init
-ve run "finish the current milestone"
-ve status
-ve review
-ve resume
-ve workflow list
-ve workflow validate dev
+## What it does
+
+- Runs declarative agent, command, approval, branch, parallel, subworkflow and consensus steps with explicit retry/deadline limits.
+- Keeps deterministic verification separate from model review, with structured events and inspectable local evidence.
+- Persists workflow snapshots and supports pause/resume, bounded artifacts and conservative recovery after interruption.
+- Supports provider combinations and explicitly trusted local plugins through shared contracts.
+- Offers optional Git worktrees and human gates while preserving native agent permission controls.
+
+## Quick start
+
+One-time setup requires Node.js >=20 and pnpm 10.15.1. CI verifies Node.js 22 on macOS and Linux; native Windows is currently unsupported. Cold dependency installation/build time varies.
+
+```sh
+git clone https://github.com/iamzjt-front-end/veyra.git
+cd veyra
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
 ```
 
-In this checkout use `pnpm ve -- <command>` after building. The commands above work; see the [CLI reference](docs/CLI.md) for provider setup, flags, exit codes, and approval handling. Running `ve` without arguments will eventually open the TUI. The Web dashboard is a later management surface built on the same core event stream.
+### 60-second local tour
 
-## Architecture vs implementation
+After setup, this provider-free example pauses before a real Node version check. It uses a temporary project and needs no API key:
 
-The **architecture scaffold is intentionally stable** while implementation lands incrementally:
+```sh
+demo_dir="$(mktemp -d)"
+cp examples/gallery/human-approval/* "$demo_dir/"
+pnpm ve -- workflow validate ./workflow.yaml --config "$demo_dir/veyra.yaml"
+pnpm ve -- run "Inspect Node after my approval" --config "$demo_dir/veyra.yaml" --non-interactive
+pnpm ve -- status --config "$demo_dir/veyra.yaml" --json
+```
 
-| Area        | Scaffold | Current status                    |
-| ----------- | -------- | --------------------------------- |
-| CLI         | ✓        | headless workflow commands        |
-| TUI         | ✓        | scaffolded                        |
-| Dashboard   | ✓        | planned                           |
-| Core        | ✓        | persisted workflow loop           |
-| Workflow    | ✓        | YAML loader and validation        |
-| Runtime     | ✓        | local process execution           |
-| Verifier    | ✓        | sequential shell checks           |
-| Protocol    | ✓        | contracts and JSON guard          |
-| Config      | ✓        | YAML loader and validation        |
-| SDK         | ✓        | plugin registry and contracts     |
-| OpenAI      | ✓        | Responses and compatible adapters |
-| Codex       | ✓        | CLI executor adapter              |
-| Claude      | ✓        | API adapter; live smoke blocked   |
-| Claude Code | ✓        | CLI adapter; live smoke blocked   |
-| Gemini      | ✓        | API/CLI adapters; live unverified |
-| OpenCode    | ✓        | CLI adapter; live smoke blocked   |
+The run exits **3** because it is waiting for approval; the command has not executed. Keep these as separate commands rather than chaining after the paused run with `&&`. Inspect the returned run and approval IDs, then approve that exact operation:
 
-## Implementation plan
+```sh
+pnpm ve -- resume <run-id> --config "$demo_dir/veyra.yaml" --approve --approval-id <approval-id>
+pnpm ve -- review --config "$demo_dir/veyra.yaml" --json
+```
 
-Development is intentionally executed one focused task at a time:
+Resume executes the check, records its result under the temporary project's `.veyra/`, and exits **0**. `--reject` refuses the operation. No unattended flag supplies approval.
 
-- [`docs/TODO.md`](docs/TODO.md) — **canonical detailed implementation TODO**, including task order, dependencies, requirements, tests, and acceptance criteria.
-- [`docs/ROADMAP.md`](docs/ROADMAP.md) — milestone-level summary.
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — stable package and responsibility boundaries.
-- [`AGENTS.md`](AGENTS.md) — rules for Codex and other coding agents contributing to the repository.
+For a coding workflow, choose a complete configuration from the [example gallery](examples/gallery/README.md), replace model placeholders, install the target project's dependencies and run `pnpm ve -- doctor --config /absolute/project/veyra.yaml`. Review its commands and provider permissions before running agents. The [installation guide](docs/INSTALLATION.md) covers global installation verification, future registry installation, upgrades and removal.
 
-The current next task is defined at the bottom of `docs/TODO.md`.
+## Providers
 
-For a first contribution, start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [local development guide](docs/DEVELOPMENT.md), then follow the [next eligible TODO](docs/TODO.md#next-task). The TODO contains implementation truth and acceptance criteria; the roadmap is a summary. Commit history is not required to find the next task.
+All listed adapters have deterministic tests. Readiness checks and successful fixture tests do not prove that an account can reach a model or that a live task will succeed.
+
+| Provider                                               | Implemented surface                                  | Live verification in this checkout                                      |
+| ------------------------------------------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------- |
+| [OpenAI](docs/OPENAI.md)                               | Responses planner/reviewer/judge                     | Full closed-loop smoke blocked by missing API credential                |
+| [Codex](docs/CODEX.md)                                 | Native coding CLI                                    | Native fixture smoke verified; full OpenAI + Codex loop remains blocked |
+| [Claude](docs/CLAUDE.md)                               | API planner/reviewer/judge                           | Smoke blocked by missing Anthropic credential                           |
+| [Claude Code](docs/CLAUDE-CODE.md)                     | Native coding CLI                                    | Smoke blocked by native request timeouts                                |
+| [Gemini](docs/GEMINI.md)                               | API reasoning and opt-in inline image input          | Smoke blocked by missing API credential                                 |
+| [Gemini CLI](docs/GEMINI-CLI.md)                       | Native coding CLI                                    | Native executable unavailable for live verification                     |
+| [OpenCode](docs/OPENCODE.md)                           | Native coding CLI                                    | Smoke blocked by rejected native provider credentials                   |
+| [OpenAI-compatible / local](docs/OPENAI-COMPATIBLE.md) | Explicit Chat Completions endpoint and response mode | Loopback HTTP integration verified; no universal backend/model claim    |
+
+The gallery includes GPT + Codex, Claude + Codex, GPT + Claude Code, cross-model review, parallel reviewers, human approval, bugfix, supplied-source research and headless CI. Provider identifiers and models remain configuration choices; Core contains no vendor selection assumptions.
+
+## Architecture
+
+```mermaid
+flowchart TB
+  surfaces["CLI · TUI planned · Dashboard planned"] --> core["Core: orchestration and state"]
+  core --> workflow["Workflow: graphs and transitions"]
+  core --> runtime["Runtime: agent and process lifecycle"]
+  core --> verifier["Verifier: deterministic checks"]
+  workflow --> protocol["Protocol: shared contracts and events"]
+  runtime --> protocol
+  verifier --> protocol
+  adapters["plugins/*: provider adapters"] --> protocol
+```
+
+Package boundaries remain stable even when a surface is planned. The CLI injects adapters; Runtime handles execution and Core coordinates the workflow. Config owns parsing/defaults, and SDK owns extension registration. Read [Architecture](docs/ARCHITECTURE.md) for ownership and dependency rules.
+
+There is no stable TUI demo yet: bare `ve` prints CLI help. The TUI milestone waits for the live vertical-slice exit gate, and Dashboard implementation waits for TUI stability. The local tour above demonstrates current CLI behavior.
+
+## Safety and limits
+
+Workflows, project scripts and trusted plugins can execute code with local privileges. Worktrees and approval prompts are not an OS sandbox. Review commands, plugin dependencies and native permissions; explicitly gate publishing, deployment, destructive operations and credential access. Agent text is not a source of verifier commands.
+
+Veyra redacts known secrets at managed boundaries, but cannot guarantee that arbitrary third-party code or native tools never write sensitive data. Do not attach raw histories or credentials to public issues. Recovery refuses uncertain partial effects; retries do not make arbitrary external actions idempotent. Read the [command safety model](docs/COMMAND-SAFETY.md), [authentication limits](docs/AUTHENTICATION.md), [recovery contract](docs/CRASH-RECOVERY.md) and [private security reporting policy](SECURITY.md).
 
 ## Development
 
-Requirements:
+After the setup above, run the complete baseline:
 
-- Node.js >= 20
-- pnpm 10.15.1 (pinned in `package.json`)
-
-```bash
-corepack enable
-pnpm install
+```sh
 pnpm lint
 pnpm format:check
 pnpm check
@@ -137,81 +113,18 @@ pnpm build
 pnpm ve -- doctor
 ```
 
-If Corepack reports `Cannot find matching keyid`, [update Corepack](https://pnpm.io/10.x/installation#using-corepack) to a release compatible with your Node.js version, then retry. On Node.js 22.22.0, `npm install --global corepack@0.34.7` was verified with the pinned pnpm version.
+If Corepack reports `Cannot find matching keyid`, [update Corepack](https://pnpm.io/10.x/installation#using-corepack) to a compatible release. Corepack 0.34.7 was verified with Node.js 22.22.0 and the pinned pnpm version. Use `pnpm format` for Prettier formatting; Biome lint and TypeScript checks remain separate.
 
-Run `pnpm format` to format the repository. Prettier handles TypeScript, JSON, Markdown, and YAML; Biome supplies the recommended TypeScript/JSON lint rules. Two tools are used because Biome does not yet format Markdown or YAML. Generated build outputs, dependencies, coverage, Turbo cache, and local run state are excluded. TypeScript checking remains a separate `pnpm check` command.
+CI runs the five baseline checks and frozen installation on macOS 15 arm64 and Ubuntu 24.04 x64. Default tests use disposable projects and need no provider credentials. See [local development](docs/DEVELOPMENT.md), [testing](docs/TESTING.md) and the [platform policy](docs/PLATFORMS.md).
 
-CI runs the same five checks on macOS 15 (arm64) and Ubuntu 24.04 (x64) for pull requests and pushes to `main`, using Node.js 22, Corepack, a cached pnpm store, and `pnpm install --frozen-lockfile`. Native Windows is currently unsupported. See the [platform policy](docs/PLATFORMS.md) for verified targets and platform-specific limits. The default suite does not require provider credentials or live API calls.
+Read [CONTRIBUTING.md](CONTRIBUTING.md), [AGENTS.md](AGENTS.md) and the [next eligible TODO](docs/TODO.md#next-task) before changing code. Use `pnpm packages:check` for isolated tarball checks and `pnpm installation:check` for the separate real npm global-install check. [Versioning](docs/VERSIONING.md), [changelogs](CHANGELOG.md) and [release CI](docs/RELEASING.md) cover preparation; public publication requires explicit human approval.
 
-See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
+## Documentation
 
-The [package strategy](docs/PACKAGES.md) identifies fourteen release candidates under the verified official npm scope `@veyraoss`. `pnpm packages:check` verifies actual tarballs from an isolated consumer. Public-package metadata is prepared; publication requires explicit human approval. The product remains Veyra, the executable remains `ve`, and configuration/state paths remain `veyra.yaml` and `.veyra/`.
+The [documentation index](docs/README.md) links the CLI, configuration, workflow and provider references, state/safety contracts, author tutorials and project policies. Start with the [workflow tutorial](docs/tutorials/WORKFLOW.md) or [plugin tutorial](docs/tutorials/PLUGIN.md).
 
-The [versioning policy](docs/VERSIONING.md) covers compatible changes, official package versions and the local Changesets workflow. Use `pnpm changeset` to add a release note and `pnpm release:status` to preview the next version. [Changelog](CHANGELOG.md) identifies pending notes and generated package histories.
+[Issues and community channels](docs/COMMUNITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Roadmap](docs/ROADMAP.md) · [Master TODO](docs/TODO.md)
 
-The manual [release workflow](docs/RELEASING.md) validates and packs review artifacts by default. Public publication is a separate job requiring explicit human approval through the protected `npm-release` environment.
+## License
 
-The [installation guide](docs/INSTALLATION.md) covers source usage now, registry installation after publication, upgrades, removal and fresh-machine doctor guidance. `pnpm installation:check` verifies real npm global installation in a disposable prefix without publishing or altering your global installation.
-
-The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The Core loop, first adapters, and headless CLI commands work; live provider runs require the corresponding accounts and credentials.
-
-The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.
-
-The [preset reference](docs/PRESETS.md) explains the development, bugfix, read-only review and research flows, their required adapters/commands, bounded repairs and human reports.
-
-The [example gallery](examples/gallery/README.md) provides nine complete configurations covering provider combinations, independent reviews, human approval, bugfix, supplied-source research and headless CI checks.
-
-The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event contracts and the boundary between persisted data and execution controls.
-
-The [capability reference](docs/CAPABILITIES.md) covers configured adapter metadata, opt-in readiness discovery and explicit workflow role/capability requirements.
-
-The [provider-routing reference](docs/PROVIDER-ROUTING.md) covers opt-in ordered fallbacks, readiness, user-supplied cost estimates, provider/model pinning and audited selection.
-
-The [role-profile reference](docs/ROLE-PROFILES.md) defines provider-neutral guidance and context contracts for planning, execution, research, review and judging.
-
-The [plugin reference](docs/PLUGINS.md) defines the public SDK contract, built-in registration, provider namespaces and explicitly trusted local third-party modules.
-
-The [authentication policy](docs/AUTHENTICATION.md) documents credential precedence, native login, scoped readiness and secret redaction.
-
-The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior. [Workspace policies](docs/WORKSPACES.md) describe optional per-run Git worktrees, shared-directory leases, saved resume locations and explicit cleanup.
-
-The [verification reference](docs/VERIFICATION.md) describes sequential command checks, aggregate results, and verification events.
-
-The [state reference](docs/STATE.md) documents local snapshots, event history, recovery errors, and the single-writer boundary.
-
-The [Core reference](docs/CORE.md) describes programmatic execution, outcome routing, persisted events, and bounded context.
-
-The [remote-control design](docs/REMOTE-CONTROL-DESIGN.md) describes a proposed future worker trust/transport boundary. It is a design document; local execution remains the implemented mode.
-
-The [approval reference](docs/APPROVALS.md) covers explicit human gates, decision auditing, and safe pause/resume through the Core API. The [command safety policy](docs/COMMAND-SAFETY.md) defines high-risk gates, configured versus provider-generated commands, and known native permission controls.
-
-The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
-
-The [OpenAI-compatible reference](docs/OPENAI-COMPATIBLE.md) covers explicit Chat Completions endpoints, output-mode selection and local Ollama/LM Studio examples.
-
-The [Codex adapter reference](docs/CODEX.md) covers CLI execution, permissions, readiness checks, and the disposable live smoke test.
-
-The [Claude adapter reference](docs/CLAUDE.md) covers planner/reviewer/judge results, usage accounting, deadlines and the opt-in API smoke test.
-
-The [Claude Code reference](docs/CLAUDE-CODE.md) covers native CLI execution, permissions, readiness, bounded diagnostics and the guarded fixture smoke test.
-
-The [Gemini reference](docs/GEMINI.md) covers structured reasoning, explicit inline image input, bounded requests and the guarded API smoke test.
-
-The [Gemini CLI reference](docs/GEMINI-CLI.md) covers native execution, strict result validation, permissions and offline readiness limitations.
-
-The [OpenCode reference](docs/OPENCODE.md) covers the native contract, disabled sharing, event normalization and guarded fixture smoke.
-
-## Current milestone
-
-The first product milestone is the **v0.1 vertical slice**:
-
-1. load `veyra.yaml`
-2. load a workflow preset
-3. call a planner adapter
-4. invoke Codex as executor
-5. run deterministic verification commands
-6. review the result
-7. persist run state
-8. retry or stop at a human approval gate
-
-Start with [`docs/TODO.md`](docs/TODO.md), then consult [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) and [`docs/ROADMAP.md`](docs/ROADMAP.md).
+[MIT](LICENSE).
