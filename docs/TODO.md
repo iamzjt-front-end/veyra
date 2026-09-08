@@ -579,7 +579,7 @@ Verification: `env -u OPENAI_API_KEY pnpm --filter @veyraoss/cli smoke:native` p
 
 ## P0.11 — ChatGPT Bridge feasibility spike
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.5, P0.9, P0.10
 
@@ -596,15 +596,15 @@ Choose the safest practical way for a real ChatGPT conversation to call Veyra an
 
 ### Required research outputs
 
-- [ ] supported auth model;
-- [ ] whether current conversation can invoke a tool/action;
-- [ ] whether tool result can return to that same conversation;
-- [ ] local daemon connectivity requirements;
-- [ ] write/action limitations for target plans;
-- [ ] permissions/security implications;
-- [ ] maintenance risk;
-- [ ] whether any path would violate product/platform rules;
-- [ ] recommendation with evidence.
+- [x] supported auth model;
+- [x] whether current conversation can invoke a tool/action;
+- [x] whether tool result can return to that same conversation;
+- [x] local daemon connectivity requirements;
+- [x] write/action limitations for target plans;
+- [x] permissions/security implications;
+- [x] maintenance risk;
+- [x] whether any path would violate product/platform rules;
+- [x] recommendation with evidence.
 
 ### Non-goals
 
@@ -615,6 +615,8 @@ Choose the safest practical way for a real ChatGPT conversation to call Veyra an
 ### Acceptance criteria
 
 Commit a short ADR/design document selecting the P0 bridge path and explaining why. If official integration cannot yet meet the P0 goal, explicitly authorize an isolated experimental browser bridge for the product proof without contaminating Core.
+
+Verification: `docs/ADR-001-CHATGPT-BRIDGE.md` selects official ChatGPT web Developer mode + authenticated MCP, with a loopback bridge and explicitly approved HTTPS forwarding. Current official developer-mode, tool-result, connection, auth and tunnel documentation were fetched and compared on 2026-09-09. Secure MCP Tunnel remains optional because it requires a runtime API key. Actual account eligibility/installation is unverified and remains a P0.12 acceptance boundary; no real ChatGPT interaction is claimed. No runtime code changed in this research item. All five baseline commands passed (1,878 tests).
 
 ---
 
@@ -833,6 +835,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.11 — ChatGPT Bridge feasibility spike.**
+**P0.12 — Implement the selected ChatGPT Bridge proof.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.
