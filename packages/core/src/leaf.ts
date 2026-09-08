@@ -7,7 +7,7 @@ import type {
   JsonObject,
   VeyraEvent,
 } from "@veyra/protocol";
-import { isJsonValue } from "@veyra/protocol";
+import { getAgentRoleProfile, isJsonValue } from "@veyra/protocol";
 import { createDeadline, type AgentRuntime } from "@veyra/runtime";
 import type { VerificationReport, Verifier } from "@veyra/verifier";
 import type { WorkflowStep } from "@veyra/workflow";
@@ -109,6 +109,7 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
         `Agent '${key}' for step '${stepId}' is not registered; inject its adapter before running.`,
       );
     const selection = selectAgent(adapter, key, step.requires, options.role);
+    const profile = getAgentRoleProfile(selection.role);
     const metadata = {
       ...active,
       agentId: adapter.id,
@@ -129,8 +130,10 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
       ...active,
       role: selection.role,
       goal,
+      ...(profile ? { profile } : {}),
       instructions: [
         `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, explicitly selected values in context.inputs, and any subworkflow parameters in context.workflowInputs. Preserve project instructions.`,
+        profile?.instructions,
         step.instructions,
         options.instructions,
       ]

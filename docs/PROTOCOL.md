@@ -8,6 +8,8 @@
 
 `AgentInput` contains the goal, role, instructions, context, artifacts, and execution identity. `ExecutionMetadata` identifies a run and step, with optional attempt ID and one-based attempt number for retries, and `parentStepId` for an owned parallel child. The coordinating engine owns these identities. Adapters can echo the same identity in `AgentResult.execution`; persistence must associate every result with its authoritative run/step/attempt.
 
+M4.10 adds optional `AgentInput.profile`, a versioned `AgentRoleProfile` snapshot for standard roles. Protocol/SDK expose profile lookup/listing and a strict metadata guard. Core composes its guidance and persists it before invocation; old/custom-role inputs may omit it. The profile defines behavior and context/result guidance without changing an adapter's wire format or capabilities. See [role profiles](ROLE-PROFILES.md).
+
 `AgentRunOptions` is the separate, ephemeral second argument to `AgentAdapter.run`: working directory, abort signal, and timeout. These controls must never be serialized into an agent input or event. This task defines the control contract; runtime and provider tasks implement its behavior.
 
 Context, result data, artifact metadata, and structured error details use `JsonObject`/`JsonValue`. Omit unknown optional fields. `isJsonValue(value)` checks runtime data for finite numbers, plain objects, dense arrays, and serializable nested values; it rejects functions, undefined, native errors, dates, maps, cycles, accessors, and custom serialization methods. Shared references are allowed when they are not cyclic. This guard validates shape, not content redaction or output size.

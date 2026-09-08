@@ -1,6 +1,7 @@
 import {
   isAgentDescriptor,
   isAgentRequirements,
+  isAgentRoleProfile,
   isJsonValue,
   type VeyraEvent,
 } from "@veyra/protocol";
@@ -104,6 +105,10 @@ function agentInput(value: unknown, event: RecordValue): boolean {
     optional(value.instructions, string) &&
     optional(value.context, record) &&
     optional(value.artifacts, (items) => array(items, artifact)) &&
+    optional(
+      value.profile,
+      (profile) => isAgentRoleProfile(profile) && profile.role === value.role,
+    ) &&
     Object.keys(value).every((key) =>
       [
         "runId",
@@ -116,6 +121,7 @@ function agentInput(value: unknown, event: RecordValue): boolean {
         "instructions",
         "context",
         "artifacts",
+        "profile",
       ].includes(key),
     )
   );

@@ -75,7 +75,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [ ] OpenCode (adapter and deterministic tests implemented; live smoke blocked by native HTTP 401)
 - [x] Local/OpenAI-compatible adapter (explicit Chat Completions modes and loopback HTTP verification)
 - [x] Authentication/secret-handling policy
-- [ ] Agent role profiles
+- [x] Agent role profiles
 - [ ] Optional provider capability routing
 
 ## v0.5 — Dashboard

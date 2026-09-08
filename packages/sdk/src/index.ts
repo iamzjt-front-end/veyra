@@ -7,6 +7,9 @@ export type {
   AgentInput,
   AgentResult,
   AgentRole,
+  AgentRoleProfile,
+  StandardAgentRole,
+  RoleContextPath,
   AgentRunOptions,
   ApprovalDecision,
   ArtifactRef,
@@ -36,6 +39,9 @@ export {
   isAgentDescriptor,
   isAgentReadiness,
   isAgentRequirements,
+  getAgentRoleProfile,
+  listAgentRoleProfiles,
+  isAgentRoleProfile,
 } from "@veyra/protocol";
 
 export {

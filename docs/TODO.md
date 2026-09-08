@@ -1228,12 +1228,18 @@ Verified all five baseline commands (1373 tests total) and root `pnpm ve -- doct
 
 ## M4.10 — Agent role profiles
 
-- [ ] planner profile
-- [ ] executor profile
-- [ ] researcher profile
-- [ ] reviewer profile
-- [ ] judge profile
-- [ ] role-specific prompt/context contracts without hard-coding one provider
+**Status:** [x] Complete and verified.
+
+Implementation decision: define versioned provider-neutral profiles/contracts in Protocol, re-export them through SDK, and attach a profile when Core resolves a standard role. Core composes role guidance into the existing instruction envelope and persists the exact profile before invocation. Adapter wire formats and permissions remain adapter-owned; extension roles and legacy inputs remain valid without a built-in profile.
+
+- [x] planner profile
+- [x] executor profile
+- [x] researcher profile
+- [x] reviewer profile
+- [x] judge profile
+- [x] role-specific prompt/context contracts without hard-coding one provider
+
+Verified all five baseline commands (1395 tests total). Seventeen Protocol tests cover the five versioned role/context/result contracts, independent snapshots and strict metadata guards. Five Core cases cover delivery through two different providers, persistence before invocation, mutation isolation, custom-role compatibility, profile-role identity and fresh-engine approval/resume. Existing parallel/subworkflow/consensus and CLI E2E checks also pass through the shared leaf path. Profiles are behavioral/context guidance; they do not add provider roles/tools or replace adapter output schemas. Older inputs without profiles remain readable. `docs/ROLE-PROFILES.md` documents explicit alias roles, composition order, versioned audit evidence and limits.
 
 ---
 
@@ -1630,4 +1636,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.10 — Agent role profiles.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M4.11 — Optional automatic provider routing.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

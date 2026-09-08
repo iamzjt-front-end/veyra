@@ -1,6 +1,16 @@
 export type AgentRole =
   "planner" | "researcher" | "executor" | "reviewer" | "judge" | (string & {});
 
+import type { AgentRoleProfile } from "./profiles.js";
+export {
+  getAgentRoleProfile,
+  listAgentRoleProfiles,
+  isAgentRoleProfile,
+  type AgentRoleProfile,
+  type StandardAgentRole,
+  type RoleContextPath,
+} from "./profiles.js";
+
 export type JsonValue = null | boolean | number | string | JsonValue[] | JsonObject;
 
 export interface JsonObject {
@@ -53,6 +63,8 @@ export interface AgentInput extends ExecutionMetadata {
   instructions?: string;
   context?: JsonObject;
   artifacts?: ArtifactRef[];
+  /** Exact provider-neutral role guidance used for this invocation; optional for legacy/custom roles. */
+  profile?: AgentRoleProfile;
 }
 
 export interface ArtifactRef {
