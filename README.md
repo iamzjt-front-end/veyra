@@ -87,21 +87,21 @@ In this checkout use `pnpm ve -- <command>` after building. The commands above w
 
 The **architecture scaffold is intentionally stable** while implementation lands incrementally:
 
-| Area                                     | Scaffold | Current status               |
-| ---------------------------------------- | -------- | ---------------------------- |
-| CLI                                      | ✓        | headless workflow commands   |
-| TUI                                      | ✓        | scaffolded                   |
-| Dashboard                                | ✓        | planned                      |
-| Core                                     | ✓        | persisted workflow loop      |
-| Workflow                                 | ✓        | YAML loader and validation   |
-| Runtime                                  | ✓        | local process execution      |
-| Verifier                                 | ✓        | sequential shell checks      |
-| Protocol                                 | ✓        | contracts and JSON guard     |
-| Config                                   | ✓        | YAML loader and validation   |
-| SDK                                      | ✓        | adapter/capability contracts |
-| OpenAI                                   | ✓        | planner/reviewer adapter     |
-| Codex                                    | ✓        | CLI executor adapter         |
-| Claude / Claude Code / Gemini / OpenCode | ✓        | planned                      |
+| Area                                     | Scaffold | Current status                |
+| ---------------------------------------- | -------- | ----------------------------- |
+| CLI                                      | ✓        | headless workflow commands    |
+| TUI                                      | ✓        | scaffolded                    |
+| Dashboard                                | ✓        | planned                       |
+| Core                                     | ✓        | persisted workflow loop       |
+| Workflow                                 | ✓        | YAML loader and validation    |
+| Runtime                                  | ✓        | local process execution       |
+| Verifier                                 | ✓        | sequential shell checks       |
+| Protocol                                 | ✓        | contracts and JSON guard      |
+| Config                                   | ✓        | YAML loader and validation    |
+| SDK                                      | ✓        | plugin registry and contracts |
+| OpenAI                                   | ✓        | planner/reviewer adapter      |
+| Codex                                    | ✓        | CLI executor adapter          |
+| Claude / Claude Code / Gemini / OpenCode | ✓        | planned                       |
 
 ## Implementation plan
 
@@ -151,6 +151,8 @@ The [preset reference](docs/PRESETS.md) explains the development, bugfix, read-o
 The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event contracts and the boundary between persisted data and execution controls.
 
 The [capability reference](docs/CAPABILITIES.md) covers configured adapter metadata, opt-in readiness discovery and explicit workflow role/capability requirements.
+
+The [plugin reference](docs/PLUGINS.md) defines the public SDK contract, built-in registration, provider namespaces and explicitly trusted local third-party modules.
 
 The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior.
 

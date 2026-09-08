@@ -1,10 +1,16 @@
 import { readFile } from "node:fs/promises";
-import { resolve } from "node:path";
+import { extname, isAbsolute, resolve } from "node:path";
 import { LineCounter, parseDocument } from "yaml";
 
 export interface AgentConfig {
   provider: string;
   model?: string;
+  options: Record<string, unknown>;
+}
+
+export interface PluginConfig {
+  module?: string;
+  version?: string;
   options: Record<string, unknown>;
 }
 
@@ -14,6 +20,7 @@ export interface VeyraConfig {
     name: string;
   };
   agents: Record<string, AgentConfig>;
+  plugins?: Record<string, PluginConfig>;
   workflow: {
     use: string;
   };
@@ -90,6 +97,7 @@ export function parseConfig(value: unknown): VeyraConfig {
     "version",
     "project",
     "agents",
+    "plugins",
     "workflow",
     "runtime",
     "approval",
@@ -151,6 +159,58 @@ export function parseConfig(value: unknown): VeyraConfig {
   if (root.project !== undefined) {
     const project = object(root.project, "project", ["name"]);
     config.project = { name: text(project.name, "project.name") };
+  }
+  if (root.plugins !== undefined) {
+    const entries = Object.entries(object(root.plugins, "plugins"));
+    if (entries.length > 64) throw new ConfigError("plugins", "at most 64 plugins are allowed");
+    config.plugins = Object.fromEntries(
+      entries.map(([name, value]) => {
+        const field = `plugins.${name}`;
+        if (name.length > 128 || !/^[a-z][a-z0-9]*(?:[._-][a-z0-9]+)*$/.test(name))
+          throw new ConfigError(field, "expected a lowercase provider identifier");
+        const raw = object(value, field, ["module", "version", "options"]);
+        const plugin: PluginConfig = {
+          options:
+            raw.options === undefined
+              ? {}
+              : (optionValue(object(raw.options, `${field}.options`), `${field}.options`) as Record<
+                  string,
+                  unknown
+                >),
+        };
+        if (Buffer.byteLength(JSON.stringify(plugin.options)) > 256 * 1024)
+          throw new ConfigError(`${field}.options`, "must be at most 256 KiB of JSON");
+        if (raw.version !== undefined) {
+          plugin.version = text(raw.version, `${field}.version`);
+          if (
+            plugin.version.length > 128 ||
+            !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.test(
+              plugin.version,
+            )
+          )
+            throw new ConfigError(`${field}.version`, "expected an exact version, not a range");
+        }
+        if (raw.module !== undefined) {
+          plugin.module = text(raw.module, `${field}.module`);
+          if (
+            (!isAbsolute(plugin.module) &&
+              !plugin.module.startsWith("./") &&
+              !plugin.module.startsWith("../")) ||
+            ![".js", ".mjs", ".cjs"].includes(extname(plugin.module))
+          )
+            throw new ConfigError(
+              `${field}.module`,
+              "expected an explicit local .js, .mjs or .cjs file path",
+            );
+          if (!plugin.version)
+            throw new ConfigError(
+              `${field}.version`,
+              "an exact version is required for local modules",
+            );
+        }
+        return [name, plugin];
+      }),
+    );
   }
   return config;
 }

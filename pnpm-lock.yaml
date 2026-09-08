@@ -53,6 +53,9 @@ importers:
       '@veyra/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      '@veyra/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@veyra/workflow':
         specifier: workspace:*
         version: link:../../packages/workflow

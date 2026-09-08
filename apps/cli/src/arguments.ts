@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 const options = {
   config: { type: "string" },
   workflow: { type: "string" },
+  "allow-plugin": { type: "string", multiple: true },
   model: { type: "string" },
   "run-id": { type: "string" },
   "approval-id": { type: "string" },
@@ -18,7 +19,7 @@ const options = {
 } as const;
 const allowed: Record<string, string[]> = {
   init: ["config", "workflow", "model", "force"],
-  run: ["config", "workflow", "non-interactive"],
+  run: ["config", "workflow", "non-interactive", "allow-plugin"],
   status: ["config", "run-id"],
   review: ["config", "run-id"],
   resume: [
@@ -30,8 +31,9 @@ const allowed: Record<string, string[]> = {
     "comment",
     "recover-interrupted",
     "non-interactive",
+    "allow-plugin",
   ],
-  doctor: ["config", "workflow"],
+  doctor: ["config", "workflow", "allow-plugin"],
   workflow: ["config"],
   help: [],
   version: [],
@@ -127,6 +129,7 @@ Commands:
 Options:
   --config <file>       select configuration (default: ./veyra.yaml)
   --workflow <name/path> override workflow for run/doctor, or select it during init
+  --allow-plugin <name> trust a configured local plugin for run/resume/doctor; repeat per provider
   --json               emit JSON (run/resume use JSON Lines)
   --non-interactive    run without prompts; gates pause until explicitly resolved
   --run-id <id>        select a run for status/review/resume

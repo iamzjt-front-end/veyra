@@ -1,21 +1,22 @@
 import type { AgentConfig, VeyraConfig } from "@veyra/config";
-import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
-import { OpenAIAdapter, type OpenAIAdapterOptions } from "@veyra/openai";
 import type { AgentAdapter } from "@veyra/protocol";
+import { PluginRegistry } from "@veyra/sdk";
 import { analyzeWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { CliError } from "./arguments.js";
+import {
+  builtinPlugins,
+  pluginAgent,
+  registryForProviders,
+  type PluginServices,
+} from "./plugins.js";
 
 export type AgentFactory = (name: string, config: AgentConfig) => AgentAdapter;
 
 /** Surface composition only; workflow roles are never tied to a provider in Core. */
 export const createAgent: AgentFactory = (name, config) => {
-  const options = { ...config.options, ...(config.model ? { model: config.model } : {}), id: name };
-  if (config.provider === "openai") return new OpenAIAdapter(options as OpenAIAdapterOptions);
-  if (config.provider === "codex") return new CodexAdapter(options as CodexAdapterOptions);
-  throw new CliError(
-    "unsupported_provider",
-    `Provider '${config.provider}' for agent '${name}' is not implemented; supported providers are openai and codex.`,
-  );
+  const registry = new PluginRegistry();
+  for (const plugin of builtinPlugins()) registry.register(plugin);
+  return registry.createAgent(config.provider, pluginAgent(name, config));
 };
 
 export function requiredAgents(workflow: WorkflowDefinition): string[] {
@@ -57,16 +58,46 @@ export function agentDiagnostics(
         steps,
         message: `Workflow agent '${name}' used by ${steps.join(", ")} has no entry in config.agents.`,
       });
-    else if (!customFactory && !["openai", "codex"].includes(agent.provider))
+    else if (
+      !customFactory &&
+      !builtinPlugins().some((plugin) => plugin.provider === agent.provider) &&
+      !(
+        Object.hasOwn(config.plugins ?? {}, agent.provider) &&
+        config.plugins?.[agent.provider]?.module
+      )
+    )
       diagnostics.push({
         code: "unsupported_provider",
         agent: name,
         steps,
         provider: agent.provider,
-        message: `Provider '${agent.provider}' for agent '${name}' is not implemented; supported providers are openai and codex.`,
+        message: `Provider '${agent.provider}' for agent '${name}' has no plugin; register a built-in or configure plugins.${agent.provider}.module with an exact version.`,
       });
   }
   return diagnostics;
+}
+
+export async function configuredAdapters(
+  config: VeyraConfig,
+  workflow: WorkflowDefinition,
+  cwd: string,
+  allowedPlugins: readonly string[] = [],
+  services: PluginServices = {},
+): Promise<Record<string, AgentAdapter>> {
+  const diagnostics = agentDiagnostics(config, workflow);
+  if (diagnostics[0])
+    throw new CliError(diagnostics[0].code, diagnostics.map((item) => item.message).join("\n"));
+  const names = requiredAgents(workflow);
+  const registry = await registryForProviders(
+    config,
+    names.map((name) => (config.agents[name] as AgentConfig).provider),
+    cwd,
+    allowedPlugins,
+    services,
+  );
+  return adaptersFor(config, workflow, (name, agent) =>
+    registry.createAgent(agent.provider, pluginAgent(name, agent)),
+  );
 }
 
 export function adaptersFor(
@@ -95,6 +126,9 @@ export function secretValues(env: NodeJS.ProcessEnv, config?: VeyraConfig): stri
   );
   for (const agent of Object.values(config?.agents ?? {})) {
     if (typeof agent.options.apiKeyEnv === "string") names.add(agent.options.apiKeyEnv);
+  }
+  for (const plugin of Object.values(config?.plugins ?? {})) {
+    if (typeof plugin.options.apiKeyEnv === "string") names.add(plugin.options.apiKeyEnv);
   }
   return [...names].map((name) => env[name]).filter((value): value is string => Boolean(value));
 }

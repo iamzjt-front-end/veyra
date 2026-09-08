@@ -11,6 +11,7 @@
     "@veyra/config": "workspace:*",
     "@veyra/protocol": "workspace:*",
     "@veyra/runtime": "workspace:*",
+    "@veyra/sdk": "workspace:*",
     "@veyra/workflow": "workspace:*",
     "@veyra/codex": "workspace:*",
     "@veyra/openai": "workspace:*",

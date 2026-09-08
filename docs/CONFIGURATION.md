@@ -6,7 +6,9 @@
 
 Required fields are `version: 1`, an `agents` object, and `workflow.use` (a non-empty preset name or workflow path). Agent names are arbitrary non-empty keys; each agent requires a non-empty `provider`. `model` is optional, and `options` is an object containing JSON-compatible provider-specific values. Agents may be empty for a command-only workflow. Provider and model names are opaque to the config package; they are not restricted to OpenAI/Codex.
 
-The optional `project` object requires `name` when present. Unknown fields at the root and inside project, agent, workflow, runtime, or approval objects are rejected; arbitrary provider settings belong under the agent's `options` object.
+The optional `project` object requires `name` when present. Unknown fields at the root and inside project, agent, plugin, workflow, runtime, or approval objects are rejected; arbitrary provider settings belong under an agent's or plugin namespace's `options` object.
+
+M4.2 adds optional `plugins`, a map of up to 64 provider identifiers. Each entry accepts `module`, `version`, and JSON `options` (default `{}`, at most 256 KiB). Built-ins may use an options-only namespace and optionally pin their exact plugin version. Third-party entries require an explicit local `.js`/`.mjs`/`.cjs` module path and exact version; URLs, package specifiers and version ranges are rejected. Parsing validates declarations without importing modules. CLI loading additionally requires `--allow-plugin <provider>` for each trusted local module. See the [plugin reference](PLUGINS.md) for the contract, precedence, trust boundary and examples. The whole `plugins` field remains absent when omitted, preserving existing normalized configs.
 
 | Optional value             | Default  | Validation                                               |
 | -------------------------- | -------- | -------------------------------------------------------- |

@@ -67,7 +67,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 ## v0.4 — Provider ecosystem
 
 - [x] Provider capability model
-- [ ] Public plugin registry/SDK
+- [x] Public plugin registry/SDK
 - [ ] Claude API
 - [ ] Claude Code
 - [ ] Gemini API

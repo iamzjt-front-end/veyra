@@ -37,3 +37,15 @@ export {
   isAgentReadiness,
   isAgentRequirements,
 } from "@veyra/protocol";
+
+export {
+  PLUGIN_API_VERSION,
+  PluginError,
+  PluginRegistry,
+  isVeyraPlugin,
+  loadLocalPlugin,
+  type LocalPluginConfig,
+  type PluginAgentConfig,
+  type PluginContext,
+  type VeyraPlugin,
+} from "./plugins.js";

@@ -1091,13 +1091,17 @@ Verified all five baseline commands (811 tests) and the capability example throu
 
 ## M4.2 — Plugin registry and loading
 
-- [ ] define official plugin contract in `@veyra/sdk`
-- [ ] explicit registration for built-ins
-- [ ] safe third-party plugin loading strategy
-- [ ] plugin config namespace
-- [ ] plugin version compatibility checks
-- [ ] plugin doctor/readiness hook
-- [ ] clear error when plugin missing
+**Status:** [x] Complete and verified.
+
+- [x] define official plugin contract in `@veyra/sdk`
+- [x] explicit registration for built-ins
+- [x] safe third-party plugin loading strategy
+- [x] plugin config namespace
+- [x] plugin version compatibility checks
+- [x] plugin doctor/readiness hook
+- [x] clear error when plugin missing
+
+Verified frozen install, all five baseline commands (856 tests), and `pnpm ve -- doctor --json` through the repository entry point. Twenty-seven SDK plugin tests cover explicit registration, copied configuration, hook controls, API/version/identity validation, normalized errors, missing modules, and trust-before-import with real local ESM modules. Eleven config tests cover namespace copying, exact versions, bounded options and invalid module declarations. Seven CLI cases prove no import during validation/inspection or without exact trust, required/unused plugin preflight, built-in override protection and option precedence, readiness diagnosis/redaction, and a third-party workflow's fresh-process approval/resume. Built-ins register through the same per-application SDK registry. Local modules require explicit `--allow-plugin <provider>` each run/resume/doctor invocation; imports have full host privileges and exact versions are declared compatibility checks, not integrity hashes. No packages are downloaded or installed by the loader. Core remains unchanged and provider-neutral. Public contracts, examples, option precedence and limitations are documented in `docs/PLUGINS.md`.
 
 ---
 
@@ -1584,4 +1588,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.2 — Plugin registry and loading.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M4.3 — Claude API provider.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

@@ -1,11 +1,12 @@
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
-import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
 import { loadConfig, type VeyraConfig } from "@veyra/config";
+import { discoverAgents } from "@veyra/core";
 import type { AgentDescriptor } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
 import { loadWorkflow } from "@veyra/workflow";
-import { createAgent, requiredAgents } from "./providers.js";
+import { redact, requiredAgents, secretValues } from "./providers.js";
+import { pluginAgent, registryForProviders } from "./plugins.js";
 
 interface ProviderReadiness {
   agent: string;
@@ -15,6 +16,7 @@ interface ProviderReadiness {
   message: string;
   version?: string;
   descriptor?: AgentDescriptor;
+  scope?: "configuration" | "local" | "remote";
 }
 
 export async function inspectEnvironment(
@@ -24,6 +26,8 @@ export async function inspectEnvironment(
   runner: ProcessRunner,
   workflowOverride?: string,
   requireConfig = false,
+  allowedPlugins: readonly string[] = [],
+  signal?: AbortSignal,
 ) {
   let config: VeyraConfig | undefined;
   let configuration: { path: string; status: "valid" | "missing" | "invalid"; message?: string } = {
@@ -69,6 +73,7 @@ export async function inspectEnvironment(
         cwd: root,
         timeoutMs: 5000,
         maxOutputBytes: 4096,
+        signal,
       });
       const version = /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.exec(result.stdout.trim())?.[0];
       return {
@@ -88,33 +93,58 @@ export async function inspectEnvironment(
       required: required.has(name),
     };
     try {
-      if (agent) base.descriptor = createAgent(name, agent).describe?.();
-      if (provider === "openai") {
-        const keyName =
-          typeof agent?.options.apiKeyEnv === "string" ? agent.options.apiKeyEnv : "OPENAI_API_KEY";
-        const ready = Boolean(env[keyName]);
-        return {
-          ...base,
-          ready,
-          message: ready
-            ? `${keyName} is present; API access was not tested.`
-            : `Set ${keyName}; no key value is printed.`,
-        };
+      const registry = await registryForProviders(
+        config ?? {
+          version: 1,
+          agents: {},
+          workflow: { use: "dev" },
+          runtime: { maxFixIterations: 3, stateDir: ".veyra" },
+          approval: { requiredFor: [] },
+        },
+        [provider],
+        root,
+        allowedPlugins,
+        { env, runProcess: runner },
+      );
+      const request = pluginAgent(
+        name,
+        agent ?? {
+          provider,
+          options: {},
+          ...(provider === "openai" ? { model: "unconfigured" } : {}),
+        },
+      );
+      const result = await registry.checkReadiness(provider, request, {
+        cwd: root,
+        timeoutMs: 5000,
+        signal,
+      });
+      const readiness: ProviderReadiness = {
+        ...base,
+        ready: result.status === "ready",
+        scope: result.scope,
+        message: result.message,
+        ...(result.version ? { version: result.version } : {}),
+      };
+      if (agent) {
+        try {
+          const [discovered] = await discoverAgents({
+            [name]: registry.createAgent(provider, request),
+          });
+          if (discovered?.error) throw new Error(discovered.error.message);
+          if (discovered?.descriptor) readiness.descriptor = discovered.descriptor;
+        } catch (error) {
+          // Preserve a plugin hook's setup diagnosis when an adapter cannot yet be constructed.
+          if (readiness.ready)
+            return {
+              ...readiness,
+              ready: false,
+              message:
+                error instanceof Error ? error.message : "Adapter metadata could not be checked.",
+            };
+        }
       }
-      if (provider === "codex") {
-        if (agent?.options.mode === "sdk")
-          return { ...base, ready: false, message: "Codex SDK mode is planned; select CLI mode." };
-        const result = await new CodexAdapter((agent?.options ?? {}) as CodexAdapterOptions, {
-          runProcess: runner,
-        }).doctor({ cwd: root });
-        return {
-          ...base,
-          ready: result.ready,
-          message: result.message,
-          ...(result.version ? { version: result.version } : {}),
-        };
-      }
-      return { ...base, ready: false, message: `Provider '${provider}' is not implemented.` };
+      return readiness;
     } catch (error) {
       return {
         ...base,
@@ -144,6 +174,7 @@ export async function inspectEnvironment(
         ready: false,
         message: "Workflow agent has no config entry.",
       });
+  const safeProviders = redact(providers, secretValues(env, config)) as ProviderReadiness[];
   const node = {
     version: process.version,
     ready: Number(process.versions.node.split(".")[0]) >= 20,
@@ -162,6 +193,6 @@ export async function inspectEnvironment(
     cwd: root,
     workingDirectory: { readable, writable },
     config: configuration,
-    providers,
+    providers: safeProviders,
   };
 }

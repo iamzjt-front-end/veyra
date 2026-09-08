@@ -9,7 +9,14 @@ import { argumentsFor, CliError, help } from "./arguments.js";
 import { inspectEnvironment } from "./doctor.js";
 import { initialize } from "./init.js";
 import { listWorkflows, validateWorkflow } from "./workflows.js";
-import { adaptersFor, type AgentFactory, createAgent, redact, secretValues } from "./providers.js";
+import {
+  adaptersFor,
+  configuredAdapters,
+  type AgentFactory,
+  createAgent,
+  redact,
+  secretValues,
+} from "./providers.js";
 
 export interface CliServices {
   cwd?: string;
@@ -102,6 +109,8 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         services.runProcess ?? runProcess,
         values.workflow,
         Boolean(values.config || values.workflow),
+        values["allow-plugin"],
+        services.signal,
       );
       write(
         result,
@@ -175,7 +184,12 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         await engine.run({
           config,
           workflow,
-          agents: adaptersFor(config, workflow, services.createAgent ?? createAgent),
+          agents: services.createAgent
+            ? adaptersFor(config, workflow, services.createAgent)
+            : await configuredAdapters(config, workflow, root, values["allow-plugin"], {
+                env,
+                runProcess: services.runProcess,
+              }),
           goal: positionals.join(" "),
           cwd: root,
           signal: services.signal,
@@ -252,7 +266,12 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     return finish(
       await engine.resume({
         ...request,
-        agents: adaptersFor(config, run.input.workflow, services.createAgent ?? createAgent),
+        agents: services.createAgent
+          ? adaptersFor(config, run.input.workflow, services.createAgent)
+          : await configuredAdapters(config, run.input.workflow, root, values["allow-plugin"], {
+              env,
+              runProcess: services.runProcess,
+            }),
         signal: services.signal,
         recoverInterrupted: values["recover-interrupted"],
       }),
