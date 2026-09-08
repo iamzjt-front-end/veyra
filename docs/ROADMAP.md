@@ -18,10 +18,10 @@ Goal: let a real ChatGPT workflow hand work to an already-authenticated native C
 - [x] typed daemon IPC/tool API
 - [x] native Codex readiness/auth as default executor path
 - [x] project-bound Codex session continuity
-- [ ] project role binding to native Codex
-- [ ] canonical planner/executor/reviewer handoff protocol
-- [ ] real native Codex Project dispatch E2E with `OPENAI_API_KEY` unset
-- [ ] ChatGPT bridge feasibility ADR/spike
+- [x] project role binding to native Codex
+- [x] canonical planner/executor/reviewer handoff protocol
+- [x] real native Codex Project dispatch E2E with `OPENAI_API_KEY` unset
+- [x] ChatGPT bridge feasibility ADR/spike
 - [ ] selected ChatGPT bridge proof
 - [ ] **real ChatGPT → Codex → ChatGPT closed loop (MVP gate)**
 - [ ] automatic review/fix loop

@@ -622,7 +622,7 @@ Verification: `docs/ADR-001-CHATGPT-BRIDGE.md` selects official ChatGPT web Deve
 
 ## P0.12 — Implement the selected ChatGPT Bridge proof
 
-**Status:** [ ]
+**Status:** [!] Local bridge implementation verified; blocked on explicit ChatGPT installation/authorization and temporary HTTPS forwarding permission.
 
 **Depends on:** P0.11
 
@@ -643,16 +643,28 @@ Allow one real ChatGPT workflow to interact with the local Veyra daemon/project.
 ### Security requirements
 
 - [ ] explicit user installation/permission;
-- [ ] localhost/project scope only by default;
-- [ ] no unrelated conversation harvesting;
-- [ ] no credential extraction;
-- [ ] content from ChatGPT/Codex is untrusted input and validated;
-- [ ] destructive/high-risk actions still use Veyra approval gates;
-- [ ] experimental browser/UI code isolated in a replaceable app/bridge package.
+- [x] localhost/project scope only by default;
+- [x] no unrelated conversation harvesting;
+- [x] no credential extraction;
+- [x] content from ChatGPT/Codex is untrusted input and validated;
+- [x] destructive/high-risk actions still use Veyra approval gates;
+- [x] experimental browser/UI code isolated in a replaceable app/bridge package.
 
 ### Acceptance criteria
 
 A real ChatGPT session can submit a task to a disposable registered project and receive the native Codex result through the bridge without the user manually copying either direction.
+
+### Local implementation and verification
+
+`apps/chatgpt-bridge` is a private, replaceable official MCP adapter. It exposes only locally allowed Projects, bounded shared state/readiness/check IDs, canonical handoff dispatch, waits/results with resolved Verifier evidence, and scoped cancellation. The daemon/Core/runtime retain execution and human gates. No browser automation, chat harvesting, native credential access, API-key requirement or automatic forwarding is introduced. Bridge-owned OAuth uses the official SDK's code/S256 PKCE flow, explicit local pairing, exact callback/resource validation and short-lived process-local grants.
+
+Verified on 2026-09-09: 16 Bridge tests exercise an SDK MCP client through the daemon and actual local Verifier, including success/failure, duplicate/invalid/cross-Project requests, missing readiness, cancellation, paused human gates, OAuth revocation/expiry, HTTPS metadata binding, request limits and private-file/socket cleanup. These are local fixture tests, **not a real ChatGPT acceptance run**; the minimum real-ChatGPT capability checkboxes remain pending. No experimental browser/UI code was needed; the selected official surface is isolated in its own app. Frozen offline installation and all five baseline commands passed (1,894 tests).
+
+### Blocker, attempts and unlock
+
+There is no installed/authorized real ChatGPT web MCP connection, and the user's workspace entitlement is unverified. Neither `cloudflared` nor `ngrok` is installed. The bridge's loopback endpoint cannot be assumed reachable from ChatGPT. Official supported integration/auth/forwarding documentation was checked; local OAuth/MCP-to-daemon tests passed, and P0.10 already proved real native Codex execution. No HTTPS forwarding or account linking was attempted without user permission.
+
+Unlock: the user authorizes a temporary Cloudflare Quick Tunnel (or supplies an approved HTTPS route) for the OAuth-protected bridge scoped to a disposable Project, then installs/links the private MCP connection in their eligible ChatGPT web account and grants its tools. Follow [`apps/chatgpt-bridge/README.md`](../apps/chatgpt-bridge/README.md) and record the actual same-conversation native task/result proof. Forwarder compatibility and host confirmation behavior still require live validation. No API key is required by this route. P0.13–P0.15 remain unstarted because they depend on this real bridge gate; no independent executable P0 item remains.
 
 ---
 
@@ -836,5 +848,7 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 # Next task
 
 **P0.12 — Implement the selected ChatGPT Bridge proof.**
+
+Blocked on the explicit user installation/authorization boundary described above. Resume this task's real ChatGPT acceptance before P0.13; local fixture success does not complete the gate.
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

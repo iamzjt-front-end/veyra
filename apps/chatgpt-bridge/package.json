@@ -1,0 +1,29 @@
+{
+  "name": "@veyraoss/chatgpt-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Private proof of the official ChatGPT MCP to local Veyra daemon bridge.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests --maxWorkers=2",
+    "start": "node dist/main.js",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@veyraoss/codex": "workspace:*",
+    "@veyraoss/config": "workspace:*",
+    "@veyraoss/core": "workspace:*",
+    "@veyraoss/daemon": "workspace:*",
+    "@veyraoss/project": "workspace:*",
+    "@veyraoss/protocol": "workspace:*",
+    "@veyraoss/runtime": "workspace:*",
+    "@veyraoss/workflow": "workspace:*",
+    "zod": "4.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6"
+  }
+}
