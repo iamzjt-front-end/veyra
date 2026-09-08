@@ -284,6 +284,8 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
         if (!pending) await record({ type: "step.started", ...active, at: now() });
         const retryCount = retryCounts[stepId] ?? 0;
         if (!pending) await backoff(step, retryCount, active);
+        if (controls.signal?.aborted)
+          throw new ExecutionError("run_cancelled", "Run was cancelled before step execution.");
         if (step.type === "end") {
           await record({ type: "step.completed", ...active, at: now() });
           stepSettled = true;
@@ -496,6 +498,12 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
         at: now(),
       });
     result = await executeScope("", undefined, history.length > 0);
+    if (result.status !== "failure" && controls.signal?.aborted)
+      result = {
+        status: "failure",
+        lastStep: result.lastStep,
+        error: { code: "run_cancelled", message: "Run was cancelled before its final boundary." },
+      };
     if (result.status === "paused") {
       await store.updateRun(runId, { status: "paused" });
       await record({
@@ -520,7 +528,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
       error: normalizeError(error, run.state.currentStep),
     };
   }
-  await store.updateRun(runId, { status: "failed" });
+  await store.updateRun(runId, { status: "failed", error: result.error });
   const saved = await record(
     { type: "run.failed", runId, message: result.error.message, error: result.error, at: now() },
     false,

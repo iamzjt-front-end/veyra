@@ -102,7 +102,7 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [ ] secret redaction (current Core/CLI/provider/Verifier paths hardened and verified; TUI/Dashboard log checks await those surfaces)
 - [x] crash recovery/idempotency (owner liveness, matched completion boundaries, conservative partial-effect policy)
 - [x] local run/store locking, isolated concurrency and conservative stale-owner recovery
-- [ ] cancellation hardening
+- [x] cancellation propagation, process cleanup and persisted terminal reasons
 - [ ] artifact/log retention
 - [ ] cross-platform support
 - [ ] public package/release strategy

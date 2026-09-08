@@ -14,15 +14,21 @@ export function createDeadline(
     throw new Error("Execution deadline must be an integer from 1 to 86400000 milliseconds.");
   const controller = new AbortController();
   let expired = false;
-  const abort = () => controller.abort();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const abort = () => {
+    if (controller.signal.aborted) return;
+    clearTimeout(timer);
+    controller.abort(signal?.reason);
+  };
   signal?.addEventListener("abort", abort, { once: true });
   if (signal?.aborted) abort();
-  const timer =
-    timeoutMs === undefined
+  timer =
+    timeoutMs === undefined || controller.signal.aborted
       ? undefined
       : setTimeout(() => {
+          if (controller.signal.aborted) return;
           expired = true;
-          abort();
+          controller.abort();
         }, timeoutMs);
   return {
     signal: controller.signal,

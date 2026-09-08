@@ -82,6 +82,8 @@ Output is readable plain text by default, without ANSI styling. `--json` produce
 | `3`           | Run paused, including a human gate                                                     |
 | `130` / `143` | CLI interrupted by SIGINT / SIGTERM after cancellation propagates                      |
 
+Ctrl-C/SIGTERM cancel the live run, await active cleanup and persist its failure reason. Repeated signals keep cleanup running; the first signal determines exit 130/143. `status` displays the saved error code/message, including `run_cancelled` and `step_timeout`. Failed cancelled runs cannot resume. See [cancellation semantics](CANCELLATION.md).
+
 Default tests inject fake adapters through the CLI application's service interface; there is no production fake-provider flag or hidden test environment switch. The public entry-point integration also runs a real command-only fixture without credentials.
 
 ## Explicit provider routing

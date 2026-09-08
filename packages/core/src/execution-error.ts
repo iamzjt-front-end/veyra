@@ -9,6 +9,7 @@ export class ExecutionError extends Error {
 
 export const fatalExecutionCodes = new Set([
   "run_cancelled",
+  "process_termination_failed",
   "event_sink_failed",
   "transition_limit",
   "failure_policy_stop",

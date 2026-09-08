@@ -29,4 +29,27 @@ describe("cooperative execution deadline", () => {
     for (const timeout of [0, -1, Number.NaN, 1.5, 86_400_001])
       expect(() => createDeadline(timeout)).toThrow();
   });
+  it("keeps the first cause while cleanup continues past a later deadline or parent abort", () => {
+    vi.useFakeTimers();
+    const parent = new AbortController();
+    const cancelled = createDeadline(20, parent.signal);
+    const reason = new Error("Ephemeral caller reason");
+    parent.abort(reason);
+    vi.advanceTimersByTime(30);
+    expect(cancelled.signal.reason).toBe(reason);
+    expect(cancelled.timedOut()).toBe(false);
+    expect(vi.getTimerCount()).toBe(0);
+    cancelled.dispose();
+    const lateParent = new AbortController();
+    const timed = createDeadline(20, lateParent.signal);
+    vi.advanceTimersByTime(20);
+    const firstReason = timed.signal.reason;
+    lateParent.abort(reason);
+    expect(timed.timedOut()).toBe(true);
+    expect(timed.signal.reason).toBe(firstReason);
+    timed.dispose();
+    const already = createDeadline(1000, AbortSignal.abort());
+    expect(vi.getTimerCount()).toBe(0);
+    already.dispose();
+  });
 });

@@ -30,6 +30,8 @@ Core's crash suites use disposable child processes and real `SIGKILL` at complet
 
 Concurrency suites exercise independent Node processes contending for tickets, including simultaneous recovery of a killed owner, cross-process event sequences and state revisions, readers waiting through a deliberately split append, duplicate approvals, stale resumes, and two active isolated worktrees. Additional process-death tests cover approval and terminal worktree cleanup with explicit recovery. See [the locking contract](LOCKING.md).
 
+Cancellation suites cover adapters/verifiers that throw on abort, first-cause deadline ordering, cancellation at persisted event boundaries, nested parallel child draining, terminal error validation/redaction, and real CLI repeated SIGINT/SIGTERM against a process tree that ignores SIGTERM. The CLI checks inspect saved state from a new process and confirm successor commands did not execute.
+
 ## End-to-end CLI scenarios
 
 `test/e2e/vertical-slice.test.ts` exercises the complete built-in dev workflow through the CLI application in real, separate Node.js processes. `cli-harness.ts` supplies deterministic adapters through the existing service interface; it is test code and adds no production fake-provider switch. The fixture executor edits actual source files, while the real shell verifier runs `pnpm check`, `pnpm test`, and `pnpm build`. The disposable copy adds a dependency-free build script and expects the new greeting; the committed fixture stays unchanged.

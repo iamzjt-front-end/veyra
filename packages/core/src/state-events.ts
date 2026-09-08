@@ -6,6 +6,7 @@ import {
   isAgentRoutingDecision,
   isJsonValue,
   type VeyraEvent,
+  type SerializedError,
 } from "@veyra/protocol";
 
 type RecordValue = Record<string, unknown>;
@@ -65,7 +66,7 @@ function usage(value: unknown): boolean {
   );
 }
 
-function error(value: unknown): boolean {
+export function isSerializedError(value: unknown): value is SerializedError {
   return (
     record(value) &&
     string(value.code) &&
@@ -100,7 +101,7 @@ function agentResult(value: unknown): boolean {
     optional(value.execution, (item) => record(item) && execution(item)) &&
     optional(value.timing, timing) &&
     optional(value.usage, usage) &&
-    optional(value.error, error)
+    optional(value.error, isSerializedError)
   );
 }
 
@@ -153,7 +154,7 @@ function verification(value: unknown): boolean {
     optional(value.stdoutTruncated, boolean) &&
     optional(value.stderrTruncated, boolean) &&
     optional(value.signal, string) &&
-    optional(value.error, error) &&
+    optional(value.error, isSerializedError) &&
     optional(value.artifacts, (items) => array(items, artifact)) &&
     optional(value.execution, (item) => record(item) && execution(item))
   );
@@ -171,7 +172,7 @@ function parallelChild(value: unknown): boolean {
     optional(value.attempt, integer) &&
     optional(value.outcome, string) &&
     optional(value.outputEventId, string) &&
-    optional(value.error, error)
+    optional(value.error, isSerializedError)
   );
 }
 
@@ -193,9 +194,9 @@ function reviewVote(value: unknown): value is RecordValue {
     optional(value.outputEventId, string) &&
     optional(value.attemptId, string) &&
     optional(value.attempt, integer) &&
-    optional(value.error, error) &&
+    optional(value.error, isSerializedError) &&
     (value.verdict === "error"
-      ? error(value.error)
+      ? isSerializedError(value.error)
       : value.error === undefined && string(value.outputEventId))
   );
 }
@@ -258,7 +259,7 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
         optional(value.recovery, recovery)
       );
     case "run.failed":
-      return string(value.message) && optional(value.error, error);
+      return string(value.message) && optional(value.error, isSerializedError);
     case "run.paused":
       return (
         optional(value.stepId, string) &&
@@ -318,8 +319,10 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
       return (
         boolean(value.success) &&
         optional(value.outputs, record) &&
-        optional(value.error, error) &&
-        (value.success ? record(value.outputs) && value.error === undefined : error(value.error))
+        optional(value.error, isSerializedError) &&
+        (value.success
+          ? record(value.outputs) && value.error === undefined
+          : isSerializedError(value.error))
       );
     case "subworkflow.paused":
       return string(value.childStepId) && string(value.reason);
@@ -394,7 +397,7 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
         optional(value.artifacts, (items) => array(items, artifact))
       );
     case "step.failed":
-      return string(value.message) && optional(value.error, error);
+      return string(value.message) && optional(value.error, isSerializedError);
     case "agent.started":
     case "agent.input":
     case "agent.completed":
@@ -408,7 +411,7 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
             ? agentInput(value.input, value)
             : value.type === "agent.completed"
               ? agentResult(value.result)
-              : error(value.error)))
+              : isSerializedError(value.error)))
       );
     case "agent.routed":
       return isAgentRoutingDecision(value.decision);

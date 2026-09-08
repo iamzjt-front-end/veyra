@@ -1470,11 +1470,15 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,607 test
 
 ## M6.6 — Cancellation semantics
 
-- [ ] user cancel
-- [ ] timeout cancel
-- [ ] parent cancel propagates to parallel/subworkflow children
-- [ ] process tree cleanup
-- [ ] state records cancellation reason
+**Status:** [x] Complete and verified.
+
+- [x] user cancel
+- [x] timeout cancel
+- [x] parent cancel propagates to parallel/subworkflow children
+- [x] process tree cleanup
+- [x] state records cancellation reason
+
+Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,623 tests), and `pnpm build`. Tests cover abort-rejecting adapters/verifiers, cancellation at persisted scheduling/approval/completion boundaries, first-cause deadline ordering while cleanup settles, nested parallel children with skipped queued work, terminal reason validation/redaction, and explicit process cleanup failures. Public CLI tests repeatedly send SIGINT, SIGTERM, and mixed signals while a disposable process tree ignores SIGTERM: descendants stop, successor commands never run, the first signal determines exit 130/143, and a new status process reads the saved `run_cancelled` reason. Existing timeout, fail-fast, retry-backoff and POSIX descendant cleanup tests also pass. POSIX signal tests are explicitly skipped on Windows; its process-tree control has mocked tests and native support remains M6.9. [Cancellation semantics](CANCELLATION.md) documents terminal `failed` state/errors, child propagation, cleanup limits and preserved partial work.
 
 ---
 
@@ -1677,4 +1681,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.6 — Cancellation semantics.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.
+**Next eligible: M6.7 — Log/artifact retention.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.

@@ -258,6 +258,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
               ]
             : []),
           `Step: ${run.state.currentStep ?? "—"}`,
+          ...(run.state.error
+            ? [`Error: ${run.state.error.code} — ${run.state.error.message}`]
+            : []),
           `Retries: ${JSON.stringify(run.state.retryCounts)}`,
           `Created: ${run.state.createdAt}`,
           `Updated: ${run.state.updatedAt}`,

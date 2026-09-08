@@ -8,7 +8,7 @@ import type {
   VeyraEvent,
 } from "@veyra/protocol";
 import { getAgentRoleProfile, isJsonValue } from "@veyra/protocol";
-import { createDeadline, type AgentRuntime } from "@veyra/runtime";
+import { createDeadline, ProcessExecutionError, type AgentRuntime } from "@veyra/runtime";
 import type { VerificationReport, Verifier } from "@veyra/verifier";
 import type { WorkflowStep } from "@veyra/workflow";
 import type { RunContext } from "./context.js";
@@ -57,10 +57,10 @@ export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
       ...options,
       controls: { ...options.controls, timeoutMs, signal: deadline.signal },
     });
-    if (deadline.timedOut() && !options.controls.signal?.aborted)
+    if (deadline.timedOut())
       throw new ExecutionError(
         "step_timeout",
-        `Step '${options.execution.stepId}' exceeded its ${timeoutMs}ms deadline; active work was cancelled and drained.`,
+        `Step '${options.execution.stepId}' exceeded its ${timeoutMs}ms deadline; cancellation was requested and its invocation settled. Inspect execution diagnostics for cleanup failures.`,
       );
     return result;
   } catch (error) {
@@ -71,12 +71,11 @@ export async function executeLeaf(options: LeafOptions): Promise<LeafResult> {
         fatalExecutionCodes.has(error.code) &&
         error.code !== "run_cancelled"
       ) &&
-      deadline.timedOut() &&
-      !options.controls.signal?.aborted
+      deadline.timedOut()
     )
       throw new ExecutionError(
         "step_timeout",
-        `Step '${options.execution.stepId}' exceeded its ${timeoutMs}ms deadline; active work was cancelled and drained.`,
+        `Step '${options.execution.stepId}' exceeded its ${timeoutMs}ms deadline; cancellation was requested and its invocation settled. Inspect execution diagnostics for cleanup failures.`,
       );
     throw error;
   } finally {
@@ -189,10 +188,15 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
         error instanceof Error
           ? options.redactText(error.message).slice(0, 2048)
           : "The provider threw a non-Error value.";
-      const failure = {
-        code: "agent_execution_failed",
-        message: `Agent '${key}' at step '${stepId}' threw: ${detail}`,
-      };
+      const failure =
+        error instanceof ProcessExecutionError && error.code === "termination_failed"
+          ? { code: "process_termination_failed", message: detail }
+          : controls.signal?.aborted
+            ? { code: "run_cancelled", message: "Run was cancelled during agent execution." }
+            : {
+                code: "agent_execution_failed",
+                message: `Agent '${key}' at step '${stepId}' threw: ${detail}`,
+              };
       await record({ type: "agent.failed", ...metadata, error: failure, at: now() });
       throw new ExecutionError(failure.code, failure.message);
     }
@@ -236,6 +240,13 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
         maxOutputBytes: 64 * 1024,
       });
     } catch (error) {
+      if (error instanceof ProcessExecutionError && error.code === "termination_failed")
+        throw new ExecutionError(
+          "process_termination_failed",
+          options.redactText(error.message).slice(0, 2048),
+        );
+      if (controls.signal?.aborted)
+        throw new ExecutionError("run_cancelled", "Run was cancelled during verification.");
       const detail =
         error instanceof Error
           ? options.redactText(error.message).slice(0, 2048)
@@ -279,6 +290,10 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
     outcome = saved.success ? "success" : "failure";
     context.addEvent(saved);
     outputEvent = saved;
+    const cleanupError = saved.results.find(
+      (result) => result.error?.code === "process_termination_failed",
+    )?.error;
+    if (cleanupError) throw new ExecutionError(cleanupError.code, cleanupError.message);
     if (!saved.success) failureMessage = `Deterministic verification failed at step '${stepId}'.`;
   } else {
     throw new ExecutionError(

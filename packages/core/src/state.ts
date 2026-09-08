@@ -7,6 +7,7 @@ import {
   type WorkspaceInfo,
   type JsonValue,
   type VeyraEvent,
+  type SerializedError,
 } from "@veyra/protocol";
 import {
   acquireLocalLock,
@@ -18,7 +19,7 @@ import {
   type SecretRedactor,
 } from "@veyra/runtime";
 import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
-import { isStoredEvent } from "./state-events.js";
+import { isStoredEvent, isSerializedError } from "./state-events.js";
 
 export type RunStatus = "running" | "paused" | "completed" | "failed";
 
@@ -44,6 +45,8 @@ export interface StoredRunState {
   createdAt: string;
   updatedAt: string;
   lastOutcome?: string;
+  /** Terminal failure reason, including run_cancelled or step_timeout; optional for legacy state. */
+  error?: SerializedError;
   /** Last execution owner; liveness is observed separately, never inferred from status alone. */
   owner?: ProcessOwner;
 }
@@ -65,6 +68,8 @@ export interface RunStateUpdate {
   currentStep?: string | null;
   retryCounts?: Record<string, number>;
   lastOutcome?: string;
+  /** Terminal failure reason, including run_cancelled or step_timeout; optional for legacy state. */
+  error?: SerializedError;
   owner?: ProcessOwner;
 }
 
@@ -237,7 +242,10 @@ export class LocalRunStore {
     return this.#mutate(async () => {
       if (
         Object.keys(update).some(
-          (key) => !["status", "currentStep", "retryCounts", "lastOutcome", "owner"].includes(key),
+          (key) =>
+            !["status", "currentStep", "retryCounts", "lastOutcome", "owner", "error"].includes(
+              key,
+            ),
         )
       ) {
         throw new StateStoreError(
@@ -620,6 +628,7 @@ function parseState(
           "createdAt",
           "updatedAt",
           "lastOutcome",
+          "error",
           "owner",
         ].includes(key),
     ) ||
@@ -642,6 +651,7 @@ function parseState(
     ) ||
     (value.lastOutcome !== undefined && typeof value.lastOutcome !== "string") ||
     (value.owner !== undefined && !isProcessOwner(value.owner)) ||
+    (value.error !== undefined && (value.status !== "failed" || !isSerializedError(value.error))) ||
     (value.currentStep !== undefined &&
       (typeof value.currentStep !== "string" || !Object.hasOwn(steps, value.currentStep))) ||
     ((value.status === "running" || value.status === "paused") && value.currentStep === undefined)
