@@ -151,6 +151,8 @@ The [versioning policy](docs/VERSIONING.md) covers compatible changes, official 
 
 The manual [release workflow](docs/RELEASING.md) validates and packs review artifacts by default. Public publication is a separate job requiring explicit human approval through the protected `npm-release` environment.
 
+The [installation guide](docs/INSTALLATION.md) covers source usage now, registry installation after publication, upgrades, removal and fresh-machine doctor guidance. `pnpm installation:check` verifies real npm global installation in a disposable prefix without publishing or altering your global installation.
+
 The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The Core loop, first adapters, and headless CLI commands work; live provider runs require the corresponding accounts and credentials.
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.

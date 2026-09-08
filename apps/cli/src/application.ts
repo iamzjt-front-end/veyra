@@ -120,6 +120,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           "Veyra Doctor",
           `Node:     ${result.node.version}`,
           `pnpm:     ${result.pnpm.version}`,
+          ...(result.pnpm.message ? [result.pnpm.message] : []),
           `Platform: ${result.platform}`,
           `CWD:      ${result.cwd}`,
           `Directory: read=${result.workingDirectory.readable} write=${result.workingDirectory.writable}`,

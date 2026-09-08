@@ -87,6 +87,10 @@ export async function inspectEnvironment(
       status: "invalid",
       message: "The selected configuration does not exist.",
     };
+  if (configuration.status === "missing")
+    configuration.message = "Run ve init to create veyra.yaml, or pass --config <path>.";
+  const pnpmSetup =
+    "Install pnpm or enable it with Corepack (corepack enable), then rerun ve doctor.";
   const pnpm = async () => {
     try {
       const result = await runner({
@@ -98,13 +102,15 @@ export async function inspectEnvironment(
         signal,
       });
       const version = /^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.exec(result.stdout.trim())?.[0];
+      const ready =
+        result.exitCode === 0 && !result.signal && !result.terminationReason && Boolean(version);
       return {
-        ready:
-          result.exitCode === 0 && !result.signal && !result.terminationReason && Boolean(version),
+        ready,
         version: version ?? "unavailable",
+        ...(!ready ? { message: pnpmSetup } : {}),
       };
     } catch {
-      return { ready: false, version: "unavailable" };
+      return { ready: false, version: "unavailable", message: pnpmSetup };
     }
   };
   const checkProvider = async (name: string, provider: string): Promise<ProviderReadiness> => {

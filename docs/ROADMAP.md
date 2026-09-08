@@ -109,6 +109,7 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] public package strategy (fourteen verified `@veyraoss` candidates, authenticated organization ownership and isolated tarball tests)
 - [x] fixed official package versions, release notes and local changelog generation
 - [x] release CI with verified review artifacts and protected publication (live publication/provenance requires approval and npm setup)
+- [x] isolated npm global installation, fresh-install doctor guidance and upgrade/removal documentation (registry release and optional Homebrew distribution remain deferred)
 - [ ] contributor/security/community docs
 - [ ] example gallery and docs polish
 - [ ] evaluation/benchmark harness

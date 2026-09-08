@@ -35,7 +35,7 @@ Use pnpm to create release-candidate tarballs: its pack operation converts `work
 pnpm packages:check
 ```
 
-This builds packages and checks all fourteen tarballs, then exercises their public imports, TypeScript declarations, schema, presets and CLI from a temporary consumer outside the checkout. Only packed files supply `@veyraoss/*` modules; third-party dependencies reuse the frozen local install, without a network call. It also runs in `pnpm test`. This checks package boundaries; registry/global installation is tracked separately in M7.4.
+This builds packages and checks all fourteen tarballs, then exercises their public imports, TypeScript declarations, schema, presets and CLI from a temporary consumer outside the checkout. Only packed files supply `@veyraoss/*` modules; third-party dependencies reuse the frozen local install, without a network call. It also runs in `pnpm test`. `pnpm installation:check` separately verifies real npm global installation and removal in a disposable prefix; see [installation](INSTALLATION.md).
 
 ## Ownership and publication gate
 

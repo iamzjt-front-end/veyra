@@ -1581,11 +1581,15 @@ At `bf7189e`, [macOS/Linux CI passed](https://github.com/iamzjt-front-end/veyra/
 
 ## M7.4 — Installation experience
 
-- [ ] npm installation documented
-- [ ] verify global install exposes `ve`
-- [ ] optional Homebrew distribution after npm path is stable
-- [ ] upgrade/uninstall docs
-- [ ] `ve doctor` useful immediately after install
+**Status:** [x] Complete and verified.
+
+- [x] npm installation documented
+- [x] verify global install exposes `ve`
+- [x] optional Homebrew distribution evaluated; deferred until the public npm path is stable
+- [x] upgrade/uninstall docs
+- [x] `ve doctor` useful immediately after install
+
+Verified `pnpm installation:check` with real npm in a disposable global prefix: all fourteen candidate tarballs installed, `ve version` matched 0.1.0, all four presets loaded, missing pnpm/config produced setup guidance, installing pnpm 10.15.1 made doctor ready, and uninstall removed the executable link. No project config/state or user-global installation was changed. The script removes its temporary prefix/cache/configs on failure too and does not use npm credentials or publish. Registry-only installation remains documented for after the first approved public release. The full five-command baseline passed (1,697 tests), including the new fresh-install doctor regression, and 82 local documentation links resolved. See [installation](INSTALLATION.md).
 
 ---
 
@@ -1717,4 +1721,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.4 — Installation experience.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling and release CI validation are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.5 — Contributor documentation.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.

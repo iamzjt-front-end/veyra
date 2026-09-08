@@ -26,7 +26,8 @@
     "versioning:check": "vitest run --config vitest.config.ts test/versioning.test.ts",
     "release:check": "node scripts/release.mjs check",
     "release:pack": "node scripts/release.mjs pack",
-    "release-ci:check": "vitest run --config vitest.config.ts test/release.test.ts"
+    "release-ci:check": "vitest run --config vitest.config.ts test/release.test.ts",
+    "installation:check": "pnpm build && node scripts/verify-install.mjs"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

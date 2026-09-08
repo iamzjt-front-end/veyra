@@ -465,6 +465,36 @@ await new VeyraEngine({emit:event=>{if(event.type==='run.paused'){writeFileSync(
     expect(result.records()[0].type).toBe("error");
   });
 
+  it("guides a fresh installation without creating config or state", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const ve = commands(path, {
+        runProcess: async () => {
+          throw new Error("executable unavailable");
+        },
+      });
+      const result = await ve(["doctor", "--json"]);
+      expect(result.code).toBe(1);
+      expect(result.records()[0]).toMatchObject({
+        ready: false,
+        config: { status: "missing", message: expect.stringContaining("ve init") },
+        pnpm: { ready: false, message: expect.stringContaining("Install pnpm") },
+      });
+      expect(
+        result
+          .records()[0]
+          .providers.every((provider: { required: boolean }) => !provider.required),
+      ).toBe(true);
+      const plain = await ve(["doctor"]);
+      expect(plain.code).toBe(1);
+      expect(plain.stdout).toContain("corepack enable");
+      expect(plain.stdout).toContain("ve init");
+      await expect(readFile(join(path, "veyra.yaml"))).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(readFile(join(path, ".veyra", "state", "active.json"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+    });
+  });
+
   it("distinguishes required and optional readiness without network or credential output", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const runner: ProcessRunner = async (request) => ({
