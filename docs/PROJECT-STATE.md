@@ -29,7 +29,7 @@ const next = await store.save({ context, provenance, handoff }, current?.revisio
 
 The store validates both inputs and persisted data and applies the existing Core/Runtime secret redactor before writing or returning state. Known secret values/environment are supplied explicitly by the caller and never stored. Recognizable credential formats are also redacted; Veyra does not read native auth files. As with existing managed paths, arbitrary third-party text can hide unknown credentials, so structured data and existing redaction are safeguards, not blanket permission to copy native/private data.
 
-P0.3 tests use separate fake planner, executor and reviewer processes to exchange a task, local file result and review solely through this contract. This is provider-free contract proof, not the later real ChatGPT integration gate. P0.9 will complete the canonical dispatch contract and provider consumption.
+Tests use separate fake planner, executor and reviewer processes to exchange a task, local file result and review solely through this contract. The [canonical Handoff Protocol](HANDOFF.md) adds safe references, requested checks, diff/risk summaries and deterministic serialization, with real Codex adapter consumption and actual local Verifier evidence. These contract tests remain separate from the live native and real ChatGPT acceptance gates.
 
 ## Per-run handoffs
 

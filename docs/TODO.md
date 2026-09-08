@@ -487,7 +487,7 @@ Verification: Project role bindings survive independent CLI processes and daemon
 
 ## P0.9 — Implement the canonical Handoff Protocol
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.3, P0.8
 
@@ -497,41 +497,43 @@ Provide the exact structured contract used by a ChatGPT-facing planner/reviewer 
 
 ### Planner → Executor handoff must support
 
-- [ ] project/run identifiers;
-- [ ] goal;
-- [ ] plan summary;
-- [ ] ordered/structured tasks;
-- [ ] acceptance criteria;
-- [ ] constraints;
-- [ ] relevant prior decisions;
-- [ ] artifact/file references where necessary;
-- [ ] requested verification;
-- [ ] provenance/source label.
+- [x] project/run identifiers;
+- [x] goal;
+- [x] plan summary;
+- [x] ordered/structured tasks;
+- [x] acceptance criteria;
+- [x] constraints;
+- [x] relevant prior decisions;
+- [x] artifact/file references where necessary;
+- [x] requested verification;
+- [x] provenance/source label.
 
 ### Executor → Reviewer result must support
 
-- [ ] completion/failure status;
-- [ ] implementation summary;
-- [ ] changed files;
-- [ ] diff summary/reference;
-- [ ] verifier evidence;
-- [ ] artifacts;
-- [ ] unresolved risks/blockers;
-- [ ] native execution/session reference if safe;
-- [ ] provenance/source label.
+- [x] completion/failure status;
+- [x] implementation summary;
+- [x] changed files;
+- [x] diff summary/reference;
+- [x] verifier evidence;
+- [x] artifacts;
+- [x] unresolved risks/blockers;
+- [x] native execution/session reference if safe;
+- [x] provenance/source label.
 
 ### Requirements
 
-- [ ] schemas/versioning;
-- [ ] validate untrusted bridge/provider inputs;
-- [ ] deterministic serialization tests;
-- [ ] bounded size/large artifact references;
-- [ ] no complete conversation-history field;
-- [ ] no credentials.
+- [x] schemas/versioning;
+- [x] validate untrusted bridge/provider inputs;
+- [x] deterministic serialization tests;
+- [x] bounded size/large artifact references;
+- [x] no complete conversation-history field;
+- [x] no credentials.
 
 ### Acceptance criteria
 
 The same handoff/result payload can be consumed by fake ChatGPT, real Codex adapter and future alternative surfaces without changing Core.
+
+Verification: canonical serialization/parse, schema versions, safe references, bounds, credential/history rejection and exact requested-check/result links passed. A fake planner sent the same wire envelope through the real Codex adapter (injected process runner), actual local Verifier and fake reviewer; pass, fail, skipped checks and pre-dispatch unknown-check rejection passed. All five baseline commands passed (1,873 tests), with package tests serialized before the final standard test command to avoid known resource contention. No Core changes or live ChatGPT claims. See `docs/HANDOFF.md` for field semantics, trust and versioning.
 
 ---
 
@@ -829,6 +831,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.9 — Implement the canonical Handoff Protocol.**
+**P0.10 — Real native Codex Project dispatch E2E.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

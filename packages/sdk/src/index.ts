@@ -62,6 +62,13 @@ export type {
   WorkflowStep,
 } from "@veyraoss/workflow";
 export {
+  serializeProjectEnvelope,
+  isProjectResultForHandoff,
+  parseProjectEnvelope,
+  ProjectEnvelopeError,
+  type ProjectInterchange,
+  type ProjectInputReference,
+  type ProjectVerificationRequest,
   isProjectBindings,
   isProjectRoleBinding,
   type ProjectBindings,

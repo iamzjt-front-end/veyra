@@ -436,6 +436,12 @@ export type EventSink = (event: VeyraEvent) => void | Promise<void>;
 export { isWorkspaceInfo, type WorkspaceInfo } from "./workspace.js";
 export { isJsonValue } from "./json.js";
 export {
+  serializeProjectEnvelope,
+  parseProjectEnvelope,
+  ProjectEnvelopeError,
+  type ProjectInterchange,
+} from "./handoff.js";
+export {
   isProjectBindings,
   isProjectRoleBinding,
   type ProjectBindings,
@@ -466,15 +472,19 @@ export {
 } from "./daemon.js";
 export {
   MAX_PROJECT_STATE_BYTES,
+  MAX_PROJECT_ENVELOPE_BYTES,
   isProjectSharedState,
   isProjectHandoff,
   isProjectExecutionResult,
+  isProjectResultForHandoff,
   isProjectReview,
   type ProjectProvenance,
   type ProjectDecision,
   type ProjectPlan,
   type ProjectContext,
   type ProjectHandoff,
+  type ProjectInputReference,
+  type ProjectVerificationRequest,
   type ProjectExecutionResult,
   type ProjectReview,
   type ProjectArtifactReference,

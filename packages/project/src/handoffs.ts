@@ -5,7 +5,10 @@ import { join } from "node:path";
 import {
   isProjectHandoff,
   isProjectExecutionResult,
+  isProjectResultForHandoff,
   isNativeSessionReference,
+  serializeProjectEnvelope,
+  MAX_PROJECT_ENVELOPE_BYTES,
   type NativeSessionReference,
   type JsonValue,
   type ProjectDescriptor,
@@ -57,7 +60,7 @@ export class ProjectHandoffStore {
     if (value === undefined) return;
     const result = this.validate(value, runId, "result") as ProjectExecutionResult;
     const handoff = await this.getHandoff(runId);
-    if (!handoff || result.handoffId !== handoff.id)
+    if (!isProjectResultForHandoff(result, handoff))
       throw new ProjectHandoffError(
         "invalid_handoff",
         "Result does not reference this run's handoff.",
@@ -76,7 +79,7 @@ export class ProjectHandoffStore {
       throw new ProjectHandoffError("invalid_handoff", "Invalid result.");
     const safe = this.validate(result, result?.runId, "result") as ProjectExecutionResult;
     const handoff = await this.getHandoff(safe.runId);
-    if (!handoff || handoff.id !== safe.handoffId)
+    if (!isProjectResultForHandoff(safe, handoff))
       throw new ProjectHandoffError(
         "invalid_handoff",
         "Result does not reference this run's handoff.",
@@ -145,16 +148,16 @@ export class ProjectHandoffStore {
       );
       try {
         const stat = await file.stat();
-        if (!stat.isFile() || stat.nlink !== 1 || stat.size > 65536)
+        if (!stat.isFile() || stat.nlink !== 1 || stat.size > MAX_PROJECT_ENVELOPE_BYTES)
           throw new Error("Unsafe handoff");
-        const buffer = Buffer.alloc(65537);
+        const buffer = Buffer.alloc(MAX_PROJECT_ENVELOPE_BYTES + 1);
         let length = 0;
         while (length < buffer.length) {
           const result = await file.read(buffer, length, buffer.length - length, null);
           if (!result.bytesRead) break;
           length += result.bytesRead;
         }
-        if (length > 65536) throw new Error("Oversized handoff");
+        if (length > MAX_PROJECT_ENVELOPE_BYTES) throw new Error("Oversized handoff");
         return JSON.parse(buffer.subarray(0, length).toString("utf8"));
       } finally {
         await file.close();
@@ -182,7 +185,9 @@ export class ProjectHandoffStore {
     const temporary = join(directory, `.${randomUUID()}.tmp`);
     const file = await open(temporary, "wx", 0o600);
     try {
-      await file.writeFile(JSON.stringify(value));
+      await file.writeFile(
+        kind === "session" ? JSON.stringify(value) : serializeProjectEnvelope(value),
+      );
       await file.sync();
       await file.close();
       await link(temporary, path);

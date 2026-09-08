@@ -5,6 +5,7 @@ import { isProjectId, type ProjectId } from "./project.js";
 import { isNativeSessionReference, type NativeSessionReference } from "./session.js";
 
 export const MAX_PROJECT_STATE_BYTES = 256 * 1024;
+export const MAX_PROJECT_ENVELOPE_BYTES = 64 * 1024;
 
 /** Producer labels describe provenance, not authority to execute embedded instructions. */
 export interface ProjectProvenance {
@@ -45,6 +46,17 @@ interface ProjectEnvelope {
 export interface ProjectHandoff extends ProjectEnvelope {
   kind: "handoff";
   context: ProjectContext;
+  references?: ProjectInputReference[];
+  /** Selects existing host-owned command steps. This is not authority to execute shell text. */
+  requestedVerification?: ProjectVerificationRequest[];
+}
+export type ProjectInputReference =
+  | { kind: "file"; path: string; startLine?: number; endLine?: number }
+  | { kind: "artifact"; runId: string; id: string; summary?: string };
+export interface ProjectVerificationRequest {
+  id: string;
+  kind: "test" | "lint" | "typecheck" | "build" | "shell" | "benchmark";
+  description?: string;
 }
 /** Reuses existing artifact IDs/producer metadata without copying arbitrary artifact payloads. */
 export type ProjectArtifactReference = Pick<ArtifactRef, "id" | "kind" | "path" | "producer">;
@@ -57,6 +69,13 @@ export interface ProjectExecutionResult extends ProjectEnvelope {
   evidence: EvidenceReference[];
   artifacts: ProjectArtifactReference[];
   session?: NativeSessionReference;
+  diff?: { summary: string; source: "git" | "executor"; artifact?: ProjectArtifactReference };
+  risks?: { code: string; summary: string; source: "executor" | "verifier" | "system" }[];
+  verification?: {
+    id: string;
+    status: "passed" | "failed" | "not_run";
+    evidence?: EvidenceReference;
+  }[];
 }
 export interface ProjectReview extends ProjectEnvelope {
   kind: "review";
@@ -225,18 +244,57 @@ function artifact(value: unknown, runId: unknown): boolean {
       (Number.isSafeInteger(producer.attempt) && Number(producer.attempt) >= 1))
   );
 }
+function inputReference(value: unknown): boolean {
+  if (!object(value)) return false;
+  if (value.kind === "artifact")
+    return (
+      keys(value, ["kind", "runId", "id", "summary"]) &&
+      id(value.runId) &&
+      id(value.id) &&
+      (value.summary === undefined || text(value.summary, 2048))
+    );
+  return (
+    value.kind === "file" &&
+    keys(value, ["kind", "path", "startLine", "endLine"]) &&
+    relativePath(value.path) &&
+    (value.startLine === undefined ||
+      (Number.isSafeInteger(value.startLine) && Number(value.startLine) > 0)) &&
+    (value.endLine === undefined ||
+      (value.startLine !== undefined &&
+        Number.isSafeInteger(value.endLine) &&
+        Number(value.endLine) >= Number(value.startLine)))
+  );
+}
+function verificationRequests(value: unknown): boolean {
+  return (
+    list(
+      value,
+      (request) =>
+        object(request) &&
+        keys(request, ["id", "kind", "description"]) &&
+        id(request.id) &&
+        ["test", "lint", "typecheck", "build", "shell", "benchmark"].includes(
+          String(request.kind),
+        ) &&
+        (request.description === undefined || text(request.description, 2048)),
+      32,
+    ) && new Set(value.map((item) => (item as ProjectVerificationRequest).id)).size === value.length
+  );
+}
 export function isProjectHandoff(value: unknown): value is ProjectHandoff {
   return (
-    boundedJson(value, 65536) &&
+    boundedJson(value, MAX_PROJECT_ENVELOPE_BYTES) &&
     envelope(value) &&
-    keys(value, [...envelopeKeys, "context"]) &&
+    keys(value, [...envelopeKeys, "context", "references", "requestedVerification"]) &&
     value.kind === "handoff" &&
-    context(value.context)
+    context(value.context) &&
+    (value.references === undefined || list(value.references, inputReference, 128)) &&
+    (value.requestedVerification === undefined || verificationRequests(value.requestedVerification))
   );
 }
 export function isProjectExecutionResult(value: unknown): value is ProjectExecutionResult {
   return (
-    boundedJson(value, 65536) &&
+    boundedJson(value, MAX_PROJECT_ENVELOPE_BYTES) &&
     envelope(value) &&
     keys(value, [
       ...envelopeKeys,
@@ -247,6 +305,9 @@ export function isProjectExecutionResult(value: unknown): value is ProjectExecut
       "evidence",
       "artifacts",
       "session",
+      "diff",
+      "risks",
+      "verification",
     ]) &&
     value.kind === "result" &&
     id(value.handoffId) &&
@@ -255,6 +316,42 @@ export function isProjectExecutionResult(value: unknown): value is ProjectExecut
     list(value.changedFiles, relativePath, 256) &&
     evidence(value.evidence, value.runId) &&
     list(value.artifacts, (item) => artifact(item, value.runId), 128) &&
+    (value.diff === undefined ||
+      (object(value.diff) &&
+        keys(value.diff, ["summary", "source", "artifact"]) &&
+        text(value.diff.summary, 4096) &&
+        ["git", "executor"].includes(String(value.diff.source)) &&
+        (value.diff.artifact === undefined || artifact(value.diff.artifact, value.runId)))) &&
+    (value.risks === undefined ||
+      list(
+        value.risks,
+        (risk) =>
+          object(risk) &&
+          keys(risk, ["code", "summary", "source"]) &&
+          id(risk.code) &&
+          text(risk.summary, 2048) &&
+          ["executor", "verifier", "system"].includes(String(risk.source)),
+        32,
+      )) &&
+    (value.verification === undefined ||
+      (list(
+        value.verification,
+        (check) =>
+          object(check) &&
+          keys(check, ["id", "status", "evidence"]) &&
+          id(check.id) &&
+          ["passed", "failed", "not_run"].includes(String(check.status)) &&
+          (check.status === "not_run"
+            ? check.evidence === undefined
+            : evidence([check.evidence], value.runId) &&
+              (check.evidence as EvidenceReference).source === "verifier" &&
+              (check.evidence as EvidenceReference).stepId === check.id) &&
+          (check.status !== "failed" || value.status !== "completed") &&
+          (check.status !== "not_run" || value.status !== "completed"),
+        32,
+      ) &&
+        new Set(value.verification.map((item) => (item as { id: string }).id)).size ===
+          value.verification.length)) &&
     (value.session === undefined ||
       (isNativeSessionReference(value.session) &&
         value.session.projectId === value.projectId &&
@@ -263,7 +360,7 @@ export function isProjectExecutionResult(value: unknown): value is ProjectExecut
 }
 export function isProjectReview(value: unknown): value is ProjectReview {
   return (
-    boundedJson(value, 65536) &&
+    boundedJson(value, MAX_PROJECT_ENVELOPE_BYTES) &&
     envelope(value) &&
     keys(value, [...envelopeKeys, "resultId", "verdict", "summary", "nextAction", "evidence"]) &&
     value.kind === "review" &&
@@ -272,6 +369,24 @@ export function isProjectReview(value: unknown): value is ProjectReview {
     text(value.summary) &&
     ["complete", "repair", "continue", "wait"].includes(String(value.nextAction)) &&
     evidence(value.evidence, value.runId)
+  );
+}
+/** Link a result to the exact requested checks, not just to matching producer labels. */
+export function isProjectResultForHandoff(
+  result: unknown,
+  handoff: unknown,
+): result is ProjectExecutionResult {
+  return (
+    isProjectExecutionResult(result) &&
+    isProjectHandoff(handoff) &&
+    result.projectId === handoff.projectId &&
+    result.runId === handoff.runId &&
+    result.handoffId === handoff.id &&
+    (!handoff.requestedVerification ||
+      (result.verification?.length === handoff.requestedVerification.length &&
+        handoff.requestedVerification.every(
+          (check, index) => result.verification?.[index]?.id === check.id,
+        )))
   );
 }
 export function isProjectSharedState(value: unknown): value is ProjectSharedState {
@@ -305,11 +420,8 @@ export function isProjectSharedState(value: unknown): value is ProjectSharedStat
     return false;
   if (
     value.result !== undefined &&
-    (!isProjectExecutionResult(value.result) ||
-      !isProjectHandoff(value.handoff) ||
-      value.result.projectId !== value.projectId ||
-      value.result.runId !== value.handoff.runId ||
-      value.result.handoffId !== value.handoff.id)
+    (!isProjectResultForHandoff(value.result, value.handoff) ||
+      value.result.projectId !== value.projectId)
   )
     return false;
   if (
