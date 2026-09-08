@@ -97,7 +97,7 @@ Dashboard implementation is waiting for the requested stable TUI prerequisite; M
 
 These areas continue across milestones and are tracked in detail in `docs/TODO.md`:
 
-- [ ] worktree/workspace isolation
+- [x] worktree/workspace isolation (optional detached worktrees, execution leases, explicit safe cleanup)
 - [ ] command execution safety
 - [ ] secret redaction
 - [ ] crash recovery/idempotency

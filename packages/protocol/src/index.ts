@@ -1,3 +1,4 @@
+import type { WorkspaceInfo } from "./workspace.js";
 export type AgentRole =
   "planner" | "researcher" | "executor" | "reviewer" | "judge" | (string & {});
 
@@ -253,7 +254,8 @@ export type ApprovalDecision = "approved" | "rejected";
 
 export type VeyraEvent = EventMetadata &
   (
-    | { type: "run.started"; goal: string; workflowName?: string }
+    | { type: "run.started"; goal: string; workflowName?: string; workspace?: WorkspaceInfo }
+    | { type: "workspace.removed"; workspace: WorkspaceInfo }
     | { type: "run.completed"; timing?: ExecutionTiming; usage?: UsageMetadata }
     | { type: "run.failed"; message: string; error?: SerializedError }
     | { type: "run.paused"; stepId?: string; reason?: string }
@@ -367,5 +369,6 @@ export type VeyraEvent = EventMetadata &
   );
 
 export type EventSink = (event: VeyraEvent) => void | Promise<void>;
+export { isWorkspaceInfo, type WorkspaceInfo } from "./workspace.js";
 export { isJsonValue } from "./json.js";
 export { isAgentDescriptor, isAgentReadiness, isAgentRequirements } from "./capabilities.js";

@@ -38,3 +38,7 @@ On Windows, the runtime invokes the system `taskkill.exe /PID <pid> /T /F` to fo
 ## Secret-safe execution boundaries
 
 `collectSecretValues(env, extraNames?)` and `createSecretRedactor({ values?, env?, envNames? })` provide the shared provider-neutral redaction utility used by adapters and Veyra-managed output/state. The returned `text` and `json` functions return sanitized copies; they never read environment variables or credential files implicitly. `json(value, false)` preserves schema-defined field names/values while masking known secret strings, for callers that already own field-level validation. Core's store retains its workflow-specific structural handling. See [the authentication policy](AUTHENTICATION.md) for credential precedence, examples and limits. Raw `runProcess` remains a low-level process API whose streams must be sanitized before external display or persistence.
+
+## Workspace lifecycle
+
+`LocalWorkspaceManager(stateDir)` prepares and leases shared directories or detached Git worktrees, validates ownership on resume, and removes only an eligible unchanged worktree. Core supplies the run ID and saves the returned `WorkspaceInfo` before invoking any agent. Callers of the Runtime API must release each returned lease in `finally`; Core handles that lifecycle for normal runs. See [workspaces](WORKSPACES.md) for configuration, dirty-tree defaults, concurrency scope, preservation and cleanup.

@@ -1395,11 +1395,15 @@ These tasks may begin earlier when required, but must all be complete before cla
 
 ## M6.1 — Workspace isolation strategy
 
-- [ ] support optional git worktree isolation per run/task
-- [ ] define default behavior for dirty working trees
-- [ ] prevent one concurrent run from silently overwriting another
-- [ ] preserve/clean worktrees predictably
-- [ ] show working directory/worktree in status/UI
+**Status:** [x] Complete and verified.
+
+- [x] support optional git worktree isolation per run/task
+- [x] define default behavior for dirty working trees
+- [x] prevent one concurrent run from silently overwriting another
+- [x] preserve/clean worktrees predictably
+- [x] show working directory/worktree in status/UI
+
+Verified all five baseline commands (1,494 tests), including real temporary Git worktrees, cross-process shared-workspace contention, independent active worktrees, dirty/staged/untracked source policies, saved-worktree resume after source/config changes, and CLI status/cleanup. Cleanup preserves ignored files, index-hidden edits and additional commits; ownership/path mismatches and active/paused worktrees are refused. Execution location is persisted before invocation, and redaction cannot redirect it. Sixty-six local documentation links passed validation. [Workspace documentation](WORKSPACES.md) defines preservation, failure handling and the cooperative lease boundary; the minimal lease supports this item and does not complete the general M6.5 run/state locking task.
 
 ---
 
@@ -1650,4 +1654,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.1 — Workspace isolation strategy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and independent hardening work can proceed.
+**Next eligible: M6.2 — Command execution safety model.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and independent hardening work can proceed.

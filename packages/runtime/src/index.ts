@@ -1,6 +1,12 @@
 import type { AgentAdapter, AgentInput, AgentResult, AgentRunOptions } from "@veyra/protocol";
 export { createDeadline } from "./deadline.js";
 export {
+  LocalWorkspaceManager,
+  type PreparedWorkspace,
+  type WorkspacePolicy,
+} from "./workspace.js";
+export { WorkspaceError, type WorkspaceLease } from "./workspace-lease.js";
+export {
   collectSecretValues,
   createSecretRedactor,
   isSecretField,

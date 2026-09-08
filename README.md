@@ -163,7 +163,7 @@ The [plugin reference](docs/PLUGINS.md) defines the public SDK contract, built-i
 
 The [authentication policy](docs/AUTHENTICATION.md) documents credential precedence, native login, scoped readiness and secret redaction.
 
-The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior.
+The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior. [Workspace policies](docs/WORKSPACES.md) describe optional per-run Git worktrees, shared-directory leases, saved resume locations and explicit cleanup.
 
 The [verification reference](docs/VERIFICATION.md) describes sequential command checks, aggregate results, and verification events.
 

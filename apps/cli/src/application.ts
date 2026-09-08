@@ -1,3 +1,4 @@
+import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { loadConfig } from "@veyra/config";
@@ -145,7 +146,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       }
       let line = event.type;
       if ("stepId" in event && event.stepId) line += ` ${event.stepId}`;
-      if (event.type === "agent.routed")
+      if (event.type === "run.started" && event.workspace)
+        line += `\nCWD: ${event.workspace.cwd}\nWorkspace: ${event.workspace.mode}${event.workspace.mode === "worktree" ? ` (HEAD ${event.workspace.commit})` : ""}`;
+      else if (event.type === "agent.routed")
         line += `: ${event.decision.attempts.map((attempt) => `${attempt.binding} ${attempt.decision} (${attempt.reason})`).join("; ")}`;
       else if (event.type === "agent.selected")
         line += `: ${event.binding} → ${event.agentId} (${event.provider}, role ${event.role})`;
@@ -202,6 +205,15 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         }),
       );
     }
+    if (command === "workspace") {
+      const result = await engine.removeWorkspace({
+        config,
+        cwd: root,
+        runId: positionals[1] as string,
+      });
+      write(result, `Removed worktree for run ${result.runId}: ${result.cwd}`);
+      return 0;
+    }
     const selectedId = values["run-id"] ?? positionals[0];
     const active = selectedId ? await store.loadRun(selectedId) : await store.getActiveRun();
     const latest = active ?? (await store.listRuns())[0];
@@ -211,8 +223,26 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     const request = { config, runId: run.state.runId, cwd: root };
     if (command === "status") {
       const approval = await engine.getPendingApproval(request);
+      const workspace = run.input.workspace ?? {
+        mode: "shared" as const,
+        cwd: run.input.cwd,
+        root: run.input.cwd,
+      };
+      let workspaceAvailable = false;
+      try {
+        workspaceAvailable = (await stat(workspace.cwd)).isDirectory();
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
       write(
-        { ...run.state, goal: run.input.goal, cwd: run.input.cwd, approval },
+        {
+          ...run.state,
+          goal: run.input.goal,
+          cwd: run.input.cwd,
+          workspace,
+          workspaceAvailable,
+          approval,
+        },
         [
           `Run: ${run.state.runId}`,
           `Status: ${run.state.status}`,
@@ -221,6 +251,15 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           `Created: ${run.state.createdAt}`,
           `Updated: ${run.state.updatedAt}`,
           `CWD: ${run.input.cwd}`,
+          `Workspace: ${workspace.mode} (${workspaceAvailable ? "available" : "missing or removed"})`,
+          ...(workspace.mode === "worktree"
+            ? [
+                `Worktree: ${workspace.root}`,
+                `Source: ${workspace.source}`,
+                `Base commit: ${workspace.commit}`,
+                `Dirty policy: ${workspace.dirtyPolicy}`,
+              ]
+            : []),
           ...(approval ? [`Approval: ${approval.approvalId} — ${approval.message}`] : []),
         ].join("\n"),
       );

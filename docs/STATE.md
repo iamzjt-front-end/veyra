@@ -6,6 +6,8 @@
 .veyra/
   state/
     active.json
+  worktrees/
+    <UUID>/        # optional detached Git execution workspace
   runs/
     <UUID>/
       input.json
@@ -30,7 +32,7 @@ await store.updateRun(run.state.runId, {
 const reloaded = await store.loadRun(run.state.runId);
 ```
 
-The directory defaults to `.veyra` relative to the caller's working directory. Creation generates a UUID, snapshots the original goal, validated workflow, working directory, and creation time, and sets the active pointer. Inputs are immutable through this API. State records status (`running`, `paused`, `completed`, `failed`), the current/next step, retry counts, timestamps, and optional last outcome. Step IDs and retry keys must exist in the workflow. Updates replace the supplied retry map; use `currentStep: null` to remove the step for a terminal run. Omit optional fields instead of supplying `undefined`.
+The directory defaults to `.veyra` relative to the caller's working directory. Creation generates a UUID, snapshots the original goal, validated workflow, working directory, optional workspace metadata, and creation time, and sets the active pointer. Inputs are immutable through this API. State records status (`running`, `paused`, `completed`, `failed`), the current/next step, retry counts, timestamps, and optional last outcome. Step IDs and retry keys must exist in the workflow. Updates replace the supplied retry map; use `currentStep: null` to remove the step for a terminal run. Omit optional fields instead of supplying `undefined`.
 
 `loadRun(id)` reads an input/state pair. `listRuns()` returns states ordered by update time, and `getActiveRun()` loads the selected run or returns null. `setActiveRun(id)` selects an existing run; null clears the pointer without deleting history. Completing a run does not implicitly clear that selection.
 
@@ -54,6 +56,8 @@ Mutations are serialized within one store instance. Use one writer per state dir
 
 ## Secret boundary
 
-The input API accepts only a goal, workflow, and optional cwd. Provider configuration, native errors, abort signals, API clients, and raw execution environments are not input snapshots. Credential-shaped fields and environment objects in JSON payloads are replaced with `[REDACTED]`. Applications must pass known secret values through the ephemeral `redactValues` constructor option to remove them from free-form text as well. The store does not discover credentials or read the ambient environment into state.
+The input API accepts a goal, workflow, optional cwd and validated workspace metadata. An optional second `createRun` argument reserves the UUID already used by Runtime workspace preparation; existing IDs are refused. Provider configuration, native errors, abort signals, API clients, and raw execution environments are not input snapshots. Credential-shaped fields and environment objects in JSON payloads are replaced with `[REDACTED]`. Applications must pass known secret values through the ephemeral `redactValues` constructor option to remove them from free-form text as well. The store does not discover credentials or read the ambient environment into state.
 
 Secret filtering is checked before publication. If redaction would invalidate workflow/state/event identifiers, the write is rejected. Never use credentials as execution identifiers or embed them into command strings. Callers remain responsible for supplying known secrets and for avoiding unrecognized sensitive content in goals, output, and artifact files. Newly created directories/files use restrictive POSIX modes where supported.
+
+The immutable `workspace` field and `run.started.workspace` record the execution location selected by Core. Resume validates worktree ownership through Runtime. `workspace.removed` records explicit terminal-run cleanup; removing a worktree retains run history and artifacts. The [workspace lease](WORKSPACES.md) covers execution in one workspace, while the state-store transaction/locking limitations above remain applicable.

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import type { VeyraConfig } from "@veyra/config";
 import type {
@@ -7,7 +8,7 @@ import type {
   SerializedError,
   VeyraEvent,
 } from "@veyra/protocol";
-import { type AgentRuntime, LocalAgentRuntime } from "@veyra/runtime";
+import { type AgentRuntime, LocalAgentRuntime, LocalWorkspaceManager } from "@veyra/runtime";
 import { ShellVerifier, type Verifier } from "@veyra/verifier";
 import {
   buildWorkflowGraph,
@@ -73,6 +74,8 @@ export class VeyraEngine {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    if (typeof request.goal !== "string" || !request.goal.trim())
+      throw new RunControlError("invalid_input", "The run goal must be a non-empty string.");
     const workflow = withExecutionDefaults(
       request.workflow,
       request.config.runtime.maxFixIterations,
@@ -80,38 +83,53 @@ export class VeyraEngine {
     buildWorkflowGraph(workflow);
     const cwd = resolve(request.cwd ?? process.cwd());
     const store = this.#store(request);
-    const run = await store.createRun({ goal: request.goal, workflow, cwd });
-    return this.#execute(request, store, run, []);
+    const runId = randomUUID();
+    const workspace = await new LocalWorkspaceManager(store.directory).prepare(
+      runId,
+      cwd,
+      request.config.runtime.workspace,
+    );
+    try {
+      const run = await store.createRun(
+        { goal: request.goal, workflow, cwd: workspace.info.cwd, workspace: workspace.info },
+        runId,
+      );
+      return await this.#execute(request, store, run, []);
+    } finally {
+      await workspace.release();
+    }
   }
 
   async resume(request: ResumeRequest): Promise<RunResult> {
     const store = this.#store(request);
+    const saved = await store.loadRun(request.runId);
+    if (
+      saved.state.status !== "paused" &&
+      !(saved.state.status === "running" && request.recoverInterrupted)
+    )
+      throw new RunControlError(
+        "run_not_paused",
+        "Only a paused run can resume; do not replay an interrupted running attempt blindly.",
+      );
+    if (saved.state.status === "running" && request.recoverInterrupted)
+      await completedCheckpoint(saved, store);
+    const manager = new LocalWorkspaceManager(store.directory);
+    const workspace = saved.input.workspace
+      ? await manager.resume(request.runId, saved.input.workspace, request.recoverInterrupted)
+      : await manager.prepare(request.runId, saved.input.cwd);
+    try {
+      return await this.#resumeLocked(request, store);
+    } finally {
+      await workspace.release();
+    }
+  }
+
+  async #resumeLocked(request: ResumeRequest, store: LocalRunStore): Promise<RunResult> {
+    // Reload after acquiring workspace ownership; another invocation may have finished first.
     const run = await store.loadRun(request.runId);
     const graph = buildWorkflowGraph(run.input.workflow);
     if (run.state.status === "running" && request.recoverInterrupted) {
-      const history = await store.readEvents(request.runId);
-      const last = history.at(-1);
-      let next: string | undefined;
-      if (last?.type === "run.started" && run.state.currentStep === graph.scopes.get("")?.start)
-        next = run.state.currentStep;
-      if (
-        last?.type === "step.completed" &&
-        (!last.outcome || !["failure", "fail", "needs_input"].includes(last.outcome))
-      ) {
-        const step = graph.steps[last.stepId];
-        if (step && step.type !== "human") {
-          const target =
-            resolveNextStep(step, { status: last.outcome ?? "success" }) ??
-            (graph.scopeOf.get(last.stepId) ? last.stepId : undefined);
-          if (run.state.currentStep === last.stepId || run.state.currentStep === target)
-            next = target;
-        }
-      }
-      if (!next || pendingApproval(history))
-        throw new RunControlError(
-          "interrupted_attempt",
-          "The interrupted run has no proven completed checkpoint. Its last attempt may have changed files; inspect the workspace and events before starting new work.",
-        );
+      const { next, last } = await completedCheckpoint(run, store);
       run.state = await store.updateRun(request.runId, {
         status: "paused",
         currentStep: next,
@@ -177,6 +195,28 @@ export class VeyraEngine {
     return this.#execute(request, store, run, events);
   }
 
+  async removeWorkspace(
+    request: ReadRunRequest,
+  ): Promise<{ runId: string; cwd: string; removed: true }> {
+    const store = this.#store(request);
+    const run = await store.loadRun(request.runId);
+    if (!["completed", "failed"].includes(run.state.status))
+      throw new RunControlError(
+        "workspace_run_active",
+        "Only completed or failed runs may have their worktree removed; paused runs keep their workspace for resume.",
+      );
+    if (run.input.workspace?.mode !== "worktree")
+      throw new RunControlError("shared_workspace", "This run has no isolated worktree to remove.");
+    await new LocalWorkspaceManager(store.directory).remove(request.runId, run.input.workspace);
+    await store.appendEvent(request.runId, {
+      type: "workspace.removed",
+      runId: request.runId,
+      workspace: run.input.workspace,
+      at: now(),
+    });
+    return { runId: request.runId, cwd: run.input.cwd, removed: true };
+  }
+
   async getPendingApproval(request: ReadRunRequest): Promise<PendingApproval | null> {
     const pending = pendingApproval(await this.#store(request).readEvents(request.runId));
     return pending
@@ -238,4 +278,31 @@ export class VeyraEngine {
 
 function now() {
   return new Date().toISOString();
+}
+
+async function completedCheckpoint(run: StoredRun, store: LocalRunStore) {
+  const graph = buildWorkflowGraph(run.input.workflow);
+  const history = await store.readEvents(run.state.runId);
+  const last = history.at(-1);
+  let next: string | undefined;
+  if (last?.type === "run.started" && run.state.currentStep === graph.scopes.get("")?.start)
+    next = run.state.currentStep;
+  if (
+    last?.type === "step.completed" &&
+    (!last.outcome || !["failure", "fail", "needs_input"].includes(last.outcome))
+  ) {
+    const step = graph.steps[last.stepId];
+    if (step && step.type !== "human") {
+      const target =
+        resolveNextStep(step, { status: last.outcome ?? "success" }) ??
+        (graph.scopeOf.get(last.stepId) ? last.stepId : undefined);
+      if (run.state.currentStep === last.stepId || run.state.currentStep === target) next = target;
+    }
+  }
+  if (!next || pendingApproval(history))
+    throw new RunControlError(
+      "interrupted_attempt",
+      "The interrupted run has no proven completed checkpoint. Its last attempt may have changed files; inspect the workspace and events before starting new work.",
+    );
+  return { next, last };
 }

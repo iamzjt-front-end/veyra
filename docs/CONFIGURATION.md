@@ -24,3 +24,7 @@ Project name and model have no inferred default. Returned objects and arrays are
 Core snapshots effective workflow policies when a run starts. An explicit step `retry.max` overrides workflow `policy.retry.max`, which overrides `runtime.maxFixIterations`; zero disables repairs while allowing initial work. Child workflow retry defaults override inherited defaults. See [execution policies](WORKFLOWS.md#workflow-execution-policies) for saved deadlines, concurrency caps, approval selection, failure behavior, budget hooks and lifetime step limits.
 
 See [`veyra.example.yaml`](../veyra.example.yaml) for the full shape. Keep credentials in environment variables or the provider's native login, never in generated config or committed examples. The loader does not interpolate environment variables or log config values. File errors include the absolute path; validation errors identify the field; malformed YAML errors include the parser error code and line/column without displaying a source excerpt.
+
+## Workspace selection
+
+`runtime.workspace` is optional; omission keeps the existing shared project directory and permits existing edits. Set `{ mode: worktree }` for a detached per-run Git worktree, with `dirtyPolicy: reject` by default or explicit `use-head` to use committed HEAD while preserving source edits. `dirtyPolicy` is valid only with worktree mode; unknown fields/modes are rejected. The chosen workspace is frozen in the run snapshot. See [workspace lifecycle and cleanup](WORKSPACES.md).

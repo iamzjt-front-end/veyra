@@ -1,3 +1,4 @@
+import { isWorkspaceInfo } from "@veyra/protocol";
 import {
   isAgentDescriptor,
   isAgentRequirements,
@@ -232,7 +233,13 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
     return false;
   switch (value.type) {
     case "run.started":
-      return string(value.goal) && optional(value.workflowName, string);
+      return (
+        string(value.goal) &&
+        optional(value.workflowName, string) &&
+        optional(value.workspace, isWorkspaceInfo)
+      );
+    case "workspace.removed":
+      return isWorkspaceInfo(value.workspace) && value.workspace.mode === "worktree";
     case "run.completed":
       return optional(value.timing, timing) && optional(value.usage, usage);
     case "run.failed":

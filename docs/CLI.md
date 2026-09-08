@@ -85,3 +85,7 @@ Default tests inject fake adapters through the CLI application's service interfa
 ## Explicit provider routing
 
 Agent nodes may opt into [ordered provider fallbacks](PROVIDER-ROUTING.md). Run text and JSON events report each evaluated candidate and selection reason before invocation. `workflow validate` checks every configured candidate without imports/probes. `doctor` includes per-step `routing` decisions using its collected readiness snapshots; an eligible fallback can satisfy a routed step, while independently pinned providers must still be ready. Configuration errors cannot be hidden by fallback. Omit workflow `routing` and explicitly configure `provider`/`model` to keep a binding pinned.
+
+## Workspace inspection and cleanup
+
+Optional `runtime.workspace.mode: worktree` creates a detached per-run workspace. `run.started` and `status` show the saved directory, isolation mode and starting commit; `status --json` adds `workspace` and `workspaceAvailable`. Resume retains that location even when current configuration changes. `ve workspace remove <run-id> [--config <file>] [--json]` removes only a clean, unchanged, Veyra-owned worktree for a completed/failed run and preserves its run history. There is no force option. See [workspace policies and boundaries](WORKSPACES.md).

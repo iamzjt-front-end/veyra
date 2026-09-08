@@ -35,6 +35,7 @@ const allowed: Record<string, string[]> = {
   ],
   doctor: ["config", "workflow", "allow-plugin"],
   workflow: ["config"],
+  workspace: ["config"],
   help: [],
   version: [],
 };
@@ -70,9 +71,18 @@ export function argumentsFor(argv: string[]) {
   if (
     command !== "run" &&
     command !== "workflow" &&
+    command !== "workspace" &&
     positionals.length > (["status", "review", "resume"].includes(command) ? 1 : 0)
   )
     throw new CliError("unexpected_argument", `Unexpected argument for ve ${command}.`);
+  if (
+    command === "workspace" &&
+    (positionals.length !== 2 || positionals[0] !== "remove" || !positionals[1]?.trim())
+  )
+    throw new CliError(
+      "invalid_workspace_command",
+      "Use ve workspace remove <run-id> [--config <file>] [--json].",
+    );
   if (command === "workflow") {
     const [action, reference] = positionals;
     if (action !== "list" && action !== "validate")
@@ -123,6 +133,7 @@ Commands:
   doctor      inspect environment and required provider readiness
   workflow list          list built-in workflows and required agents
   workflow validate <name/path>  validate a workflow without executing it
+  workspace remove <id>  remove a clean, unchanged worktree after a terminal run
   version     print version
   help        show this help
 

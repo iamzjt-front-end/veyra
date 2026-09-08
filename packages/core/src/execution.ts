@@ -480,6 +480,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
         runId,
         goal: run.input.goal,
         workflowName: run.input.workflow.name,
+        ...(run.input.workspace ? { workspace: run.input.workspace } : {}),
         at: now(),
       });
     result = await executeScope("", undefined, history.length > 0);

@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readFile, readdir, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { isJsonValue, type JsonValue, type VeyraEvent } from "@veyra/protocol";
+import {
+  isJsonValue,
+  isWorkspaceInfo,
+  type WorkspaceInfo,
+  type JsonValue,
+  type VeyraEvent,
+} from "@veyra/protocol";
 import { createSecretRedactor, isSecretField, type SecretRedactor } from "@veyra/runtime";
 import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { isStoredEvent } from "./state-events.js";
@@ -14,6 +20,7 @@ export interface StoredRunInput {
   goal: string;
   workflow: WorkflowDefinition;
   cwd: string;
+  workspace?: WorkspaceInfo;
   createdAt: string;
 }
 
@@ -38,6 +45,7 @@ export interface CreateRunInput {
   goal: string;
   workflow: WorkflowDefinition;
   cwd?: string;
+  workspace?: WorkspaceInfo;
 }
 
 export interface RunStateUpdate {
@@ -79,12 +87,12 @@ export class LocalRunStore {
     this.#redactor = createSecretRedactor({ values: options.redactValues });
   }
 
-  createRun(input: CreateRunInput): Promise<StoredRun> {
+  createRun(input: CreateRunInput, runId = randomUUID()): Promise<StoredRun> {
     return this.#mutate(async () => {
       if (
         typeof input.goal !== "string" ||
         !input.goal.trim() ||
-        Object.keys(input).some((key) => !["goal", "workflow", "cwd"].includes(key))
+        Object.keys(input).some((key) => !["goal", "workflow", "cwd", "workspace"].includes(key))
       ) {
         throw new StateStoreError(
           "invalid_input",
@@ -106,8 +114,20 @@ export class LocalRunStore {
       if (input.cwd !== undefined && (typeof input.cwd !== "string" || !input.cwd.trim())) {
         throw new StateStoreError("invalid_input", this.directory, "cwd must be a non-empty path.");
       }
+      this.#runPath(runId);
+      if (await exists(this.#runPath(runId)))
+        throw new StateStoreError("invalid_input", this.directory, "Run ID already exists.");
+      if (
+        input.workspace !== undefined &&
+        (!isWorkspaceInfo(input.workspace) ||
+          input.workspace.cwd !== resolve(input.cwd ?? process.cwd()))
+      )
+        throw new StateStoreError(
+          "invalid_input",
+          this.directory,
+          "Invalid workspace snapshot or mismatched cwd.",
+        );
       await this.#ensureLayout();
-      const runId = randomUUID();
       const at = new Date().toISOString();
       const storedInput: StoredRunInput = {
         version: 1,
@@ -115,6 +135,7 @@ export class LocalRunStore {
         goal: input.goal,
         workflow,
         cwd: resolve(input.cwd ?? process.cwd()),
+        ...(input.workspace ? { workspace: structuredClone(input.workspace) } : {}),
         createdAt: at,
       };
       const state: StoredRunState = {
@@ -130,9 +151,18 @@ export class LocalRunStore {
       await mkdir(staging, { mode: 0o700 });
       try {
         await mkdir(join(staging, "artifacts"), { mode: 0o700 });
-        await this.#writeAtomic(join(staging, "input.json"), storedInput, (value) =>
-          parseInput(value, runId, staging, "invalid_input"),
-        );
+        await this.#writeAtomic(join(staging, "input.json"), storedInput, (value) => {
+          const parsed = parseInput(value, runId, staging, "invalid_input");
+          if (
+            parsed.cwd !== storedInput.cwd ||
+            JSON.stringify(parsed.workspace) !== JSON.stringify(storedInput.workspace)
+          )
+            throw new StateStoreError(
+              "invalid_input",
+              staging,
+              "Secret redaction changed the execution location; use a workspace path without credentials.",
+            );
+        });
         await this.#writeAtomic(join(staging, "state.json"), state, (value) =>
           parseState(value, storedInput, staging, "invalid_input"),
         );
@@ -417,7 +447,8 @@ function parseInput(
     !isJsonValue(value) ||
     !object(value) ||
     Object.keys(value).some(
-      (key) => !["version", "runId", "goal", "workflow", "cwd", "createdAt"].includes(key),
+      (key) =>
+        !["version", "runId", "goal", "workflow", "cwd", "workspace", "createdAt"].includes(key),
     ) ||
     value.version !== 1 ||
     value.runId !== runId ||
@@ -425,6 +456,8 @@ function parseInput(
     !value.goal.trim() ||
     typeof value.cwd !== "string" ||
     !value.cwd.trim() ||
+    (value.workspace !== undefined &&
+      (!isWorkspaceInfo(value.workspace) || value.workspace.cwd !== value.cwd)) ||
     !timestamp(value.createdAt)
   )
     throw new StateStoreError(
@@ -448,6 +481,7 @@ function parseInput(
     runId,
     goal: value.goal,
     cwd: value.cwd,
+    ...(isWorkspaceInfo(value.workspace) ? { workspace: value.workspace } : {}),
     createdAt: value.createdAt,
     workflow,
   };

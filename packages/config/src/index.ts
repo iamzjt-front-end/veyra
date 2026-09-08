@@ -27,6 +27,7 @@ export interface VeyraConfig {
   runtime: {
     maxFixIterations: number;
     stateDir: string;
+    workspace?: { mode: "shared" | "worktree"; dirtyPolicy?: "reject" | "use-head" };
   };
   approval: {
     requiredFor: string[];
@@ -146,7 +147,7 @@ export function parseConfig(value: unknown): VeyraConfig {
   const runtime =
     root.runtime === undefined
       ? {}
-      : object(root.runtime, "runtime", ["maxFixIterations", "stateDir"]);
+      : object(root.runtime, "runtime", ["maxFixIterations", "stateDir", "workspace"]);
   const maxFixIterations = runtime.maxFixIterations === undefined ? 3 : runtime.maxFixIterations;
   if (
     typeof maxFixIterations !== "number" ||
@@ -174,6 +175,26 @@ export function parseConfig(value: unknown): VeyraConfig {
       requiredFor: requiredFor.map((item, index) => text(item, `approval.requiredFor[${index}]`)),
     },
   };
+  if (runtime.workspace !== undefined) {
+    const workspace = object(runtime.workspace, "runtime.workspace", ["mode", "dirtyPolicy"]);
+    if (workspace.mode !== "shared" && workspace.mode !== "worktree")
+      throw new ConfigError("runtime.workspace.mode", "expected shared or worktree");
+    if (
+      workspace.dirtyPolicy !== undefined &&
+      (workspace.mode !== "worktree" ||
+        !["reject", "use-head"].includes(workspace.dirtyPolicy as string))
+    )
+      throw new ConfigError(
+        "runtime.workspace.dirtyPolicy",
+        "expected reject or use-head, only in worktree mode",
+      );
+    config.runtime.workspace = {
+      mode: workspace.mode,
+      ...(workspace.mode === "worktree"
+        ? { dirtyPolicy: (workspace.dirtyPolicy ?? "reject") as "reject" | "use-head" }
+        : {}),
+    };
+  }
   if (root.project !== undefined) {
     const project = object(root.project, "project", ["name"]);
     config.project = { name: text(project.name, "project.name") };
