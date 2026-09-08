@@ -1511,7 +1511,7 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,670 test
 
 ## M6.9 — Cross-platform support
 
-**Status:** [-] Follow-up: investigating intermittent macOS final-escalation reaping race.
+**Status:** [x] Complete and verified, including the final-escalation follow-up.
 
 - [x] macOS support verified
 - [x] Linux support verified
@@ -1522,7 +1522,7 @@ Local frozen install and all five baseline commands passed on macOS arm64 with N
 
 Follow-up: the documentation commit's [macOS CI run](https://github.com/iamzjt-front-end/veyra/actions/runs/34203906068) exposed a real reaping race: graceful group signaling returned `EPERM`, followed by final `ESRCH`. Commit `44d63e4` uses the final escalation result and keeps persistent failures fatal. Three regression cases passed; a real delayed-event-loop reproduction returned the same `EPERM` but completed correctly in all 12 runs after the fix. Commit `d802b13` also gives one repeated consensus persistence fixture a 15-second test limit after a concurrent-I/O timeout, preserving its assertions. All five local checks subsequently passed with 1,681 tests.
 
-A later [macOS run](https://github.com/iamzjt-front-end/veyra/actions/runs/34215053763) failed `stops a process after its timeout` with `termination_failed`, `systemCode: EPERM`, even though the leader closed with SIGTERM. Newer hosted runs passed, but final escalation could still race reaping. A delayed-event-loop real-process probe reproduced it in all 24 trials before the fix. macOS now retries final SIGKILL EPERM at most five times with 10 ms delays, still requiring success or ESRCH and rejecting persistent errors. Seven mocked platform cases and the real macOS regression passed; all 24 subsequent real-process trials succeeded. Frozen install and all five local baseline checks passed (1,713 tests). Hosted macOS/Linux verification is pending before closing this follow-up.
+A later [macOS run](https://github.com/iamzjt-front-end/veyra/actions/runs/34215053763) failed `stops a process after its timeout` with `termination_failed`, `systemCode: EPERM`, even though the leader closed with SIGTERM. Newer hosted runs passed, but final escalation could still race reaping. A delayed-event-loop real-process probe reproduced it in all 24 trials before the fix. macOS now retries final SIGKILL EPERM at most five times with 10 ms delays, still requiring success or ESRCH and rejecting persistent errors. Seven mocked platform cases and the real macOS regression passed; all 24 subsequent real-process trials succeeded. Frozen install and all five local baseline checks passed (1,713 tests). The [hosted macOS/Linux matrix](https://github.com/iamzjt-front-end/veyra/actions/runs/34217217937) passed every check at `6b64a22`, closing this follow-up.
 
 ---
 
@@ -1735,4 +1735,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.9 — Verify the macOS cleanup follow-up, then M7.8.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.8 — Documentation site / polished README.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
