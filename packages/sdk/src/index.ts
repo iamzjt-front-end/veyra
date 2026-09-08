@@ -21,6 +21,7 @@ export type {
   ApprovalDecision,
   ArtifactRef,
   EventMetadata,
+  RecoveryBoundary,
   EventSink,
   ExecutionMetadata,
   ExecutionTiming,

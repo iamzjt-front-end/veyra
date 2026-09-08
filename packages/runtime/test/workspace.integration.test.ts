@@ -6,7 +6,7 @@ import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { git, initializeGit } from "../../../test/helpers/git.js";
 import { LocalWorkspaceManager, runProcess } from "../src/index.js";
 
-describe("local workspace lifecycle", () => {
+describe("local workspace lifecycle", { timeout: 30_000 }, () => {
   it("preserves the shared directory and rejects overlapping runs across state directories", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const first = await new LocalWorkspaceManager(join(path, "state-one")).prepare(

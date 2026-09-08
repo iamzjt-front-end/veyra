@@ -41,4 +41,6 @@ On Windows, the runtime invokes the system `taskkill.exe /PID <pid> /T /F` to fo
 
 ## Workspace lifecycle
 
+`currentProcessOwner()` returns local coordinator PID, hostname and approximate process start time. `isProcessOwner()` validates the small metadata contract; `inspectProcessOwner()` probes only signal zero and returns `alive`, `dead` (only local `ESRCH`) or `unknown`. Foreign owners and denied probes stay unknown; PID reuse is conservatively alive. These helpers do not acquire locks, stop processes or prove effects completed. Core uses them for [crash inspection and recovery](CRASH-RECOVERY.md).
+
 `LocalWorkspaceManager(stateDir)` prepares and leases shared directories or detached Git worktrees, validates ownership on resume, and removes only an eligible unchanged worktree. Core supplies the run ID and saves the returned `WorkspaceInfo` before invoking any agent. Callers of the Runtime API must release each returned lease in `finally`; Core handles that lifecycle for normal runs. See [workspaces](WORKSPACES.md) for configuration, dirty-tree defaults, concurrency scope, preservation and cleanup.

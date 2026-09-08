@@ -18,6 +18,7 @@ export {
 } from "./state.js";
 
 export { RunControlError } from "./control-error.js";
+export type { RunInspection, RunCheckpoint } from "./recovery.js";
 export { discoverAgents, type DiscoveredAgent, type DiscoveryOptions } from "./agents.js";
 export type { AgentCandidate } from "./agents.js";
 export { selectAgentRoute, type AgentRouteRequest } from "./agent-routing.js";

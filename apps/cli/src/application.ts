@@ -224,6 +224,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     const run = "input" in latest ? latest : await store.loadRun(latest.runId);
     const request = { config, runId: run.state.runId, cwd: root };
     if (command === "status") {
+      const inspection = await engine.inspectRun(request);
       const approval = await engine.getPendingApproval(request);
       const workspace = run.input.workspace ?? {
         mode: "shared" as const,
@@ -239,6 +240,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       write(
         {
           ...run.state,
+          ...inspection,
           goal: run.input.goal,
           cwd: run.input.cwd,
           workspace,
@@ -247,7 +249,13 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         },
         [
           `Run: ${run.state.runId}`,
-          `Status: ${run.state.status}`,
+          `Status: ${inspection.status}${inspection.status !== run.state.status ? ` (saved: ${run.state.status})` : ""}`,
+          ...(run.state.status === "running"
+            ? [
+                `Owner: ${run.state.owner ? `${run.state.owner.host} PID ${run.state.owner.pid}` : "unrecorded"} (${inspection.ownerStatus})`,
+                `Recovery: ${inspection.recovery.allowed ? "available with --recover-interrupted" : "refused"} — ${inspection.recovery.reason}`,
+              ]
+            : []),
           `Step: ${run.state.currentStep ?? "—"}`,
           `Retries: ${JSON.stringify(run.state.retryCounts)}`,
           `Created: ${run.state.createdAt}`,

@@ -228,7 +228,13 @@ describe("deterministic CLI vertical slice", () => {
       const interrupted = await start();
       expect(interrupted.exitCode).toBe(71);
       const status = await ve("status");
-      expect(status.last).toMatchObject({ status: "running", currentStep: "plan" });
+      expect(status.last).toMatchObject({
+        status: "interrupted",
+        storedStatus: "running",
+        currentStep: "plan",
+        ownerStatus: "dead",
+        recovery: { allowed: true },
+      });
       expect((await ve("resume")).exitCode).toBe(2);
       const resumed = await ve("resume", "--recover-interrupted");
       expect(resumed.exitCode, resumed.stdout).toBe(0);

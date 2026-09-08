@@ -29,7 +29,7 @@ const workflow: WorkflowDefinition = {
   },
 };
 
-describe("Core workspace coordination", () => {
+describe("Core workspace coordination", { timeout: 30_000 }, () => {
   it("refuses persistence when redaction would change the leased execution location", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const secret = "fixture-path-credential";

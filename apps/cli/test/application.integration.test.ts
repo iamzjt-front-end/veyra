@@ -1,6 +1,8 @@
 import { readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentConfig } from "@veyra/config";
+import { parseConfig } from "@veyra/config";
+import { LocalRunStore } from "@veyra/core";
 import type { AgentAdapter } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
 import type { WorkflowDefinition } from "@veyra/workflow";
@@ -39,6 +41,40 @@ function commands(cwd: string, dependencies: CliServices = {}) {
 }
 
 describe("CLI application commands", () => {
+  it("reports unknown legacy ownership in plain and JSON status without creating providers or mutating state", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const config = parseConfig({ version: 1, workflow: { use: "fixture" }, agents: {} });
+      await writeFile(join(path, "veyra.yaml"), JSON.stringify(config));
+      const store = new LocalRunStore({ stateDir: join(path, ".veyra") });
+      const run = await store.createRun({
+        goal: "Legacy fixture",
+        cwd: path,
+        workflow: {
+          version: 1,
+          name: "legacy",
+          start: "work",
+          steps: { work: { type: "end" } },
+        },
+      });
+      const ve = commands(path, {
+        createAgent: () => {
+          throw new Error("Status must not construct providers");
+        },
+      });
+      const result = await ve(["status", run.state.runId, "--json"]);
+      expect(result.code, result.stderr).toBe(0);
+      expect(result.records()[0]).toMatchObject({
+        status: "unknown",
+        storedStatus: "running",
+        ownerStatus: "unknown",
+        recovery: { allowed: false },
+      });
+      const plain = await ve(["status", run.state.runId]);
+      expect(plain.stdout).toContain("Status: unknown (saved: running)");
+      expect(plain.stdout).toContain("Recovery: refused");
+      expect(await store.loadRun(run.state.runId)).toEqual(run);
+    });
+  });
   it("redacts recognizable credentials in plain and JSON CLI errors without an environment value", async () => {
     const secret = `sk-proj-${"FixtureOnly".repeat(5)}`;
     for (const flags of [[], ["--json"]]) {

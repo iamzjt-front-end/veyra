@@ -1441,11 +1441,17 @@ Blocker evidence: `apps/tui/src/index.ts` still prints only `TUI scaffold`; `app
 
 ## M6.4 — Crash recovery and idempotency
 
-- [ ] atomic state updates
-- [ ] distinguish `running` from stale/interrupted after process death
-- [ ] recovery policy for an agent step that may have partially mutated files
-- [ ] `resume` must not blindly repeat destructive completed work
-- [ ] persist step attempt IDs and completion boundaries
+**Status:** [x] Complete and verified.
+
+- [x] atomic state updates
+- [x] distinguish `running` from stale/interrupted after process death
+- [x] recovery policy for an agent step that may have partially mutated files
+- [x] `resume` must not blindly repeat destructive completed work
+- [x] persist step attempt IDs and completion boundaries
+
+Implemented coordinator ownership snapshots and read-only Core/CLI liveness inspection, validated attempt/completion matching, terminal checkpoint finalization, and durable recovery references that survive a second crash during reconciliation. Live/unknown owners, unmatched attempts, unfinished peers and torn history remain refused. Completed nested steps retain their existing success/failure semantics without replay. POSIX state publication now syncs directory entries as well as file content; snapshots remain individually atomic. [CRASH-RECOVERY](CRASH-RECOVERY.md) documents partial-mutation policy, explicit recovery, legacy/foreign owners and filesystem limits. General state locking remains M6.5.
+
+Verified all five baseline commands and 1,588 tests, including 42 new cases covering real process death, atomic rename boundaries, single file mutations, interrupted reconciliation, owner probes, malformed evidence and CLI status. Existing nested-workflow and E2E recovery tests also passed. The full suite exposed a child unmatched-outcome regression, which was fixed and reverified. Core tests now use four workers and real-Git workspace tests have a 30-second bound after concurrent synced filesystem tests exceeded the previous 5-second limits. POSIX-specific SIGKILL tests ran on this macOS host; Windows-specific verification remains separately tracked.
 
 ---
 
@@ -1667,4 +1673,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.4 — Crash recovery and idempotency.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.
+**Next eligible: M6.5 — Concurrency and locking.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.

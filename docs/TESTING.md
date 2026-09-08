@@ -12,6 +12,8 @@ Run `pnpm check` for strict TypeScript checks on production code, tests, and tes
 
 Every workspace already has a Vitest test script. The shared `vitest.config.ts` discovers `test/**/*.test.ts` relative to each invocation's working directory: package scripts find their owned tests, and the root invocation finds shared tests while excluding fixture projects. `tsconfig.test.json` checks tests without emitting files into package builds. Turbo invalidates cached tasks when shared helpers or fixtures change. Default tests do not generate coverage reports.
 
+Core's package test script limits Vitest to four workers because its integration suites exercise synced filesystem writes and process-death recovery. The real-Git workspace suites use a 30-second per-test bound to accommodate multiple subprocesses under concurrent load. These limits leave behavioral assertions intact; time-sensitive Runtime tests retain their explicit execution deadlines.
+
 ## Deterministic agents
 
 `FakeAgent` implements `@veyra/protocol`'s `AgentAdapter`. Construct it with the exact `AgentResult` a scenario needs. Each run returns a copy of that result and records a copy of its input in `calls`, so mutation in one assertion cannot change a later response. No provider SDK or credentials are involved.
@@ -23,6 +25,8 @@ Every workspace already has a Vitest test script. The shared `vitest.config.ts` 
 Use `withFixtureWorkspace(async (workspace) => { ... })` from `test/helpers/workspace.ts` to copy this project to a unique directory under the OS temporary directory. It removes the copy on both success and failure. Tests needing explicit lifetime control can call `createFixtureWorkspace()` and invoke `cleanup()` in `finally` or `afterEach`; cleanup is safe to call more than once.
 
 Only mutate the temporary copy. Do not run agents or mutating tests against the committed fixture or the developer's repository. Give subprocesses explicit working directories and timeouts, and check their exit status. Never write secrets into fixtures or test output.
+
+Core's crash suites use disposable child processes and real `SIGKILL` at completed/uncertain attempts, during recovery reconciliation, and immediately before/after the store's actual rename. They verify persisted attempt identity and single filesystem mutations, preserve torn history, and refuse live/unknown owners. POSIX signal-specific cases are skipped on Windows; Windows-specific verification remains tracked separately. See [the recovery contract](CRASH-RECOVERY.md).
 
 ## End-to-end CLI scenarios
 

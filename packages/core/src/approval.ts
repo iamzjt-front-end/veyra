@@ -164,7 +164,7 @@ export async function resolveApprovalDecision(
 }
 
 export function pendingApproval(
-  events: VeyraEvent[],
+  events: readonly VeyraEvent[],
 ): Extract<VeyraEvent, { type: "approval.required" }> | undefined {
   let pending: Extract<VeyraEvent, { type: "approval.required" }> | undefined;
   for (const event of events) {

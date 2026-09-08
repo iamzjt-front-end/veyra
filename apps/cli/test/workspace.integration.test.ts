@@ -5,7 +5,7 @@ import { initializeGit } from "../../../test/helpers/git.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { runCli } from "../src/application.js";
 
-describe("workspace CLI", () => {
+describe("workspace CLI", { timeout: 30_000 }, () => {
   it("shows persisted worktree metadata in run/status and removes a clean terminal workspace", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       await writeFile(

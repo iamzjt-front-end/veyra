@@ -265,13 +265,24 @@ interface AgentEventMetadata extends StepEventMetadata {
 
 export type ApprovalDecision = "approved" | "rejected";
 
+/** The durable event whose completed scheduling boundary was reconciled after a crash. */
+export interface RecoveryBoundary {
+  eventId: string;
+  sequence: number;
+}
+
 export type VeyraEvent = EventMetadata &
   (
     | { type: "run.started"; goal: string; workflowName?: string; workspace?: WorkspaceInfo }
     | { type: "workspace.removed"; workspace: WorkspaceInfo }
-    | { type: "run.completed"; timing?: ExecutionTiming; usage?: UsageMetadata }
+    | {
+        type: "run.completed";
+        timing?: ExecutionTiming;
+        usage?: UsageMetadata;
+        recovery?: RecoveryBoundary;
+      }
     | { type: "run.failed"; message: string; error?: SerializedError }
-    | { type: "run.paused"; stepId?: string; reason?: string }
+    | { type: "run.paused"; stepId?: string; reason?: string; recovery?: RecoveryBoundary }
     | { type: "run.resumed"; stepId?: string }
     | (StepEventMetadata & { type: "step.started" })
     | (StepEventMetadata & {

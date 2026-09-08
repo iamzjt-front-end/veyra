@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readFile, readdir, rename, rm } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
   isJsonValue,
   isWorkspaceInfo,
@@ -8,7 +8,13 @@ import {
   type JsonValue,
   type VeyraEvent,
 } from "@veyra/protocol";
-import { createSecretRedactor, isSecretField, type SecretRedactor } from "@veyra/runtime";
+import {
+  createSecretRedactor,
+  isSecretField,
+  isProcessOwner,
+  type ProcessOwner,
+  type SecretRedactor,
+} from "@veyra/runtime";
 import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { isStoredEvent } from "./state-events.js";
 
@@ -34,6 +40,8 @@ export interface StoredRunState {
   createdAt: string;
   updatedAt: string;
   lastOutcome?: string;
+  /** Last execution owner; liveness is observed separately, never inferred from status alone. */
+  owner?: ProcessOwner;
 }
 
 export interface StoredRun {
@@ -53,6 +61,7 @@ export interface RunStateUpdate {
   currentStep?: string | null;
   retryCounts?: Record<string, number>;
   lastOutcome?: string;
+  owner?: ProcessOwner;
 }
 
 export interface LocalRunStoreOptions {
@@ -172,8 +181,14 @@ export class LocalRunStore {
           parseState(value, storedInput, staging, "invalid_input"),
         );
         const events = await open(join(staging, "events.jsonl"), "wx", 0o600);
-        await events.close();
+        try {
+          await events.sync();
+        } finally {
+          await events.close();
+        }
+        await syncDirectory(staging);
         await rename(staging, this.#runPath(runId));
+        await syncDirectory(join(this.directory, "runs"));
       } finally {
         await rm(staging, { recursive: true, force: true });
       }
@@ -186,7 +201,7 @@ export class LocalRunStore {
     return this.#mutate(async () => {
       if (
         Object.keys(update).some(
-          (key) => !["status", "currentStep", "retryCounts", "lastOutcome"].includes(key),
+          (key) => !["status", "currentStep", "retryCounts", "lastOutcome", "owner"].includes(key),
         )
       ) {
         throw new StateStoreError(
@@ -408,6 +423,7 @@ export class LocalRunStore {
         await handle.close();
       }
       await rename(temp, path);
+      await syncDirectory(dirname(path));
     } finally {
       if (created) await rm(temp, { force: true });
     }
@@ -513,6 +529,7 @@ function parseState(
           "createdAt",
           "updatedAt",
           "lastOutcome",
+          "owner",
         ].includes(key),
     ) ||
     value.version !== 1 ||
@@ -531,6 +548,7 @@ function parseState(
         count < 0,
     ) ||
     (value.lastOutcome !== undefined && typeof value.lastOutcome !== "string") ||
+    (value.owner !== undefined && !isProcessOwner(value.owner)) ||
     (value.currentStep !== undefined &&
       (typeof value.currentStep !== "string" || !Object.hasOwn(steps, value.currentStep))) ||
     ((value.status === "running" || value.status === "paused") && value.currentStep === undefined)
@@ -586,6 +604,18 @@ async function exists(path: string) {
   } catch (error) {
     if (systemCode(error) === "ENOENT") return false;
     throw error;
+  }
+}
+
+async function syncDirectory(path: string) {
+  // Node cannot portably open directories for syncing on Windows. File sync and
+  // atomic rename still apply there; filesystem/power-loss guarantees vary.
+  if (process.platform === "win32") return;
+  const handle = await open(path, "r");
+  try {
+    await handle.sync();
+  } finally {
+    await handle.close();
   }
 }
 

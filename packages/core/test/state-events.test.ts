@@ -4,6 +4,23 @@ import { isStoredEvent } from "../src/state-events.js";
 
 const metadata = { runId: "run", stepId: "step", at: "2026-09-08T00:00:00.000Z" };
 
+it.each([
+  { eventId: "boundary", sequence: 1 },
+  { eventId: "", sequence: 1 },
+  { eventId: "boundary", sequence: 0 },
+  { eventId: "boundary", sequence: 1.5 },
+  { eventId: "boundary", sequence: "1" },
+  { eventId: "boundary", sequence: 1, extra: true },
+  null,
+])("validates a persisted recovery reference %#", (recovery) => {
+  const valid =
+    recovery?.eventId === "boundary" &&
+    recovery.sequence === 1 &&
+    Object.keys(recovery).length === 2;
+  for (const type of ["run.paused", "run.completed"])
+    expect(isStoredEvent({ ...metadata, type, recovery })).toBe(valid);
+});
+
 it.each(["workflow", "caller", "provider", "", null])(
   "validates persisted command provenance %j",
   (commandSource) => {

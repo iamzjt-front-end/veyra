@@ -1,6 +1,13 @@
 import type { AgentAdapter, AgentInput, AgentResult, AgentRunOptions } from "@veyra/protocol";
 export { createDeadline } from "./deadline.js";
 export {
+  currentProcessOwner,
+  inspectProcessOwner,
+  isProcessOwner,
+  type ProcessOwner,
+  type ProcessLiveness,
+} from "./owner.js";
+export {
   LocalWorkspaceManager,
   type PreparedWorkspace,
   type WorkspacePolicy,

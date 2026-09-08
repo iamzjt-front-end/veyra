@@ -3,6 +3,7 @@ import { mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promis
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
 import type { VeyraEvent } from "@veyra/protocol";
+import { currentProcessOwner } from "@veyra/runtime";
 import type { WorkflowDefinition } from "@veyra/workflow";
 import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
@@ -21,6 +22,20 @@ const workflow: WorkflowDefinition = {
 const execute = promisify(execFile);
 
 describe("local run state", () => {
+  it("persists validated execution ownership without changing immutable run input", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const store = new LocalRunStore({ stateDir: join(path, ".veyra") });
+      const run = await store.createRun({ goal: "Ownership", workflow, cwd: path });
+      const owner = currentProcessOwner();
+      expect(await store.updateRun(run.state.runId, { owner })).toMatchObject({ owner });
+      const before = await store.loadRun(run.state.runId);
+      expect(before.input).toEqual(run.input);
+      await expect(
+        store.updateRun(run.state.runId, { owner: { ...owner, pid: 0 } }),
+      ).rejects.toMatchObject({ code: "invalid_input" });
+      expect(await store.loadRun(run.state.runId)).toEqual(before);
+    });
+  });
   it("defaults to the local .veyra directory without creating state in its constructor", () => {
     expect(new LocalRunStore().directory).toBe(resolve(".veyra"));
   });

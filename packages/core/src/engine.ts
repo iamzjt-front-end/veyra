@@ -8,11 +8,15 @@ import type {
   SerializedError,
   VeyraEvent,
 } from "@veyra/protocol";
-import { type AgentRuntime, LocalAgentRuntime, LocalWorkspaceManager } from "@veyra/runtime";
+import {
+  type AgentRuntime,
+  currentProcessOwner,
+  LocalAgentRuntime,
+  LocalWorkspaceManager,
+} from "@veyra/runtime";
 import { ShellVerifier, type Verifier } from "@veyra/verifier";
 import {
   buildWorkflowGraph,
-  resolveNextStep,
   withExecutionDefaults,
   type WorkflowDefinition,
 } from "@veyra/workflow";
@@ -27,6 +31,7 @@ import { RunControlError } from "./control-error.js";
 import { executeRun } from "./execution.js";
 import type { BudgetHook } from "./budget.js";
 import { LocalRunStore, type StoredRun } from "./state.js";
+import { inspectRun, requireRecovery, type RunInspection } from "./recovery.js";
 
 export interface RunRequest extends AgentRunOptions {
   goal: string;
@@ -47,7 +52,7 @@ export interface ResumeRequest extends AgentRunOptions {
   runId: string;
   config: VeyraConfig;
   agents: Record<string, AgentAdapter>;
-  /** Caller confirms the old owner stopped; only completed scheduling boundaries are recoverable. */
+  /** Caller confirms the old owner and its children stopped; requires a proven completed boundary. */
   recoverInterrupted?: boolean;
 }
 
@@ -112,7 +117,7 @@ export class VeyraEngine {
         "Only a paused run can resume; do not replay an interrupted running attempt blindly.",
       );
     if (saved.state.status === "running" && request.recoverInterrupted)
-      await completedCheckpoint(saved, store);
+      requireRecovery(saved, await store.readEvents(request.runId));
     const manager = new LocalWorkspaceManager(store.directory);
     const workspace = saved.input.workspace
       ? await manager.resume(request.runId, saved.input.workspace, request.recoverInterrupted)
@@ -129,19 +134,41 @@ export class VeyraEngine {
     const run = await store.loadRun(request.runId);
     const graph = buildWorkflowGraph(run.input.workflow);
     if (run.state.status === "running" && request.recoverInterrupted) {
-      const { next, last } = await completedCheckpoint(run, store);
+      const history = await store.readEvents(request.runId);
+      const checkpoint = requireRecovery(run, history);
+      const tail = history.at(-1);
+      // Record the decision before replacing state. An interruption between these
+      // writes can reconcile the same boundary without invoking any work twice.
+      if (!((tail?.type === "run.paused" || tail?.type === "run.completed") && tail.recovery))
+        await store.appendEvent(
+          request.runId,
+          checkpoint.terminal
+            ? {
+                type: "run.completed",
+                runId: request.runId,
+                recovery: checkpoint.boundary,
+                at: now(),
+              }
+            : {
+                type: "run.paused",
+                runId: request.runId,
+                stepId: checkpoint.nextStep,
+                reason: "recovered_completed_checkpoint",
+                recovery: checkpoint.boundary,
+                at: now(),
+              },
+        );
       run.state = await store.updateRun(request.runId, {
-        status: "paused",
-        currentStep: next,
-        ...(last?.type === "step.completed" && last.outcome ? { lastOutcome: last.outcome } : {}),
+        status: checkpoint.terminal ? "completed" : "paused",
+        currentStep: checkpoint.nextStep ?? null,
+        ...(checkpoint.outcome ? { lastOutcome: checkpoint.outcome } : {}),
       });
-      await store.appendEvent(request.runId, {
-        type: "run.paused",
-        runId: request.runId,
-        stepId: next,
-        reason: "recovered_completed_checkpoint",
-        at: now(),
-      });
+      if (checkpoint.terminal)
+        return {
+          runId: request.runId,
+          status: "completed",
+          ...(checkpoint.stepId ? { lastStep: checkpoint.stepId } : {}),
+        };
     }
     if (run.state.status !== "paused")
       throw new RunControlError(
@@ -231,6 +258,12 @@ export class VeyraEngine {
       : null;
   }
 
+  async inspectRun(request: ReadRunRequest): Promise<RunInspection> {
+    const store = this.#store(request);
+    const run = await store.loadRun(request.runId);
+    return inspectRun(run, await store.readEvents(request.runId));
+  }
+
   resolveApproval(request: ResolveApprovalRequest): Promise<RunResult> {
     const snapshot = { ...request };
     const store = this.#store(snapshot);
@@ -262,6 +295,7 @@ export class VeyraEngine {
     run: StoredRun,
     history: VeyraEvent[],
   ): Promise<RunResult> {
+    run.state = await store.updateRun(run.state.runId, { owner: currentProcessOwner() });
     return executeRun({
       run,
       store,
@@ -278,31 +312,4 @@ export class VeyraEngine {
 
 function now() {
   return new Date().toISOString();
-}
-
-async function completedCheckpoint(run: StoredRun, store: LocalRunStore) {
-  const graph = buildWorkflowGraph(run.input.workflow);
-  const history = await store.readEvents(run.state.runId);
-  const last = history.at(-1);
-  let next: string | undefined;
-  if (last?.type === "run.started" && run.state.currentStep === graph.scopes.get("")?.start)
-    next = run.state.currentStep;
-  if (
-    last?.type === "step.completed" &&
-    (!last.outcome || !["failure", "fail", "needs_input"].includes(last.outcome))
-  ) {
-    const step = graph.steps[last.stepId];
-    if (step && step.type !== "human") {
-      const target =
-        resolveNextStep(step, { status: last.outcome ?? "success" }) ??
-        (graph.scopeOf.get(last.stepId) ? last.stepId : undefined);
-      if (run.state.currentStep === last.stepId || run.state.currentStep === target) next = target;
-    }
-  }
-  if (!next || pendingApproval(history))
-    throw new RunControlError(
-      "interrupted_attempt",
-      "The interrupted run has no proven completed checkpoint. Its last attempt may have changed files; inspect the workspace and events before starting new work.",
-    );
-  return { next, last };
 }

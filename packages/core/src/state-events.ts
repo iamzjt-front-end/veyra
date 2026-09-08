@@ -44,6 +44,17 @@ function timing(value: unknown): boolean {
   );
 }
 
+function recovery(value: unknown): boolean {
+  return (
+    record(value) &&
+    Object.keys(value).length === 2 &&
+    typeof value.eventId === "string" &&
+    value.eventId.length > 0 &&
+    integer(value.sequence) &&
+    (value.sequence as number) > 0
+  );
+}
+
 function usage(value: unknown): boolean {
   return (
     record(value) &&
@@ -241,11 +252,19 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
     case "workspace.removed":
       return isWorkspaceInfo(value.workspace) && value.workspace.mode === "worktree";
     case "run.completed":
-      return optional(value.timing, timing) && optional(value.usage, usage);
+      return (
+        optional(value.timing, timing) &&
+        optional(value.usage, usage) &&
+        optional(value.recovery, recovery)
+      );
     case "run.failed":
       return string(value.message) && optional(value.error, error);
     case "run.paused":
-      return optional(value.stepId, string) && optional(value.reason, string);
+      return (
+        optional(value.stepId, string) &&
+        optional(value.reason, string) &&
+        optional(value.recovery, recovery)
+      );
     case "run.resumed":
       return optional(value.stepId, string);
   }

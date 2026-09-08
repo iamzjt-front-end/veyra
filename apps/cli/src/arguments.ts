@@ -147,7 +147,7 @@ Options:
   --approve | --reject resolve the current human gate during resume
   --approval-id <id>   require this exact pending approval ID
   --comment <text>     record a comment with the decision
-  --recover-interrupted  resume only a proven completed checkpoint after its owner stopped
+  --recover-interrupted  recover a completed boundary after the owner and its children stopped
   --model <model>      planner/reviewer model for init
   --force              replace an existing config during init
 
