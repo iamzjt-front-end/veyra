@@ -9,15 +9,12 @@ import {
   isProjectId,
   type ProjectDescriptor,
   type ProjectId,
+  type RegisteredProject,
 } from "@veyraoss/protocol";
 import { acquireLocalLock } from "@veyraoss/runtime";
 import { assertUniqueProjectIds, loadProject, openProject, ProjectError } from "./index.js";
 
-export interface RegisteredProject {
-  project: ProjectDescriptor;
-  status: "available" | "stale";
-  reason?: "unavailable_path" | "identity_changed" | "invalid_metadata";
-}
+export type { RegisteredProject } from "@veyraoss/protocol";
 
 export class RegistryError extends Error {
   override readonly name = "RegistryError";

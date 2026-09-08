@@ -19,7 +19,8 @@
   "dependencies": {
     "@veyraoss/project": "workspace:*",
     "@veyraoss/protocol": "workspace:*",
-    "@veyraoss/runtime": "workspace:*"
+    "@veyraoss/runtime": "workspace:*",
+    "@veyraoss/core": "workspace:*"
   },
   "license": "MIT",
   "engines": {

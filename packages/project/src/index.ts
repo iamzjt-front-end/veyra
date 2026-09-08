@@ -8,6 +8,7 @@ import { isProjectDescriptor, type ProjectDescriptor, type ProjectId } from "@ve
 export type { ProjectDescriptor, ProjectId } from "@veyraoss/protocol";
 export { ProjectRegistry, RegistryError, type RegisteredProject } from "./registry.js";
 export { ProjectStateStore, ProjectStateError } from "./state.js";
+export { ProjectHandoffStore, ProjectHandoffError } from "./handoffs.js";
 
 export class ProjectError extends Error {
   override readonly name = "ProjectError";

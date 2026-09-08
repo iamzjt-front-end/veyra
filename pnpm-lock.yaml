@@ -112,6 +112,9 @@ importers:
 
   packages/daemon:
     dependencies:
+      '@veyraoss/core':
+        specifier: workspace:*
+        version: link:../core
       '@veyraoss/project':
         specifier: workspace:*
         version: link:../project

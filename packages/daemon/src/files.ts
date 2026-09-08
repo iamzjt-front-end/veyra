@@ -3,27 +3,19 @@ import { constants } from "node:fs";
 import { lstat, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { ProjectRegistry } from "@veyraoss/project";
-import { isJsonValue } from "@veyraoss/protocol";
-import { isProcessOwner, type ProcessOwner } from "@veyraoss/runtime";
+import { isJsonValue, type DaemonInfo } from "@veyraoss/protocol";
+import { isProcessOwner } from "@veyraoss/runtime";
 
 export class DaemonError extends Error {
   override readonly name = "DaemonError";
   constructor(
-    readonly code:
-      "daemon_unavailable" | "daemon_running" | "invalid_daemon_state" | "invalid_request",
+    readonly code: string,
     message: string,
   ) {
     super(message);
   }
 }
-export interface DaemonMetadata {
-  version: 1;
-  id: string;
-  owner: ProcessOwner;
-  registryRoot: string;
-  socketPath: string;
-  startedAt: string;
-}
+export type DaemonMetadata = DaemonInfo;
 export interface DaemonLocation {
   registryRoot: string;
   directory: string;

@@ -434,6 +434,22 @@ export type EventSink = (event: VeyraEvent) => void | Promise<void>;
 export { isWorkspaceInfo, type WorkspaceInfo } from "./workspace.js";
 export { isJsonValue } from "./json.js";
 export {
+  MAX_DAEMON_REQUEST_BYTES,
+  MAX_DAEMON_RESPONSE_BYTES,
+  isDaemonRequest,
+  isDaemonResponse,
+  isDaemonRunView,
+  isRegisteredProject,
+  type RegisteredProject,
+  type DaemonInfo,
+  type DaemonRunView,
+  type ProjectRunLocator,
+  type DaemonOperations,
+  type DaemonMethod,
+  type DaemonRequest,
+  type DaemonResponse,
+} from "./daemon.js";
+export {
   MAX_PROJECT_STATE_BYTES,
   isProjectSharedState,
   isProjectHandoff,

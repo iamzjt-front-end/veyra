@@ -35,6 +35,8 @@ import { LocalRunStore, type StoredRun } from "./state.js";
 import { inspectRun, requireRecovery, type RunInspection } from "./recovery.js";
 
 export interface RunRequest extends AgentRunOptions {
+  /** Optional caller-correlated UUID; existing IDs are never overwritten or replayed. */
+  runId?: string;
   goal: string;
   config: VeyraConfig;
   workflow: WorkflowDefinition;
@@ -80,6 +82,12 @@ export class VeyraEngine {
   }
 
   async run(request: RunRequest): Promise<RunResult> {
+    if (
+      request.runId !== undefined &&
+      (typeof request.runId !== "string" ||
+        !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(request.runId))
+    )
+      throw new RunControlError("invalid_input", "Caller runId must be a UUID.");
     if (typeof request.goal !== "string" || !request.goal.trim())
       throw new RunControlError("invalid_input", "The run goal must be a non-empty string.");
     const workflow = withExecutionDefaults(
@@ -89,8 +97,17 @@ export class VeyraEngine {
     buildWorkflowGraph(workflow);
     const cwd = resolve(request.cwd ?? process.cwd());
     const store = this.#store(request);
-    const runId = randomUUID();
+    const runId = request.runId ?? randomUUID();
     return store.withRunLock(runId, async () => {
+      if (request.runId !== undefined) {
+        try {
+          await store.loadRun(runId);
+          throw new RunControlError("run_exists", "Run ID already exists; refusing replay.");
+        } catch (error) {
+          if (!(error instanceof Error) || !("code" in error) || error.code !== "not_found")
+            throw error;
+        }
+      }
       const workspace = await new LocalWorkspaceManager(store.directory).prepare(
         runId,
         cwd,

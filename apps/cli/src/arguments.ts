@@ -25,7 +25,7 @@ const allowed: Record<string, string[]> = {
   init: ["config", "workflow", "model", "force"],
   projects: ["registry"],
   project: ["registry"],
-  daemon: ["registry"],
+  daemon: ["registry", "allow-plugin"],
   run: ["config", "workflow", "non-interactive", "allow-plugin"],
   status: ["config", "run-id"],
   review: ["config", "run-id"],

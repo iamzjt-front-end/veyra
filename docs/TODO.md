@@ -349,7 +349,7 @@ Verification: independent daemon/client/CLI processes, normal restart, killed-ow
 
 ## P0.5 — Define Daemon IPC / Tool API
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.4
 
@@ -361,31 +361,33 @@ Expose a small stable local API usable by CLI/TUI/future ChatGPT bridge.
 
 ### Minimum operations
 
-- [ ] `projects.list`;
-- [ ] `projects.get`;
-- [ ] `projects.register`;
-- [ ] `runs.dispatch`;
-- [ ] `runs.get`;
-- [ ] `runs.wait` or event subscription;
-- [ ] `runs.cancel`;
-- [ ] `handoffs.get`;
-- [ ] `results.get`;
-- [ ] health/readiness operation.
+- [x] `projects.list`;
+- [x] `projects.get`;
+- [x] `projects.register`;
+- [x] `runs.dispatch`;
+- [x] `runs.get`;
+- [x] `runs.wait` or event subscription;
+- [x] `runs.cancel`;
+- [x] `handoffs.get`;
+- [x] `results.get`;
+- [x] health/readiness operation.
 
 ### Requirements
 
-- [ ] typed/versioned request/response contracts;
-- [ ] local caller authentication/trust model documented;
-- [ ] never expose arbitrary filesystem operations as a generic bridge primitive;
-- [ ] project id must scope project operations;
-- [ ] bounded payloads and artifact references;
-- [ ] event streaming or polling must not busy-loop;
-- [ ] explicit errors for daemon unavailable/project missing/run missing;
-- [ ] tests must run without external network/provider access.
+- [x] typed/versioned request/response contracts;
+- [x] local caller authentication/trust model documented;
+- [x] never expose arbitrary filesystem operations as a generic bridge primitive;
+- [x] project id must scope project operations;
+- [x] bounded payloads and artifact references;
+- [x] event streaming or polling must not busy-loop;
+- [x] explicit errors for daemon unavailable/project missing/run missing;
+- [x] tests must run without external network/provider access.
 
 ### Acceptance criteria
 
 A test client in another process can register/open a project, dispatch a fake run, wait for completion and fetch a structured result through the daemon API.
+
+Verification: a separate daemon and external client registered/opened a Project, dispatched a fake executor, ran a real local Verifier and fetched a structured result whose evidence IDs resolve to Core events. UUID replay refusal, Project scoping, cancellation, bounded waits, shutdown/persistence races, restart and incomplete-result behavior passed. All five baseline commands passed (1,814 tests), as did frozen offline installation. The first full run hit an existing 5-second consensus-test timeout; the unchanged case passed alone in 0.7 seconds, then the complete suite passed without relaxing assertions/timeouts. Local trust, limits and explicit workflow composition are documented in `packages/daemon/README.md`.
 
 ---
 
@@ -821,6 +823,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.5 — Define Daemon IPC / Tool API.**
+**P0.6 — Make native Codex readiness/auth the default executor path.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

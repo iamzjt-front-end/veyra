@@ -3,7 +3,16 @@ import { chmod, lstat, unlink } from "node:fs/promises";
 import { connect, createServer, type Socket } from "node:net";
 import { join } from "node:path";
 import { ProjectRegistry, type RegisteredProject } from "@veyraoss/project";
-import { isJsonValue, isProjectDescriptor } from "@veyraoss/protocol";
+import {
+  isDaemonRequest,
+  isDaemonResponse,
+  MAX_DAEMON_REQUEST_BYTES,
+  MAX_DAEMON_RESPONSE_BYTES,
+  type DaemonMethod,
+  type DaemonOperations,
+  type JsonValue,
+} from "@veyraoss/protocol";
+import { RunCoordinator, type ExecutionResolver } from "./runs.js";
 import {
   acquireLocalLock,
   createSecretRedactor,
@@ -22,11 +31,13 @@ import {
 } from "./files.js";
 
 export { DaemonError, type DaemonMetadata } from "./files.js";
+export type { ExecutionSetup, ExecutionResolver } from "./runs.js";
 export interface DaemonOptions {
   registryRoot?: string;
   signal?: AbortSignal;
   env?: Readonly<Record<string, string | undefined>>;
   onLog?: (entry: DaemonLog) => void;
+  resolveExecution?: ExecutionResolver;
 }
 export interface DaemonLog {
   at: string;
@@ -43,8 +54,6 @@ export type DaemonStatus =
   | { status: "stopped" }
   | { status: "running"; metadata: DaemonMetadata }
   | { status: "unavailable"; message: string };
-const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
-type LifecycleMethod = "health" | "projects.list" | "stop";
 
 /** A foreground local service; its launcher/service manager owns the process lifecycle. */
 export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHandle> {
@@ -63,6 +72,11 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     );
   });
   const registry = new ProjectRegistry({ root: location.registryRoot });
+  const coordinator = new RunCoordinator({
+    registry,
+    resolveExecution: options.resolveExecution,
+    env: options.env,
+  });
   const metadata: DaemonMetadata = {
     version: 1,
     id: randomUUID(),
@@ -121,23 +135,23 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     sockets.add(socket);
     socket.on("error", () => {});
     socket.once("close", () => sockets.delete(socket));
-    socket.setTimeout(10000, () => socket.destroy());
+    socket.setTimeout(35000, () => socket.destroy());
     let bytes = 0;
     let pending = "";
     let handled = false;
     const reply = (value: unknown) => {
       const source = JSON.stringify(value);
       socket.end(
-        `${Buffer.byteLength(source) <= MAX_RESPONSE_BYTES ? source : JSON.stringify({ version: 1, ok: false, error: { code: "invalid_request", message: "Response exceeds local payload limit." } })}\n`,
+        `${Buffer.byteLength(source) + 1 <= MAX_DAEMON_RESPONSE_BYTES ? source : JSON.stringify({ version: 1, ok: false, error: { code: "invalid_request", message: "Response exceeds local payload limit." } })}\n`,
       );
     };
     socket.setEncoding("utf8");
     socket.on("data", (chunk: string) => {
       if (handled) return;
       bytes += Buffer.byteLength(chunk);
-      if (bytes > 1024) {
+      if (bytes > MAX_DAEMON_REQUEST_BYTES) {
         handled = true;
-        reply(failure("invalid_request", "Lifecycle request exceeds 1 KiB."));
+        reply(failure("invalid_request", "Daemon request exceeds 256 KiB."));
         return;
       }
       pending += chunk;
@@ -146,26 +160,58 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
       const work = (async () => {
         try {
           const request: unknown = JSON.parse(pending);
-          if (
-            !isJsonValue(request) ||
-            !request ||
-            typeof request !== "object" ||
-            Array.isArray(request) ||
-            Object.keys(request).length !== 2 ||
-            request.version !== 1 ||
-            !["health", "projects.list", "stop"].includes(String(request.method))
-          )
+          if (!isDaemonRequest(request))
             throw new DaemonError(
               "invalid_request",
-              "Unknown or invalid daemon lifecycle request.",
+              "Unknown or invalid versioned daemon request.",
             );
-          const result =
-            request.method === "health"
-              ? metadata
-              : request.method === "projects.list"
-                ? await registry.list({ signal: controller.signal })
-                : { stopping: true };
-          reply({ version: 1, ok: true, result });
+          let result: unknown;
+          switch (request.method) {
+            case "health":
+              result = metadata;
+              break;
+            case "stop":
+              result = { stopping: true };
+              break;
+            case "projects.list":
+              result = await registry.list({ signal: controller.signal });
+              break;
+            case "projects.get":
+              result = await coordinator.project(request.params.projectId);
+              break;
+            case "projects.register":
+              result = await registry.register(request.params.path);
+              break;
+            case "runs.dispatch":
+              result = await coordinator.dispatch(request.params.projectId, request.params.handoff);
+              break;
+            case "runs.get":
+              result = await coordinator.get(request.params.projectId, request.params.runId);
+              break;
+            case "runs.wait":
+              result = await coordinator.wait(
+                request.params.projectId,
+                request.params.runId,
+                request.params.waitMs,
+              );
+              break;
+            case "runs.cancel":
+              result = await coordinator.cancel(request.params.projectId, request.params.runId);
+              break;
+            case "handoffs.get":
+              result = await coordinator.handoff(request.params.projectId, request.params.runId);
+              break;
+            case "results.get":
+              result = await coordinator.result(request.params.projectId, request.params.runId);
+              break;
+          }
+          const response = redactor.json({ version: 1, ok: true, result } as JsonValue, false);
+          if (!isDaemonResponse(response, request.method))
+            throw new DaemonError(
+              "operation_failed",
+              "Local operation produced an invalid or oversized response.",
+            );
+          reply(response);
           if (request.method === "stop")
             socket.once("close", () => {
               void stop().catch(() => {});
@@ -174,11 +220,11 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
           const message =
             error instanceof DaemonError
               ? error.message
-              : "Local daemon operation failed; inspect project/registry metadata.";
+              : "Local daemon operation failed; inspect project/registry state and persisted run evidence.";
           await log("daemon.request.failed", message);
           reply(
             failure(
-              error instanceof DaemonError ? error.code : "daemon_unavailable",
+              error instanceof DaemonError ? error.code : "operation_failed",
               redactor.text(message),
             ),
           );
@@ -192,10 +238,12 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   const stop = (): Promise<void> =>
     (shutdown ??= (async () => {
       controller.abort();
+      const executionShutdown = coordinator.stop();
       options.signal?.removeEventListener("abort", onAbort);
       for (const socket of sockets) socket.destroy();
       try {
         await new Promise<void>((resolve) => server.close(() => resolve()));
+        await executionShutdown;
         await Promise.allSettled([...operations]);
         await log(
           "daemon.stopping",
@@ -275,76 +323,81 @@ function failure(code: string, message: string) {
   return { version: 1, ok: false, error: { code, message } };
 }
 
-async function requestDaemon(
-  method: LifecycleMethod,
-  registryRoot?: string,
-): Promise<{ result: unknown; location: DaemonLocation }> {
-  const location = await locateDaemon(registryRoot);
-  const metadata = location ? await readMetadata(location) : undefined;
-  if (!location || !metadata || inspectProcessOwner(metadata.owner) === "dead")
-    throw new DaemonError(
-      "daemon_unavailable",
-      "No running daemon. Start ve daemon start for this registry root.",
-    );
-  if (!(await privateDirectory(location.socketDirectory, false)))
-    throw new DaemonError("daemon_unavailable", "Daemon socket directory is missing.");
-  const stat = await lstat(location.socketPath).catch(() => undefined);
-  if (!stat?.isSocket() || stat.uid !== process.getuid?.() || (stat.mode & 0o077) !== 0)
-    throw new DaemonError("daemon_unavailable", "Daemon socket is missing or unsafe.");
-  const result = await new Promise<unknown>((resolve, reject) => {
-    const socket = connect(location.socketPath);
-    let source = "";
-    let bytes = 0;
-    let settled = false;
-    const finish = (error?: Error, value?: unknown) => {
-      if (settled) return;
-      settled = true;
-      socket.destroy();
-      if (error) reject(error);
-      else resolve(value);
-    };
-    socket.setEncoding("utf8");
-    socket.setTimeout(10000, () =>
-      finish(new DaemonError("daemon_unavailable", "Daemon request timed out.")),
-    );
-    socket.once("error", () =>
-      finish(new DaemonError("daemon_unavailable", "Could not reach the local daemon.")),
-    );
-    socket.once("connect", () => socket.write(`${JSON.stringify({ version: 1, method })}\n`));
-    socket.on("data", (chunk: string) => {
-      bytes += Buffer.byteLength(chunk);
-      source += chunk;
-      if (bytes > MAX_RESPONSE_BYTES) {
-        finish(new DaemonError("daemon_unavailable", "Daemon response exceeds payload limit."));
-        return;
-      }
-      if (!source.includes("\n")) return;
-      try {
-        const value = JSON.parse(source);
-        if (
-          !isJsonValue(value) ||
-          !value ||
-          typeof value !== "object" ||
-          Array.isArray(value) ||
-          value.version !== 1 ||
-          typeof value.ok !== "boolean"
-        )
-          throw new Error("Invalid response");
-        if (!value.ok)
-          throw new DaemonError("daemon_unavailable", "Local daemon operation failed.");
-        finish(undefined, value.result);
-      } catch {
-        finish(new DaemonError("daemon_unavailable", "Invalid or failed local daemon response."));
-      }
+export class DaemonClient {
+  constructor(private readonly options: { registryRoot?: string } = {}) {}
+
+  async call<M extends DaemonMethod>(
+    method: M,
+    input: DaemonOperations[M]["input"],
+  ): Promise<DaemonOperations[M]["output"]> {
+    const request = { version: 1, method, ...(input === undefined ? {} : { params: input }) };
+    if (!isDaemonRequest(request))
+      throw new DaemonError("invalid_request", "Invalid or oversized versioned daemon request.");
+    const location = await locateDaemon(this.options.registryRoot);
+    const metadata = location ? await readMetadata(location) : undefined;
+    if (!location || !metadata || inspectProcessOwner(metadata.owner) === "dead")
+      throw new DaemonError(
+        "daemon_unavailable",
+        "No running daemon. Start ve daemon start for this registry root.",
+      );
+    if (!(await privateDirectory(location.socketDirectory, false)))
+      throw new DaemonError("daemon_unavailable", "Daemon socket directory is missing.");
+    const stat = await lstat(location.socketPath).catch(() => undefined);
+    if (!stat?.isSocket() || stat.uid !== process.getuid?.() || (stat.mode & 0o077) !== 0)
+      throw new DaemonError("daemon_unavailable", "Daemon socket is missing or unsafe.");
+    return new Promise<DaemonOperations[M]["output"]>((resolve, reject) => {
+      const socket = connect(location.socketPath);
+      let source = "";
+      let bytes = 0;
+      let settled = false;
+      const finish = (error?: Error, value?: DaemonOperations[M]["output"]) => {
+        if (settled) return;
+        settled = true;
+        socket.destroy();
+        if (error) reject(error);
+        else resolve(value as DaemonOperations[M]["output"]);
+      };
+      socket.setEncoding("utf8");
+      socket.setTimeout(35000, () =>
+        finish(new DaemonError("daemon_unavailable", "Daemon request timed out.")),
+      );
+      socket.once("error", () =>
+        finish(new DaemonError("daemon_unavailable", "Could not reach the local daemon.")),
+      );
+      socket.once("connect", () => socket.write(`${JSON.stringify(request)}\n`));
+      socket.on("data", (chunk: string) => {
+        bytes += Buffer.byteLength(chunk);
+        source += chunk;
+        if (bytes > MAX_DAEMON_RESPONSE_BYTES) {
+          finish(new DaemonError("daemon_unavailable", "Daemon response exceeds payload limit."));
+          return;
+        }
+        if (!source.includes("\n")) return;
+        try {
+          const value: unknown = JSON.parse(source);
+          if (!isDaemonResponse(value, method))
+            throw new DaemonError("daemon_unavailable", "Invalid or oversized daemon response.");
+          if (!value.ok) {
+            finish(new DaemonError(value.error.code, value.error.message));
+            return;
+          }
+          finish(undefined, value.result);
+        } catch (error) {
+          finish(
+            error instanceof DaemonError
+              ? error
+              : new DaemonError("daemon_unavailable", "Invalid daemon JSON response."),
+          );
+        }
+      });
+      socket.once("close", () => {
+        if (!settled)
+          finish(
+            new DaemonError("daemon_unavailable", "Daemon connection closed before completion."),
+          );
+      });
     });
-    socket.once("close", () => {
-      if (!settled)
-        finish(
-          new DaemonError("daemon_unavailable", "Daemon connection closed before completion."),
-        );
-    });
-  });
-  return { result, location };
+  }
 }
 
 export async function daemonStatus(options: { registryRoot?: string } = {}): Promise<DaemonStatus> {
@@ -352,10 +405,10 @@ export async function daemonStatus(options: { registryRoot?: string } = {}): Pro
     const location = await locateDaemon(options.registryRoot);
     const metadata = location ? await readMetadata(location) : undefined;
     if (!metadata || inspectProcessOwner(metadata.owner) === "dead") return { status: "stopped" };
-    const reply = await requestDaemon("health", options.registryRoot);
-    if (!isDaemonMetadata(reply.result, reply.location) || reply.result.id !== metadata.id)
+    const result = await new DaemonClient(options).call("health", undefined);
+    if (!location || !isDaemonMetadata(result, location) || result.id !== metadata.id)
       throw new Error("Mismatched daemon identity");
-    return { status: "running", metadata: reply.result };
+    return { status: "running", metadata: result };
   } catch {
     return {
       status: "unavailable",
@@ -366,27 +419,11 @@ export async function daemonStatus(options: { registryRoot?: string } = {}): Pro
 export async function daemonProjects(
   options: { registryRoot?: string } = {},
 ): Promise<RegisteredProject[]> {
-  const { result } = await requestDaemon("projects.list", options.registryRoot);
-  if (
-    !Array.isArray(result) ||
-    result.length > 1000 ||
-    !result.every(
-      (entry) =>
-        entry &&
-        typeof entry === "object" &&
-        isProjectDescriptor(entry.project) &&
-        ["available", "stale"].includes(entry.status) &&
-        Object.keys(entry).every((key) => ["project", "status", "reason"].includes(key)),
-    )
-  )
-    throw new DaemonError("daemon_unavailable", "Daemon returned an invalid Project list.");
-  return result;
+  return new DaemonClient(options).call("projects.list", undefined);
 }
 export async function stopDaemon(options: { registryRoot?: string } = {}): Promise<void> {
   if ((await daemonStatus(options)).status === "stopped") return;
-  const { result } = await requestDaemon("stop", options.registryRoot);
-  if (!result || typeof result !== "object" || !("stopping" in result) || result.stopping !== true)
-    throw new DaemonError("daemon_unavailable", "Daemon did not acknowledge shutdown.");
+  await new DaemonClient(options).call("stop", undefined);
   const deadline = Date.now() + 10000;
   while (Date.now() < deadline) {
     const location = await locateDaemon(options.registryRoot);

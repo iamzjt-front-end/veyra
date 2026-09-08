@@ -146,7 +146,7 @@ export class LocalRunStore {
     }
   }
 
-  createRun(input: CreateRunInput, runId = randomUUID()): Promise<StoredRun> {
+  createRun(input: CreateRunInput, runId: string = randomUUID()): Promise<StoredRun> {
     return this.#mutate(async () => {
       if (
         typeof input.goal !== "string" ||

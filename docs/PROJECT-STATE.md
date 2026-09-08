@@ -30,3 +30,9 @@ const next = await store.save({ context, provenance, handoff }, current?.revisio
 The store validates both inputs and persisted data and applies the existing Core/Runtime secret redactor before writing or returning state. Known secret values/environment are supplied explicitly by the caller and never stored. Recognizable credential formats are also redacted; Veyra does not read native auth files. As with existing managed paths, arbitrary third-party text can hide unknown credentials, so structured data and existing redaction are safeguards, not blanket permission to copy native/private data.
 
 P0.3 tests use separate fake planner, executor and reviewer processes to exchange a task, local file result and review solely through this contract. This is provider-free contract proof, not the later real ChatGPT integration gate. P0.9 will complete the canonical dispatch contract and provider consumption.
+
+## Per-run handoffs
+
+`ProjectHandoffStore({ project, redactValues })` preserves immutable `<run-uuid>.handoff.json` and `<run-uuid>.result.json` envelopes under `.veyra/handoffs/`. It validates Project/run/handoff links, rejects linked or oversized files, redacts content, and publishes synced complete files without overwriting an existing ID. The latest `.veyra/state.json` snapshot can advance while a separate client still retrieves an earlier run's handoff/result. These bounded interchange records reference the existing execution history; they do not duplicate full events, logs or artifacts.
+
+The [daemon API](../packages/daemon/README.md#version-1-tool-api) scopes dispatch, wait, cancel and envelope retrieval by Project ID. Its cross-process tests dispatch a fake agent, run a real local Verifier and resolve returned evidence IDs against persisted Core events. This establishes the local tool boundary without claiming native Codex or ChatGPT bridge acceptance.

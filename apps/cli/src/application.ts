@@ -66,7 +66,22 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     if (command === "daemon") {
       const options = values.registry ? { registryRoot: resolve(cwd, values.registry) } : {};
       if (positionals[0] === "start") {
-        const daemon = await startDaemon({ ...options, signal: services.signal, env });
+        const daemon = await startDaemon({
+          ...options,
+          signal: services.signal,
+          env,
+          resolveExecution: async (project) => {
+            const config = await loadConfig(resolve(project.root, "veyra.yaml"));
+            const workflow = await loadWorkflow(config.workflow.use, project.root);
+            const agents = services.createAgent
+              ? adaptersFor(config, workflow, services.createAgent)
+              : await configuredAdapters(config, workflow, project.root, values["allow-plugin"], {
+                  env,
+                  runProcess: services.runProcess,
+                });
+            return { config, workflow, agents, redactValues: secretValues(env, config) };
+          },
+        });
         write(
           { type: "daemon.started", ...daemon.metadata },
           `Veyra daemon running (PID ${daemon.metadata.owner.pid}).\nRegistry: ${daemon.metadata.registryRoot}\nForeground service; Ctrl-C or ve daemon stop to shut down.`,

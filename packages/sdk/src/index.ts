@@ -1,4 +1,16 @@
 export type {
+  ProjectId,
+  ProjectDescriptor,
+  RegisteredProject,
+  ProjectHandoff,
+  ProjectExecutionResult,
+  DaemonInfo,
+  DaemonRunView,
+  ProjectRunLocator,
+  DaemonOperations,
+  DaemonMethod,
+  DaemonRequest,
+  DaemonResponse,
   AgentAdapter,
   AgentCapability,
   AgentDescriptor,
@@ -48,6 +60,9 @@ export type {
   WorkflowStep,
 } from "@veyraoss/workflow";
 export {
+  isDaemonRequest,
+  isDaemonResponse,
+  isDaemonRunView,
   isJsonValue,
   PROMPT_SAFETY_GUIDANCE,
   isProjectInstructions,

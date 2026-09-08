@@ -214,7 +214,9 @@ describe("local daemon lifecycle", () => {
             ok: false,
             error: { code: "invalid_request" },
           });
-        expect(await rawRequest(daemon.metadata.socketPath, "x".repeat(1100))).toMatchObject({
+        expect(
+          await rawRequest(daemon.metadata.socketPath, "x".repeat(256 * 1024 + 1)),
+        ).toMatchObject({
           ok: false,
           error: { code: "invalid_request" },
         });
