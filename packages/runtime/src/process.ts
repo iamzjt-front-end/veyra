@@ -138,7 +138,7 @@ export const runProcess: ProcessRunner = async (request) => {
         else process.kill(-child.pid, signal);
       } catch (error) {
         if (codeOf(error) !== "ESRCH") {
-          failure ??= new ProcessExecutionError(
+          return new ProcessExecutionError(
             "termination_failed",
             "Unable to terminate the local process group.",
             codeOf(error),
@@ -181,7 +181,10 @@ export const runProcess: ProcessRunner = async (request) => {
       signalChild("SIGTERM");
       // Keep escalation even if the leader closes first: descendants may ignore SIGTERM.
       escalation = setTimeout(() => {
-        signalChild("SIGKILL");
+        // A graceful signal can race with macOS reaping (EPERM for a zombie-only group).
+        // The final attempt decides cleanup: successful SIGKILL or ESRCH supersedes it.
+        const cleanupFailure = signalChild("SIGKILL");
+        failure ??= cleanupFailure;
         cleanupFinished = true;
         finish();
       }, request.terminationGraceMs ?? 500);
