@@ -15,6 +15,7 @@
     "@veyra/workflow": "workspace:*",
     "@veyra/codex": "workspace:*",
     "@veyra/claude": "workspace:*",
+    "@veyra/claude-code": "workspace:*",
     "@veyra/openai": "workspace:*",
     "yaml": "2.9.0"
   },

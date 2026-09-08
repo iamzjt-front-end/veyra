@@ -1,6 +1,7 @@
 import type { AgentConfig, VeyraConfig } from "@veyra/config";
 import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
 import { ClaudeAdapter, type ClaudeAdapterOptions } from "@veyra/claude";
+import { ClaudeCodeAdapter, type ClaudeCodeAdapterOptions } from "@veyra/claude-code";
 import { OpenAIAdapter, type OpenAIAdapterOptions } from "@veyra/openai";
 import type { JsonObject } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
@@ -40,7 +41,20 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
     new ClaudeAdapter(adapterOptions(agent, context) as ClaudeAdapterOptions, {
       env: services.env,
     });
+  const claudeCode = (agent: PluginAgentConfig, context: PluginContext) =>
+    new ClaudeCodeAdapter(adapterOptions(agent, context) as ClaudeCodeAdapterOptions, {
+      env: services.env,
+      runProcess: services.runProcess,
+    });
   return [
+    {
+      apiVersion: 1,
+      provider: "claude-code",
+      version: "0.1.0",
+      createAgent: claudeCode,
+      checkReadiness: (agent, context, controls) =>
+        claudeCode(agent, context).checkReadiness(controls),
+    },
     {
       apiVersion: 1,
       provider: "claude",

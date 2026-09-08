@@ -29,7 +29,7 @@ Results preserve binding order and contain independent descriptor/readiness copi
 | Codex CLI      | executor                                                                      | code-execution, tool-use, local-cli, structured-output | Existing bounded version/login-status checks, scope `local`; no task execution.                                               |
 | Codex SDK mode | none                                                                          | none                                                   | Unavailable: SDK mode remains planned.                                                                                        |
 
-The Claude API adapter also advertises planner/reviewer/judge roles and reasoning/structured-output capabilities, with credential-presence readiness only; see [Claude configuration](CLAUDE.md). These adapters currently advertise no vision or web research. Capability declarations describe available adapter paths, not measured model quality or verified account/model access. Native provider permissions still apply; declarations do not create a sandbox.
+The Claude API adapter also advertises planner/reviewer/judge roles and reasoning/structured-output capabilities, with credential-presence readiness only; see [Claude configuration](CLAUDE.md). [Claude Code](CLAUDE-CODE.md) advertises executor and code-execution/tool-use/local-cli/structured-output with bounded native CLI/authentication readiness. These adapters currently advertise no vision or web research. Capability declarations describe available adapter paths, not measured model quality or verified account/model access. Native provider permissions still apply; declarations do not create a sandbox.
 
 ## Explicit workflow requirements
 

@@ -1126,13 +1126,19 @@ Live blocker: `ANTHROPIC_API_KEY` is absent (presence only was inspected). Attem
 
 ## M4.4 — Claude Code executor
 
+**Status:** [!] Implementation and deterministic verification passed; live smoke blocked by native request timeouts.
+
 **Primary area:** `plugins/claude-code`
 
-- [ ] runtime-based CLI invocation
-- [ ] executable/readiness detection
-- [ ] non-interactive/structured mode when available
-- [ ] cwd/cancellation/timeout/log capture
-- [ ] mocked and opt-in real smoke tests
+- [x] runtime-based CLI invocation
+- [x] executable/readiness detection
+- [x] non-interactive/structured mode when available
+- [x] cwd/cancellation/timeout/log capture
+- [!] mocked and opt-in real smoke tests (mocked tests and guarded tooling pass; real success remains unverified)
+
+Implemented the `claude-code` built-in with literal stdin, native JSON/schema print mode, bounded turns/results/logs, explicit native permission rules, permission-denial pause handling, normalized process/provider errors, execution identity, usage/cost and redaction. Readiness checks version, required flags and native authentication under one deadline. The public CLI and example config use the same registry/runtime boundaries. Frozen install, example workflow validation, `pnpm ve -- doctor --json` and all five baseline commands passed (1002 tests, including 81 adapter tests and CLI composition coverage). The smoke guard exits 2 before provider work unless explicitly enabled.
+
+Live blocker: Claude Code 2.1.159 reports authenticated access, but `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/claude-code smoke` exited 1 with `claude_code_timeout` after 180513 ms. Native stdout/stderr were empty; Runtime terminated the process group and the disposable fixture was removed. A separate native print request without tools, hooks, MCP or the structured schema, preserving configured authentication/model settings, also timed out after 60 seconds with empty stdout/stderr. A diagnostic with user/project setting sources omitted returned an error envelope immediately, so it does not verify the configured provider. Settings metadata confirms a configured provider URL/token/model and hooks; credential values were not printed or changed. Restore working native provider/model access, confirm a minimal `claude --print` request completes, then rerun the guarded fixture smoke (optionally with an accessible model). M4.5 is independent and can proceed.
 
 ---
 
@@ -1594,4 +1600,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.4 — Claude Code executor.** M1.14 and M4.3 have live checks blocked by missing OpenAI/Anthropic API credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M4.5 — Gemini API provider.** M1.14 and M4.3 have live checks blocked by missing OpenAI/Anthropic API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

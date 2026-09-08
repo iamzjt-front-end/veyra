@@ -38,6 +38,9 @@ importers:
       '@veyra/claude':
         specifier: workspace:*
         version: link:../../plugins/claude
+      '@veyra/claude-code':
+        specifier: workspace:*
+        version: link:../../plugins/claude-code
       '@veyra/codex':
         specifier: workspace:*
         version: link:../../plugins/codex
@@ -136,6 +139,15 @@ importers:
       '@anthropic-ai/sdk':
         specifier: 0.124.0
         version: 0.124.0
+      '@veyra/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+
+  plugins/claude-code:
+    dependencies:
       '@veyra/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
