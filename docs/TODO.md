@@ -460,7 +460,7 @@ Verification: `env -u OPENAI_API_KEY pnpm --filter @veyraoss/codex smoke:session
 
 ## P0.8 — Bind Project roles to native Codex
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.7
 
@@ -470,16 +470,18 @@ Make a Veyra Project able to say "Codex is this project's executor" independent 
 
 ### Requirements
 
-- [ ] project-level role binding for `executor: codex/native`;
-- [ ] optional session continuity metadata;
-- [ ] role/provider remains separable in protocol;
-- [ ] defaults must not hardcode future multi-provider architecture into Core;
-- [ ] clear doctor/status output showing effective role binding;
-- [ ] no requirement to configure planner/reviewer API keys for a native-executor-only dispatch.
+- [x] project-level role binding for `executor: codex/native`;
+- [x] optional session continuity metadata;
+- [x] role/provider remains separable in protocol;
+- [x] defaults must not hardcode future multi-provider architecture into Core;
+- [x] clear doctor/status output showing effective role binding;
+- [x] no requirement to configure planner/reviewer API keys for a native-executor-only dispatch.
 
 ### Acceptance criteria
 
 A project can be initialized, bind native Codex as executor, restart Veyra and retain that binding safely.
+
+Verification: Project role bindings survive independent CLI processes and daemon startup without `veyra.yaml` or `OPENAI_API_KEY`. Protocol/store tests cover safe session references, provider/role separation, private atomic writes, stale revisions, identity changes and unsafe metadata. Doctor/status show the effective binding; new runs never reuse another run's session. All five baseline commands passed (1,859 tests). Parallel full-suite runs hit existing 5-second Core timing limits; original tests passed with package execution serialized, then final `pnpm test` passed without changing assertions or timeouts. See `packages/project/README.md` for binding and continuity semantics.
 
 ---
 
@@ -827,6 +829,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.8 — Bind Project roles to native Codex.**
+**P0.9 — Implement the canonical Handoff Protocol.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

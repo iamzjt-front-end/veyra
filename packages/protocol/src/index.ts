@@ -436,6 +436,12 @@ export type EventSink = (event: VeyraEvent) => void | Promise<void>;
 export { isWorkspaceInfo, type WorkspaceInfo } from "./workspace.js";
 export { isJsonValue } from "./json.js";
 export {
+  isProjectBindings,
+  isProjectRoleBinding,
+  type ProjectBindings,
+  type ProjectRoleBinding,
+} from "./bindings.js";
+export {
   isSessionId,
   isNativeSessionReference,
   isNativeSessionRequest,

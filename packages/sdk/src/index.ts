@@ -62,6 +62,10 @@ export type {
   WorkflowStep,
 } from "@veyraoss/workflow";
 export {
+  isProjectBindings,
+  isProjectRoleBinding,
+  type ProjectBindings,
+  type ProjectRoleBinding,
   isNativeSessionReference,
   isNativeSessionRequest,
   isDaemonRequest,

@@ -4,6 +4,8 @@ const options = {
   config: { type: "string" },
   registry: { type: "string" },
   "codex-executable": { type: "string" },
+  executor: { type: "string" },
+  "session-run": { type: "string" },
   workflow: { type: "string" },
   "allow-plugin": { type: "string", multiple: true },
   model: { type: "string" },
@@ -25,7 +27,7 @@ const options = {
 const allowed: Record<string, string[]> = {
   init: ["config", "workflow", "model", "force"],
   projects: ["registry"],
-  project: ["registry"],
+  project: ["registry", "executor", "codex-executable", "model", "session-run"],
   daemon: ["registry", "allow-plugin"],
   run: ["config", "workflow", "non-interactive", "allow-plugin"],
   status: ["config", "run-id"],
@@ -101,13 +103,20 @@ export function argumentsFor(argv: string[]) {
   if (
     command === "project" &&
     (positionals.length !== 2 ||
-      !["add", "remove", "show"].includes(positionals[0] ?? "") ||
+      !["add", "remove", "show", "bind"].includes(positionals[0] ?? "") ||
       !positionals[1]?.trim())
   )
     throw new CliError(
       "invalid_project_command",
-      "Use ve project add <path>, remove <project-id>, or show <project-id>.",
+      "Use ve project add <path>, remove <project-id>, show <project-id>, or bind <project-id> --executor codex/native.",
     );
+  if (command === "project") {
+    const bindingOptions = ["executor", "codex-executable", "model", "session-run"] as const;
+    if (positionals[0] !== "bind" && bindingOptions.some((key) => parsed.values[key] !== undefined))
+      throw new CliError("invalid_option", "Binding options require ve project bind.");
+    if (positionals[0] === "bind" && parsed.values.executor !== "codex/native")
+      throw new CliError("unsupported_executor_binding", "Use --executor codex/native.");
+  }
   if (
     command === "daemon" &&
     (positionals.length !== 1 ||
@@ -178,6 +187,7 @@ Commands:
   project add <path>     initialize/open and register a local Project
   project remove <id>    unregister a Project (preserves project files)
   project show <id>      inspect a registered Project
+  project bind <id> --executor codex/native  persist the Project executor
   init        create veyra.yaml and local-state ignore rules
   run <goal>  execute the configured workflow
   status [id] inspect active/latest run state

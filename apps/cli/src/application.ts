@@ -6,6 +6,9 @@ import { loadConfig } from "@veyraoss/config";
 import { startDaemon, stopDaemon, daemonStatus, daemonProjects } from "@veyraoss/daemon";
 import {
   initializeProject,
+  loadProjectBindings,
+  saveProjectBindings,
+  ProjectHandoffStore,
   openProject,
   ProjectError,
   ProjectRegistry,
@@ -17,6 +20,12 @@ import { type ProcessRunner, runProcess } from "@veyraoss/runtime";
 import { loadWorkflow } from "@veyraoss/workflow";
 import { argumentsFor, CliError, help } from "./arguments.js";
 import { inspectEnvironment } from "./doctor.js";
+import {
+  nativeExecution,
+  nativeConfig,
+  projectExecutor,
+  requireNativeCodex,
+} from "./native-executor.js";
 import { initialize } from "./init.js";
 import { listWorkflows, validateWorkflow } from "./workflows.js";
 import {
@@ -70,7 +79,13 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           ...options,
           signal: services.signal,
           env,
-          resolveExecution: async (project) => {
+          resolveExecution: async (project, handoff) => {
+            const binding = (await loadProjectBindings(project))?.roles.executor;
+            if (binding)
+              return nativeExecution(project, binding, handoff, {
+                env,
+                runProcess: services.runProcess,
+              });
             const config = await loadConfig(resolve(project.root, "veyra.yaml"));
             const workflow = await loadWorkflow(config.workflow.use, project.root);
             const agents = services.createAgent
@@ -166,9 +181,55 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       }
       const result = await registry.get(reference as ProjectId);
       if (!result) throw new CliError("project_not_found", "Project is not registered.");
+      let bindings =
+        result.status === "available" ? await loadProjectBindings(result.project) : undefined;
+      if (positionals[0] === "bind") {
+        if (result.status !== "available")
+          throw new CliError(
+            "project_unavailable",
+            "Resolve the stale Project location before binding an executor.",
+          );
+        const session =
+          values["session-run"] !== undefined
+            ? await new ProjectHandoffStore({ project: result.project }).getSession(
+                values["session-run"],
+              )
+            : undefined;
+        if (values["session-run"] !== undefined && !session)
+          throw new CliError(
+            "session_not_found",
+            "No safe native session reference is archived for that Project run.",
+          );
+        bindings = await saveProjectBindings(
+          result.project,
+          {
+            ...bindings?.roles,
+            executor: {
+              provider: "codex",
+              mode: "native",
+              ...(values["codex-executable"]
+                ? {
+                    executable: values["codex-executable"].includes("/")
+                      ? resolve(cwd, values["codex-executable"])
+                      : values["codex-executable"],
+                  }
+                : {}),
+              ...(values.model !== undefined ? { model: values.model } : {}),
+              ...(session ? { session } : {}),
+            },
+          },
+          bindings?.revision ?? 0,
+        );
+      }
       write(
-        result,
-        `${result.project.id} ${result.project.name}\n${result.project.root}\n${result.status}${result.reason ? `: ${result.reason}` : ""}`,
+        { ...result, ...(bindings ? { bindings } : {}) },
+        `${result.project.id} ${result.project.name}\n${result.project.root}\n${result.status}${result.reason ? `: ${result.reason}` : ""}${
+          bindings
+            ? `\nBindings: ${Object.entries(bindings.roles)
+                .map(([role, binding]) => `${role}: ${binding.provider}/${binding.mode}`)
+                .join(", ")}`
+            : ""
+        }`,
       );
       return result.status === "available" ? 0 : 1;
     }
@@ -221,6 +282,21 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       return 0;
     }
     if (command === "doctor") {
+      const selected = values.config || values.workflow ? undefined : await projectExecutor(cwd);
+      if (selected) requireNativeCodex(selected.executor);
+      const binding =
+        values.config || values.workflow
+          ? undefined
+          : {
+              source: selected ? "project" : "default",
+              role: "executor",
+              ...(selected
+                ? { projectId: selected.project.id, ...selected.executor }
+                : { provider: "codex", mode: "native" }),
+              ...(values["codex-executable"]
+                ? { executable: values["codex-executable"], executableSource: "command-line" }
+                : {}),
+            };
       const result = await inspectEnvironment(
         configPath,
         root,
@@ -230,12 +306,15 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         Boolean(values.config || values.workflow),
         values["allow-plugin"],
         services.signal,
-        values["codex-executable"],
+        values["codex-executable"] ?? selected?.executor.executable,
       );
       write(
-        result,
+        { ...result, ...(binding ? { binding } : {}) },
         [
           "Veyra Doctor",
+          ...(binding
+            ? [`Binding:  ${binding.role}: ${binding.provider}/${binding.mode} (${binding.source})`]
+            : []),
           `Mode:     ${result.mode === "native" ? "Native Codex (API providers optional)" : "Selected optional workflow"}`,
           `Node:     ${result.node.version}`,
           `pnpm:     ${result.pnpm.version}`,
@@ -262,7 +341,11 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       );
       return result.ready ? 0 : 1;
     }
-    const config = await loadConfig(configPath);
+    const selectedProject =
+      command === "status" && !values.config ? await projectExecutor(cwd) : undefined;
+    const config = selectedProject
+      ? nativeConfig(selectedProject.project, selectedProject.executor)
+      : await loadConfig(configPath);
     secrets = secretValues(env, config);
     config.runtime.stateDir = resolve(root, config.runtime.stateDir);
     const store = new LocalRunStore({ stateDir: config.runtime.stateDir, redactValues: secrets });
@@ -374,6 +457,13 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     const selectedId = values["run-id"] ?? positionals[0];
     const active = selectedId ? await store.loadRun(selectedId) : await store.getActiveRun();
     const latest = active ?? (await store.listRuns())[0];
+    if (!latest && selectedProject) {
+      write(
+        { status: "idle", project: selectedProject.project, bindings: selectedProject.bindings },
+        `Project: ${selectedProject.project.name}\nStatus: idle\nExecutor: ${selectedProject.executor.provider}/${selectedProject.executor.mode}`,
+      );
+      return 0;
+    }
     if (!latest)
       throw new CliError("no_run", 'No saved run was found. Start one with ve run "your goal".');
     const run = "input" in latest ? latest : await store.loadRun(latest.runId);
@@ -395,6 +485,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       write(
         {
           ...run.state,
+          ...(selectedProject
+            ? { project: selectedProject.project, bindings: selectedProject.bindings }
+            : {}),
           ...inspection,
           goal: run.input.goal,
           cwd: run.input.cwd,
@@ -404,6 +497,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         },
         [
           `Run: ${run.state.runId}`,
+          ...(selectedProject
+            ? [`Executor: ${selectedProject.executor.provider}/${selectedProject.executor.mode}`]
+            : []),
           `Status: ${inspection.status}${inspection.status !== run.state.status ? ` (saved: ${run.state.status})` : ""}`,
           ...(run.state.status === "running"
             ? [

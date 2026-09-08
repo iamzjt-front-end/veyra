@@ -94,6 +94,8 @@ Default tests inject fake adapters through the CLI application's service interfa
 
 ## Explicit provider routing
 
+Project-native selection is independent of optional workflow routing: `ve project bind <project-id> --executor codex/native` stores the executor in `.veyra/project.yaml`. `project show`, default `doctor`, and `status` report it across process restarts; `status` works without `veyra.yaml` and reports `idle` before the first run. Default doctor probes the bound executable, with `--codex-executable` available as an explicitly reported one-command override. `doctor --config` retains selected-workflow behavior. The daemon uses the Project executor when bound, otherwise its existing explicit local workflow. See [Project bindings](../packages/project/README.md#project-role-bindings) for flags, persistence and safe session semantics.
+
 Agent nodes may opt into [ordered provider fallbacks](PROVIDER-ROUTING.md). Run text and JSON events report each evaluated candidate and selection reason before invocation. `workflow validate` checks every configured candidate without imports/probes. `doctor --config veyra.yaml` includes per-step `routing` decisions using its collected readiness snapshots; an eligible fallback can satisfy a routed step, while independently pinned providers must still be ready. Configuration errors cannot be hidden by fallback. Omit workflow `routing` and explicitly configure `provider`/`model` to keep a binding pinned.
 
 ## Workspace inspection and cleanup

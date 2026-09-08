@@ -1,9 +1,16 @@
 import { randomUUID } from "node:crypto";
 import { constants } from "node:fs";
-import { link, lstat, mkdir, open, realpath, unlink } from "node:fs/promises";
+import { link, lstat, mkdir, open, realpath, rename, unlink } from "node:fs/promises";
 import { basename, dirname, join, resolve } from "node:path";
 import { parseDocument, stringify } from "yaml";
-import { isProjectDescriptor, type ProjectDescriptor, type ProjectId } from "@veyraoss/protocol";
+import {
+  isProjectDescriptor,
+  isProjectBindings,
+  type ProjectBindings,
+  type ProjectDescriptor,
+  type ProjectId,
+} from "@veyraoss/protocol";
+import { acquireLocalLock } from "@veyraoss/runtime";
 
 export type { ProjectDescriptor, ProjectId } from "@veyraoss/protocol";
 export { ProjectRegistry, RegistryError, type RegisteredProject } from "./registry.js";
@@ -19,6 +26,8 @@ export class ProjectError extends Error {
       | "invalid_project"
       | "project_exists"
       | "project_path_mismatch"
+      | "invalid_bindings"
+      | "bindings_conflict"
       | "duplicate_project",
     message: string,
   ) {
@@ -118,16 +127,17 @@ export async function initializeProject(
 
 /** Loads exactly this root; unlike openProject it does not search ancestors. */
 export async function loadProject(path: string): Promise<ProjectDescriptor> {
+  return (await readProjectMetadata(path)).project;
+}
+
+async function readProjectMetadata(path: string): Promise<{
+  project: ProjectDescriptor;
+  bindings?: ProjectBindings;
+}> {
   const root = await canonicalDirectory(path);
   await checkStateDirectory(root);
   const metadata = join(root, ".veyra", "project.yaml");
   try {
-    const stat = await lstat(metadata);
-    if (!stat.isFile() || stat.isSymbolicLink() || stat.nlink !== 1 || stat.size > 65536)
-      throw new ProjectError(
-        "invalid_project",
-        "Project metadata must be a bounded, unlinked regular file.",
-      );
     const file = await open(
       metadata,
       constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
@@ -135,13 +145,9 @@ export async function loadProject(path: string): Promise<ProjectDescriptor> {
     let source: string;
     try {
       const opened = await file.stat();
-      if (
-        !opened.isFile() ||
-        opened.ino !== stat.ino ||
-        opened.dev !== stat.dev ||
-        opened.nlink !== 1
-      )
-        throw new Error("Metadata changed while opening");
+      // An already-open old inode may be unlinked by a concurrent atomic binding update.
+      if (!opened.isFile() || opened.nlink > 1 || opened.size > 65536)
+        throw new Error("Unsafe metadata");
       const buffer = Buffer.alloc(65537);
       let length = 0;
       while (length < buffer.length) {
@@ -157,14 +163,22 @@ export async function loadProject(path: string): Promise<ProjectDescriptor> {
     await checkStateDirectory(root);
     const document = parseDocument(source, { uniqueKeys: true });
     if (document.errors.length) throw new Error("Invalid YAML");
-    const project: unknown = document.toJS({ maxAliasCount: 0 });
+    const value: unknown = document.toJS({ maxAliasCount: 0 });
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      throw new Error("Invalid metadata");
+    const { bindings, ...project } = value as Record<string, unknown>;
     if (!isProjectDescriptor(project)) throw new Error("Invalid metadata");
+    if (
+      bindings !== undefined &&
+      (!isProjectBindings(bindings) || bindings.projectId !== project.id)
+    )
+      throw new Error("Invalid bindings");
     if (project.root !== root)
       throw new ProjectError(
         "project_path_mismatch",
         "Project moved or its identity was copied: stored root differs from its canonical location. Preserve metadata and resolve the relocation explicitly.",
       );
-    return project;
+    return { project, ...(bindings ? { bindings: bindings as ProjectBindings } : {}) };
   } catch (error) {
     if (error instanceof ProjectError) throw error;
     if ((error as NodeJS.ErrnoException).code === "ENOENT")
@@ -174,6 +188,82 @@ export async function loadProject(path: string): Promise<ProjectDescriptor> {
       "invalid_project",
       "Project metadata is unreadable, invalid or unsafe; preserve it for inspection.",
     );
+  }
+}
+
+export async function loadProjectBindings(
+  project: ProjectDescriptor,
+): Promise<ProjectBindings | undefined> {
+  projectPaths(project);
+  const current = await readProjectMetadata(project.root);
+  if (current.project.id !== project.id)
+    throw new ProjectError("invalid_project", "Project identity changed; reopen the Project.");
+  return current.bindings;
+}
+
+/** Compare-and-swap role configuration without copying it into the global locator registry. */
+export async function saveProjectBindings(
+  project: ProjectDescriptor,
+  roles: ProjectBindings["roles"],
+  expectedRevision: number,
+): Promise<ProjectBindings> {
+  const paths = projectPaths(project);
+  const next: ProjectBindings = {
+    version: 1,
+    projectId: project.id,
+    roles,
+    revision: expectedRevision + 1,
+    updatedAt: new Date().toISOString(),
+  };
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || !isProjectBindings(next))
+    throw new ProjectError(
+      "invalid_bindings",
+      "Expected bounded role bindings and a non-negative revision.",
+    );
+  // Freeze the caller's mutable input before yielding or acquiring a lock.
+  const saved: ProjectBindings = JSON.parse(JSON.stringify(next));
+  await loadProjectBindings(project);
+  const lock = await acquireLocalLock({
+    directory: join(paths.directory, ".project-lock"),
+    holder: project.id,
+    waitMs: 10000,
+    recoverStale: true,
+  });
+  try {
+    const current = await readProjectMetadata(project.root);
+    if (current.project.id !== project.id)
+      throw new ProjectError("invalid_project", "Project identity changed; reopen the Project.");
+    if ((current.bindings?.revision ?? 0) !== expectedRevision)
+      throw new ProjectError(
+        "bindings_conflict",
+        "Project bindings changed; reload before saving.",
+      );
+    const source = stringify({ ...current.project, bindings: saved });
+    if (Buffer.byteLength(source) > 65536)
+      throw new ProjectError("invalid_bindings", "Project metadata exceeds its size limit.");
+    const temporary = join(paths.directory, `.project-${randomUUID()}.tmp`);
+    const file = await open(temporary, "wx", 0o600);
+    try {
+      await file.writeFile(source);
+      await file.sync();
+      await file.close();
+      await loadProjectBindings(project);
+      await rename(temporary, paths.metadata);
+      const directory = await open(paths.directory, constants.O_RDONLY);
+      try {
+        await directory.sync();
+      } finally {
+        await directory.close();
+      }
+    } finally {
+      await file.close();
+      await unlink(temporary).catch((error: NodeJS.ErrnoException) => {
+        if (error.code !== "ENOENT") throw error;
+      });
+    }
+    return saved;
+  } finally {
+    await lock.release();
   }
 }
 
