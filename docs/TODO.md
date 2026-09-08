@@ -1511,14 +1511,14 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,670 test
 
 ## M6.9 — Cross-platform support
 
-**Status:** [-] In progress.
+**Status:** [x] Complete and verified.
 
 - [x] macOS support verified
-- [ ] Linux support verified
+- [x] Linux support verified
 - [x] Windows support policy explicitly decided/tested before claiming support
 - [x] path, signals, process termination, shell behavior covered by tests where practical
 
-Local frozen install and all five baseline commands passed on macOS arm64 with Node.js 22.22.0 and pnpm 10.15.1 (1,677 tests). Seven added cases cover literal paths/arguments, Unicode Git worktrees, real POSIX shell semantics and mocked platform shell selection; the existing real process-group, signal, cancellation and recovery suites also passed. The [platform policy](PLATFORMS.md) explicitly leaves native Windows unsupported pending full native verification. Hosted macOS 15/Ubuntu 24.04 matrix verification is pending before this item is marked complete.
+Local frozen install and all five baseline commands passed on macOS arm64 with Node.js 22.22.0 and pnpm 10.15.1 (1,677 tests). The [hosted matrix passed on both macOS 15 and Ubuntu 24.04](https://github.com/iamzjt-front-end/veyra/actions/runs/34203473354) at commit `bf9c9d7`, including the frozen install and all five checks. Seven added cases cover literal paths/arguments, Unicode Git worktrees, real POSIX shell semantics and mocked platform shell selection; the existing real process-group, signal, cancellation and recovery suites also passed. The [platform policy](PLATFORMS.md) explicitly leaves native Windows unsupported pending full native verification. Local documentation targets and formatting were checked.
 
 ---
 
@@ -1693,4 +1693,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.9 — Cross-platform support.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.
+**Next eligible: M7.1 — Public package strategy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent productization work can proceed.

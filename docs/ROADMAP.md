@@ -105,7 +105,7 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] cancellation propagation, process cleanup and persisted terminal reasons
 - [x] bounded event/artifact storage and explicit local history retention
 - [x] labeled prompt sources and persisted decision evidence provenance
-- [ ] cross-platform support
+- [x] macOS/Linux platform verification and explicit unsupported native Windows policy
 - [ ] public package/release strategy
 - [ ] contributor/security/community docs
 - [ ] example gallery and docs polish
