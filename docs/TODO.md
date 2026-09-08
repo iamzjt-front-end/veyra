@@ -1611,12 +1611,16 @@ Verified `pnpm installation:check` with real npm in a disposable global prefix: 
 
 ## M7.6 — Community/security files
 
-- [ ] `SECURITY.md`
-- [ ] Code of Conduct if project wants community contributions
-- [ ] issue templates
-- [ ] PR template with verification checklist
-- [ ] Discussions decision/setup
-- [ ] dependency update policy
+**Status:** [x] Complete and verified.
+
+- [x] `SECURITY.md`
+- [x] Code of Conduct if project wants community contributions
+- [x] issue templates
+- [x] PR template with verification checklist
+- [x] Discussions decision/setup
+- [x] dependency update policy
+
+Added security/community policies, three issue templates, a PR verification checklist and a manual dependency update policy. GitHub private vulnerability reporting was enabled and read back as `enabled: true`; Discussions remains disabled with a documented single-queue decision. No report, issue or advisory was submitted. Verified all template frontmatter/chooser YAML, 31 local links and the full five-command baseline (1,697 tests).
 
 ---
 
@@ -1725,4 +1729,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.6 — Community/security files.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.7 — Example gallery.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.

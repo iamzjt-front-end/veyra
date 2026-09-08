@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/iamzjt-front-end/veyra/security/advisories/new
+    about: Security reports must not include exploit details or credentials in public issues.
+  - name: Contributor guide
+    url: https://github.com/iamzjt-front-end/veyra/blob/main/CONTRIBUTING.md
+    about: Setup, architecture boundaries, tutorials and verification.

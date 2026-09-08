@@ -2,6 +2,8 @@
 
 Veyra coordinates provider-neutral agents, deterministic verification and human decisions. Contributions should preserve those boundaries and make behavior observable, testable and resumable.
 
+Follow the [Code of Conduct](CODE_OF_CONDUCT.md), use the documented [community channels](docs/COMMUNITY.md), and report vulnerabilities privately through [SECURITY.md](SECURITY.md). Dependency changes follow the [update policy](docs/DEPENDENCIES.md).
+
 ## Start here
 
 1. Follow the [local development guide](docs/DEVELOPMENT.md).
