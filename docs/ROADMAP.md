@@ -108,7 +108,7 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] macOS/Linux platform verification and explicit unsupported native Windows policy
 - [x] public package strategy (fourteen verified `@veyraoss` candidates, authenticated organization ownership and isolated tarball tests)
 - [x] fixed official package versions, release notes and local changelog generation
-- [ ] release CI (publication requires human approval)
+- [x] release CI with verified review artifacts and protected publication (live publication/provenance requires approval and npm setup)
 - [ ] contributor/security/community docs
 - [ ] example gallery and docs polish
 - [ ] evaluation/benchmark harness

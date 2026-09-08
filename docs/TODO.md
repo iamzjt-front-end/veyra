@@ -1563,17 +1563,19 @@ Verified frozen installation, `pnpm release:status`, `pnpm versioning:check`, `p
 
 ## M7.3 — Release CI
 
-**Status:** [-] Implementation and local verification complete; hosted validation pending.
+**Status:** [x] Complete and verified.
 
-- [ ] GitHub release workflow
-- [ ] npm provenance/signing where supported
-- [ ] build/test before publish
-- [ ] tag/version consistency checks
-- [ ] no secret leakage in logs
+- [x] GitHub release workflow
+- [x] npm provenance/signing where supported
+- [x] build/test before publish
+- [x] tag/version consistency checks
+- [x] no secret leakage in logs
 
 Implemented the manual [release workflow](RELEASING.md): verification runs before a separately approved publication job, all Actions/tool versions are pinned, artifacts retain source/version metadata and hashes, and the publisher validates all tarballs before using npm OIDC/provenance and checking registry integrity. The GitHub `npm-release` environment was configured and read back with required reviewer `iamzjt-front-end` and a `main` branch restriction. No npm token was uploaded, trusted-publisher registration performed or package published.
 
-Local frozen installation, actionlint 1.7.12, all five baseline commands (1,696 tests), `pnpm release-ci:check` and actual `pnpm release:pack --tag v0.1.0 --dist-tag latest --out <temporary-directory>` passed. Ten new cases exercise real Git/pnpm packing and substitute npm only inside disposable fixtures for publication arguments, integrity failures and diagnostic redaction. The checkout's fourteen real tarballs were correctly marked as a non-publishable preview. Seventy-one local documentation targets resolve. Hosted validation will be dispatched with publication disabled before marking this item complete; live public publication/provenance remains outside this verification and requires explicit approval and registry setup.
+Local frozen installation, actionlint 1.7.12, all five baseline commands (1,696 tests), `pnpm release-ci:check` and actual `pnpm release:pack --tag v0.1.0 --dist-tag latest --out <temporary-directory>` passed. Ten new cases exercise real Git/pnpm packing and substitute npm only inside disposable fixtures for publication arguments, integrity failures and diagnostic redaction. The checkout's fourteen real tarballs were correctly marked as a non-publishable preview. Seventy-one local documentation targets resolve.
+
+At `bf7189e`, [macOS/Linux CI passed](https://github.com/iamzjt-front-end/veyra/actions/runs/34212237260), and [hosted release validation passed](https://github.com/iamzjt-front-end/veyra/actions/runs/34212290491) with the publication job skipped. Downloaded and independently checked all fourteen artifact tarballs against SHA-256/SHA-512, source SHA and package versions. A [deliberately mismatched v0.1.1 request](https://github.com/iamzjt-front-end/veyra/actions/runs/34212611857) failed at preflight with `Release tag and official package versions must match.` and also skipped publication. Both dispatches used `publish=false`. Live public publication, npm trusted-publisher authentication and generated provenance attestations remain unverified and require explicit human approval plus registry setup; this item verifies the workflow implementation without claiming an actual release.
 
 ---
 
@@ -1715,4 +1717,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.3 — Release CI.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm organization ownership, the official scope migration and local versioning/changelog preparation are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.4 — Installation experience.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling and release CI validation are verified. Public publication remains gated; independent productization work can proceed.
