@@ -6,6 +6,7 @@
 .veyra/
   state/
     active.json
+    locks/        # ephemeral store/run coordination
   worktrees/
     <UUID>/        # optional detached Git execution workspace
   runs/
@@ -32,7 +33,7 @@ await store.updateRun(run.state.runId, {
 const reloaded = await store.loadRun(run.state.runId);
 ```
 
-The directory defaults to `.veyra` relative to the caller's working directory. Creation generates a UUID, snapshots the original goal, validated workflow, working directory, optional workspace metadata, and creation time, and sets the active pointer. Inputs are immutable through this API. State records status (`running`, `paused`, `completed`, `failed`), the current/next step, retry counts, timestamps, optional last outcome and optional execution `owner` (`pid`, `host`, `startedAt`). Core records ownership before execution; direct store creation does not claim an execution owner. Step IDs and retry keys must exist in the workflow. Updates replace the supplied retry map; use `currentStep: null` to remove the step for a terminal run. Omit optional fields instead of supplying `undefined`.
+The directory defaults to `.veyra` relative to the caller's working directory. Creation generates a UUID, snapshots the original goal, validated workflow, working directory, optional workspace metadata, and creation time, and sets the active pointer. Inputs are immutable through this API. State records a store-owned monotonic `revision`, status (`running`, `paused`, `completed`, `failed`), the current/next step, retry counts, timestamps, optional last outcome and optional execution `owner` (`pid`, `host`, `startedAt`). Core records ownership before execution; direct store creation does not claim an execution owner. Step IDs and retry keys must exist in the workflow. Updates replace the supplied retry map; use `currentStep: null` to remove the step for a terminal run. Omit optional fields instead of supplying `undefined`.
 
 `loadRun(id)` reads an input/state pair. `listRuns()` returns states ordered by update time, and `getActiveRun()` loads the selected run or returns null. `setActiveRun(id)` selects an existing run; null clears the pointer without deleting history. Completing a run does not implicitly clear that selection.
 
@@ -52,7 +53,7 @@ Run publication, event append, state update, and active-pointer update are separ
 
 Malformed JSON, unsupported schemas, missing files, invalid step references, and malformed events raise `StateStoreError` with a path and corrective guidance. A partial final JSONL line is reported as corrupt, and further appends are refused. No damaged history is silently skipped or repaired: preserve it and restore a valid copy before resuming. API calls reject path-like run IDs and symlinked state files/directories.
 
-Mutations are serialized within one store instance. Use one writer per state directory; cross-process locking is not yet implemented. The store does not claim protection against a separate process racing filesystem changes. These limitations are tracked by the canonical [TODO](TODO.md).
+Public store reads and mutations are serialized across cooperating processes through a short local lock. Reads wait for a concurrent event append to finish. Each successful state update increments `revision`; legacy snapshots without it remain readable. Core holds a separate per-run control lease across execution, resume and approval decisions. Inspection may update ephemeral coordination metadata in an existing store, without rewriting run records. See [locking](LOCKING.md) for scope, ordering, stale recovery and filesystem limits.
 
 ## Secret boundary
 
@@ -60,6 +61,6 @@ The input API accepts a goal, workflow, optional cwd and validated workspace met
 
 Secret filtering is checked before publication. If redaction would invalidate workflow/state/event identifiers, the write is rejected. Never use credentials as execution identifiers or embed them into command strings. Callers remain responsible for supplying known secrets and for avoiding unrecognized sensitive content in goals, output, and artifact files. Newly created directories/files use restrictive POSIX modes where supported.
 
-The immutable `workspace` field and `run.started.workspace` record the execution location selected by Core. Resume validates worktree ownership through Runtime. `workspace.removed` records explicit terminal-run cleanup; removing a worktree retains run history and artifacts. The [workspace lease](WORKSPACES.md) covers execution in one workspace, while the state-store transaction/locking limitations above remain applicable.
+The immutable `workspace` field and `run.started.workspace` record the execution location selected by Core. Resume validates worktree ownership through Runtime. `workspace.removed` records explicit terminal-run cleanup; removing a worktree retains run history and artifacts. The [workspace lease](WORKSPACES.md) covers execution in one workspace, and the [run/store locks](LOCKING.md) coordinate control and persistence. These scopes do not make filesystem edits and event/state writes one transaction.
 
 `store.redactText(text)` exposes the same configured text filter for Core diagnostics that must be redacted before truncation. It does not persist the input or expose the configured secret values.

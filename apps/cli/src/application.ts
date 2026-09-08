@@ -212,6 +212,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         config,
         cwd: root,
         runId: positionals[1] as string,
+        recoverInterrupted: values["recover-interrupted"],
       });
       write(result, `Removed worktree for run ${result.runId}: ${result.cwd}`);
       return 0;
@@ -316,6 +317,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       const resolved = await engine.resolveApproval({
         ...request,
         approvalId: values["approval-id"] ?? pending.approvalId,
+        recoverInterrupted: values["recover-interrupted"],
         decision: values.approve ? "approved" : "rejected",
         ...(values.comment !== undefined ? { comment: values.comment } : {}),
       });

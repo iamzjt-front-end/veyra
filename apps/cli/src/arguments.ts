@@ -35,7 +35,7 @@ const allowed: Record<string, string[]> = {
   ],
   doctor: ["config", "workflow", "allow-plugin"],
   workflow: ["config"],
-  workspace: ["config"],
+  workspace: ["config", "recover-interrupted"],
   help: [],
   version: [],
 };

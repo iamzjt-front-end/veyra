@@ -28,6 +28,8 @@ Only mutate the temporary copy. Do not run agents or mutating tests against the 
 
 Core's crash suites use disposable child processes and real `SIGKILL` at completed/uncertain attempts, during recovery reconciliation, and immediately before/after the store's actual rename. They verify persisted attempt identity and single filesystem mutations, preserve torn history, and refuse live/unknown owners. POSIX signal-specific cases are skipped on Windows; Windows-specific verification remains tracked separately. See [the recovery contract](CRASH-RECOVERY.md).
 
+Concurrency suites exercise independent Node processes contending for tickets, including simultaneous recovery of a killed owner, cross-process event sequences and state revisions, readers waiting through a deliberately split append, duplicate approvals, stale resumes, and two active isolated worktrees. Additional process-death tests cover approval and terminal worktree cleanup with explicit recovery. See [the locking contract](LOCKING.md).
+
 ## End-to-end CLI scenarios
 
 `test/e2e/vertical-slice.test.ts` exercises the complete built-in dev workflow through the CLI application in real, separate Node.js processes. `cli-harness.ts` supplies deterministic adapters through the existing service interface; it is test code and adds no production fake-provider switch. The fixture executor edits actual source files, while the real shell verifier runs `pnpm check`, `pnpm test`, and `pnpm build`. The disposable copy adds a dependency-free build script and expects the new greeting; the committed fixture stays unchanged.

@@ -69,7 +69,7 @@ Normally only a fully recorded `paused` run can resume. A human gate remains blo
 
 `recoverInterrupted: true` asserts that the prior owner and its child processes stopped. Core requires a dead recorded owner plus a proven completed attempt boundary or the initial run-start boundary, and checks again under workspace ownership. It continues the declared successor or finalizes a completed terminal step without replaying mutations. Recovery records the source event ID/sequence before changing state, allowing a crash during reconciliation itself to reuse that decision. Unknown in-flight effects, unmatched attempt IDs, pending approvals and corrupted event tails remain refused.
 
-State and event writes are individually durable, not a single transaction across a provider's filesystem edits. Arbitrary interrupted attempts require explicit inspection/reconciliation rather than automatic replay. General state-store locking remains M6.5. Do not treat a saved `running` state or provider result as permission to replay mutating work.
+State and event writes are individually durable, not a single transaction across a provider's filesystem edits. Arbitrary interrupted attempts require explicit inspection/reconciliation rather than automatic replay. [Per-run control and short store locks](LOCKING.md) serialize competing controllers and file operations while allowing isolated worktrees to execute concurrently. Do not treat a saved `running` state or provider result as permission to replay mutating work.
 
 ## Workspace ownership
 

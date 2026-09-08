@@ -89,25 +89,28 @@ export class VeyraEngine {
     const cwd = resolve(request.cwd ?? process.cwd());
     const store = this.#store(request);
     const runId = randomUUID();
-    const workspace = await new LocalWorkspaceManager(store.directory).prepare(
-      runId,
-      cwd,
-      request.config.runtime.workspace,
-    );
-    try {
-      const run = await store.createRun(
-        { goal: request.goal, workflow, cwd: workspace.info.cwd, workspace: workspace.info },
+    return store.withRunLock(runId, async () => {
+      const workspace = await new LocalWorkspaceManager(store.directory).prepare(
         runId,
+        cwd,
+        request.config.runtime.workspace,
       );
-      return await this.#execute(request, store, run, []);
-    } finally {
-      await workspace.release();
-    }
+      try {
+        const run = await store.createRun(
+          { goal: request.goal, workflow, cwd: workspace.info.cwd, workspace: workspace.info },
+          runId,
+        );
+        return await this.#execute(request, store, run, []);
+      } finally {
+        await workspace.release();
+      }
+    });
   }
 
   async resume(request: ResumeRequest): Promise<RunResult> {
     const store = this.#store(request);
     const saved = await store.loadRun(request.runId);
+    const history = await store.readEvents(request.runId);
     if (
       saved.state.status !== "paused" &&
       !(saved.state.status === "running" && request.recoverInterrupted)
@@ -117,16 +120,32 @@ export class VeyraEngine {
         "Only a paused run can resume; do not replay an interrupted running attempt blindly.",
       );
     if (saved.state.status === "running" && request.recoverInterrupted)
-      requireRecovery(saved, await store.readEvents(request.runId));
-    const manager = new LocalWorkspaceManager(store.directory);
-    const workspace = saved.input.workspace
-      ? await manager.resume(request.runId, saved.input.workspace, request.recoverInterrupted)
-      : await manager.prepare(request.runId, saved.input.cwd);
-    try {
-      return await this.#resumeLocked(request, store);
-    } finally {
-      await workspace.release();
-    }
+      requireRecovery(saved, history);
+    return store.withRunLock(
+      request.runId,
+      async () => {
+        const current = await store.loadRun(request.runId);
+        const currentEvents = await store.readEvents(request.runId);
+        if (
+          current.state.revision !== saved.state.revision ||
+          currentEvents.at(-1)?.eventId !== history.at(-1)?.eventId
+        )
+          throw new RunControlError(
+            "stale_resume",
+            "This run changed while resume was acquiring ownership; inspect its new boundary before retrying.",
+          );
+        const manager = new LocalWorkspaceManager(store.directory);
+        const workspace = saved.input.workspace
+          ? await manager.resume(request.runId, saved.input.workspace, request.recoverInterrupted)
+          : await manager.prepare(request.runId, saved.input.cwd);
+        try {
+          return await this.#resumeLocked(request, store);
+        } finally {
+          await workspace.release();
+        }
+      },
+      request.recoverInterrupted,
+    );
   }
 
   async #resumeLocked(request: ResumeRequest, store: LocalRunStore): Promise<RunResult> {
@@ -223,25 +242,39 @@ export class VeyraEngine {
   }
 
   async removeWorkspace(
-    request: ReadRunRequest,
+    request: ReadRunRequest & { recoverInterrupted?: boolean },
   ): Promise<{ runId: string; cwd: string; removed: true }> {
     const store = this.#store(request);
-    const run = await store.loadRun(request.runId);
-    if (!["completed", "failed"].includes(run.state.status))
-      throw new RunControlError(
-        "workspace_run_active",
-        "Only completed or failed runs may have their worktree removed; paused runs keep their workspace for resume.",
-      );
-    if (run.input.workspace?.mode !== "worktree")
-      throw new RunControlError("shared_workspace", "This run has no isolated worktree to remove.");
-    await new LocalWorkspaceManager(store.directory).remove(request.runId, run.input.workspace);
-    await store.appendEvent(request.runId, {
-      type: "workspace.removed",
-      runId: request.runId,
-      workspace: run.input.workspace,
-      at: now(),
-    });
-    return { runId: request.runId, cwd: run.input.cwd, removed: true };
+    await store.loadRun(request.runId);
+    return store.withRunLock(
+      request.runId,
+      async () => {
+        const run = await store.loadRun(request.runId);
+        if (!["completed", "failed"].includes(run.state.status))
+          throw new RunControlError(
+            "workspace_run_active",
+            "Only completed or failed runs may have their worktree removed; paused runs keep their workspace for resume.",
+          );
+        if (run.input.workspace?.mode !== "worktree")
+          throw new RunControlError(
+            "shared_workspace",
+            "This run has no isolated worktree to remove.",
+          );
+        await new LocalWorkspaceManager(store.directory).remove(
+          request.runId,
+          run.input.workspace,
+          request.recoverInterrupted,
+        );
+        await store.appendEvent(request.runId, {
+          type: "workspace.removed",
+          runId: request.runId,
+          workspace: run.input.workspace,
+          at: now(),
+        });
+        return { runId: request.runId, cwd: run.input.cwd, removed: true };
+      },
+      request.recoverInterrupted,
+    );
   }
 
   async getPendingApproval(request: ReadRunRequest): Promise<PendingApproval | null> {
@@ -267,11 +300,17 @@ export class VeyraEngine {
   resolveApproval(request: ResolveApprovalRequest): Promise<RunResult> {
     const snapshot = { ...request };
     const store = this.#store(snapshot);
-    // Serialize competing decisions in this engine; cross-process locking is a later task.
+    // Preserve local decision ordering; the run lease also excludes other processes.
     const previous = this.#approvalControls.get(snapshot.runId) ?? Promise.resolve();
     const operation = previous
       .catch(() => undefined)
-      .then(() => resolveApprovalDecision(snapshot, store, this.#options.emit));
+      .then(() =>
+        store.withRunLock(
+          snapshot.runId,
+          () => resolveApprovalDecision(snapshot, store, this.#options.emit),
+          snapshot.recoverInterrupted,
+        ),
+      );
     this.#approvalControls.set(snapshot.runId, operation);
     return operation.finally(() => {
       if (this.#approvalControls.get(snapshot.runId) === operation)

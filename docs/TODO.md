@@ -1457,10 +1457,14 @@ Verified all five baseline commands and 1,588 tests, including 42 new cases cove
 
 ## M6.5 — Concurrency and locking
 
-- [ ] project/run lock design
-- [ ] allow safe multiple runs when workspaces are isolated
-- [ ] prevent duplicate resume of the same run
-- [ ] stale lock recovery
+**Status:** [x] Complete and verified.
+
+- [x] project/run lock design
+- [x] allow safe multiple runs when workspaces are isolated
+- [x] prevent duplicate resume of the same run
+- [x] stale lock recovery
+
+Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,607 tests), and `pnpm build`. Independent Node processes contend without lost event sequences/state revisions, readers wait through a split append, duplicate approvals consume a nonce once, and a delayed resume cannot advance a newer pause. Two isolated worktrees execute concurrently against one readable store. Real process-death tests cover choosing/acquired tickets, simultaneous stale recovery, paused approval/resume through the CLI, and terminal worktree cleanup; the existing crash-reconciliation suites also pass. Live, foreign, malformed and mismatched owners are preserved, with no age-based stealing. POSIX signal/symlink cases are explicitly skipped on Windows; its support verification remains M6.9. [Locking](LOCKING.md) documents run/workspace/store scopes, revisions, local-filesystem assumptions, explicit recovery and the conservative manual policy for an unowned legacy workspace guard.
 
 ---
 
@@ -1673,4 +1677,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.5 — Concurrency and locking.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.
+**Next eligible: M6.6 — Cancellation semantics.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.

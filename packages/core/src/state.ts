@@ -9,6 +9,8 @@ import {
   type VeyraEvent,
 } from "@veyra/protocol";
 import {
+  acquireLocalLock,
+  LocalLockError,
   createSecretRedactor,
   isSecretField,
   isProcessOwner,
@@ -32,6 +34,8 @@ export interface StoredRunInput {
 
 export interface StoredRunState {
   version: 1;
+  /** Monotonic state replacement counter; absent only in legacy snapshots. */
+  revision?: number;
   runId: string;
   status: RunStatus;
   /** The current or next step to execute; absent only for a terminal run. */
@@ -74,7 +78,16 @@ export class StateStoreError extends Error {
   override readonly name = "StateStoreError";
 
   constructor(
-    readonly code: "invalid_input" | "not_found" | "corrupt_state" | "unsafe_path" | "io_error",
+    readonly code:
+      | "invalid_input"
+      | "not_found"
+      | "corrupt_state"
+      | "unsafe_path"
+      | "io_error"
+      | "lock_busy"
+      | "invalid_lock"
+      | "lock_timeout"
+      | "lock_lost",
     readonly filePath: string,
     detail: string,
   ) {
@@ -85,7 +98,7 @@ export class StateStoreError extends Error {
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
 
-/** Local single-writer store. Scheduling, provider configuration, and credentials stay outside it. */
+/** Local coordinated store. Scheduling, provider configuration, and credentials stay outside it. */
 export class LocalRunStore {
   readonly directory: string;
   readonly #redactor: SecretRedactor;
@@ -99,6 +112,28 @@ export class LocalRunStore {
   /** Redact complete diagnostics before callers create bounded excerpts. */
   redactText(value: string): string {
     return this.#redactor.text(value);
+  }
+
+  /** Hold a run-control lease across execution/approval; state operations take a separate short lock. */
+  async withRunLock<T>(
+    runId: string,
+    action: () => Promise<T>,
+    recoverInterrupted = false,
+  ): Promise<T> {
+    this.#runPath(runId);
+    const lease = await acquireLocalLock({
+      directory: await this.#lockDirectory("runs", runId),
+      holder: runId,
+      waitMs: 100,
+      recoverStale: recoverInterrupted,
+    }).catch((error) => {
+      throw lockError(error, this.directory);
+    });
+    try {
+      return await action();
+    } finally {
+      await lease.release();
+    }
   }
 
   createRun(input: CreateRunInput, runId = randomUUID()): Promise<StoredRun> {
@@ -154,6 +189,7 @@ export class LocalRunStore {
       };
       const state: StoredRunState = {
         version: 1,
+        revision: 1,
         runId,
         status: "running",
         currentStep: buildWorkflowGraph(workflow).scopes.get("")?.start as string,
@@ -211,7 +247,12 @@ export class LocalRunStore {
         );
       }
       const { input, state } = await this.#loadRun(runId);
-      const next = { ...state, ...update, updatedAt: new Date().toISOString() };
+      const next = {
+        ...state,
+        ...update,
+        revision: (state.revision ?? 0) + 1,
+        updatedAt: new Date().toISOString(),
+      };
       if (next.currentStep === null) delete next.currentStep;
       const path = join(this.#runPath(runId), "state.json");
       const validated = parseState(next, input, path, "invalid_input");
@@ -255,30 +296,31 @@ export class LocalRunStore {
   }
 
   async loadRun(runId: string): Promise<StoredRun> {
-    await this.#pending;
-    return this.#loadRun(runId);
+    return this.#read(() => this.#loadRun(runId));
   }
 
   async listRuns(): Promise<StoredRunState[]> {
-    await this.#pending;
-    const runs = join(this.directory, "runs");
-    if (!(await exists(this.directory))) return [];
-    await directory(this.directory);
-    if (!(await exists(runs))) return [];
-    await directory(runs);
-    const records: StoredRunState[] = [];
-    for (const name of await readdir(runs)) {
-      if (RUN_ID.test(name)) records.push((await this.#loadRun(name)).state);
-    }
-    return records.sort(
-      (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.runId.localeCompare(b.runId),
-    );
+    return this.#read(async () => {
+      const runs = join(this.directory, "runs");
+      if (!(await exists(this.directory))) return [];
+      await directory(this.directory);
+      if (!(await exists(runs))) return [];
+      await directory(runs);
+      const records: StoredRunState[] = [];
+      for (const name of await readdir(runs)) {
+        if (RUN_ID.test(name)) records.push((await this.#loadRun(name)).state);
+      }
+      return records.sort(
+        (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.runId.localeCompare(b.runId),
+      );
+    });
   }
 
   async readEvents(runId: string): Promise<VeyraEvent[]> {
-    await this.#pending;
-    await this.#loadRun(runId);
-    return this.#readEvents(runId);
+    return this.#read(async () => {
+      await this.#loadRun(runId);
+      return this.#readEvents(runId);
+    });
   }
 
   setActiveRun(runId: string | null): Promise<void> {
@@ -290,23 +332,27 @@ export class LocalRunStore {
   }
 
   async getActiveRun(): Promise<StoredRun | null> {
-    await this.#pending;
-    const path = this.#activePath();
-    if (!(await exists(this.directory))) return null;
-    await directory(this.directory);
-    const stateDir = join(this.directory, "state");
-    if (!(await exists(stateDir))) return null;
-    await directory(stateDir);
-    if (!(await exists(path))) return null;
-    const pointer = await readJson(path);
-    if (
-      !object(pointer) ||
-      pointer.version !== 1 ||
-      !(pointer.runId === null || (typeof pointer.runId === "string" && RUN_ID.test(pointer.runId)))
-    )
-      corrupt(path, "Invalid active run pointer.");
-    if (pointer.runId === null) return null;
-    return this.#loadRun(pointer.runId as string);
+    return this.#read(async () => {
+      const path = this.#activePath();
+      if (!(await exists(this.directory))) return null;
+      await directory(this.directory);
+      const stateDir = join(this.directory, "state");
+      if (!(await exists(stateDir))) return null;
+      await directory(stateDir);
+      if (!(await exists(path))) return null;
+      const pointer = await readJson(path);
+      if (
+        !object(pointer) ||
+        pointer.version !== 1 ||
+        !(
+          pointer.runId === null ||
+          (typeof pointer.runId === "string" && RUN_ID.test(pointer.runId))
+        )
+      )
+        corrupt(path, "Invalid active run pointer.");
+      if (pointer.runId === null) return null;
+      return this.#loadRun(pointer.runId as string);
+    });
   }
 
   #activePath() {
@@ -343,6 +389,41 @@ export class LocalRunStore {
     ]) {
       await mkdir(path, { recursive: true, mode: 0o700 });
       await directory(path);
+    }
+  }
+
+  async #lockDirectory(...parts: string[]) {
+    await this.#ensureLayout();
+    let path = join(this.directory, "state", "locks");
+    for (const part of ["", ...parts]) {
+      path = join(path, part);
+      await mkdir(path, { recursive: true, mode: 0o700 });
+      await directory(path);
+    }
+    return path;
+  }
+
+  async #coordinate<T>(action: () => Promise<T>): Promise<T> {
+    const lock = await acquireLocalLock({
+      directory: await this.#lockDirectory("store"),
+      holder: "store",
+      waitMs: 30_000,
+      recoverStale: true,
+    });
+    try {
+      return await action();
+    } finally {
+      await lock.release();
+    }
+  }
+
+  async #read<T>(action: () => Promise<T>): Promise<T> {
+    await this.#pending;
+    try {
+      // A nonexistent store stays nonexistent during read-only discovery.
+      return await ((await exists(this.directory)) ? this.#coordinate(action) : action());
+    } catch (error) {
+      throw lockError(error, this.directory);
     }
   }
 
@@ -430,20 +511,29 @@ export class LocalRunStore {
   }
 
   #mutate<T>(action: () => Promise<T>): Promise<T> {
-    const operation = this.#pending.then(action).catch((error: unknown) => {
-      if (error instanceof StateStoreError) throw error;
-      throw new StateStoreError(
-        "io_error",
-        this.directory,
-        `Local state operation failed (${systemCode(error)}). Check directory permissions and available disk space.`,
-      );
-    });
+    const operation = this.#pending
+      .then(() => this.#coordinate(action))
+      .catch((error: unknown) => {
+        if (error instanceof LocalLockError) throw lockError(error, this.directory);
+        if (error instanceof StateStoreError) throw error;
+        throw new StateStoreError(
+          "io_error",
+          this.directory,
+          `Local state operation failed (${systemCode(error)}). Check directory permissions and available disk space.`,
+        );
+      });
     this.#pending = operation.then(
       () => undefined,
       () => undefined,
     );
     return operation;
   }
+}
+
+function lockError(error: unknown, path: string): unknown {
+  return error instanceof LocalLockError
+    ? new StateStoreError(error.code, path, error.message)
+    : error;
 }
 
 function object(value: unknown): value is Record<string, unknown> {
@@ -522,6 +612,7 @@ function parseState(
       (key) =>
         ![
           "version",
+          "revision",
           "runId",
           "status",
           "currentStep",
@@ -533,6 +624,8 @@ function parseState(
         ].includes(key),
     ) ||
     value.version !== 1 ||
+    (value.revision !== undefined &&
+      (!Number.isSafeInteger(value.revision) || (value.revision as number) < 1)) ||
     value.runId !== input.runId ||
     typeof value.status !== "string" ||
     !["running", "paused", "completed", "failed"].includes(value.status) ||

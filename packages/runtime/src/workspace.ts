@@ -148,13 +148,13 @@ export class LocalWorkspaceManager {
   }
 
   /** Only an unchanged, clean, Veyra-owned worktree is eligible; never uses --force. */
-  async remove(runId: string, info: WorkspaceInfo): Promise<void> {
+  async remove(runId: string, info: WorkspaceInfo, recoverInterrupted = false): Promise<void> {
     if (info.mode !== "worktree")
       throw new WorkspaceError(
         "shared_workspace",
         "Shared working directories are never removed by Veyra.",
       );
-    const workspace = await this.resume(runId, info);
+    const workspace = await this.resume(runId, info, recoverInterrupted);
     try {
       const source = await this.#discover(info.source);
       const target = await this.#discover(info.root);

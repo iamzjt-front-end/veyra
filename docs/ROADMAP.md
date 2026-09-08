@@ -101,7 +101,8 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] command execution safety (source evidence, explicit high-risk gates, native permission visibility)
 - [ ] secret redaction (current Core/CLI/provider/Verifier paths hardened and verified; TUI/Dashboard log checks await those surfaces)
 - [x] crash recovery/idempotency (owner liveness, matched completion boundaries, conservative partial-effect policy)
-- [ ] locking/concurrency/cancellation
+- [x] local run/store locking, isolated concurrency and conservative stale-owner recovery
+- [ ] cancellation hardening
 - [ ] artifact/log retention
 - [ ] cross-platform support
 - [ ] public package/release strategy

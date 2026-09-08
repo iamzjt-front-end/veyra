@@ -22,6 +22,26 @@ const workflow: WorkflowDefinition = {
 const execute = promisify(execFile);
 
 describe("local run state", () => {
+  it("owns the monotonic revision and refuses overflow without replacing valid state", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const store = new LocalRunStore({ stateDir: join(path, ".veyra") });
+      const run = await store.createRun({ goal: "Revision fixture", workflow, cwd: path });
+      expect(run.state.revision).toBe(1);
+      await expect(
+        store.updateRun(run.state.runId, { revision: 0 } as never),
+      ).rejects.toMatchObject({ code: "invalid_input" });
+      const statePath = join(store.directory, "runs", run.state.runId, "state.json");
+      await writeFile(
+        statePath,
+        JSON.stringify({ ...run.state, revision: Number.MAX_SAFE_INTEGER }),
+      );
+      const before = await readFile(statePath, "utf8");
+      await expect(store.updateRun(run.state.runId, { status: "paused" })).rejects.toMatchObject({
+        code: "invalid_input",
+      });
+      expect(await readFile(statePath, "utf8")).toBe(before);
+    });
+  });
   it("persists validated execution ownership without changing immutable run input", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const store = new LocalRunStore({ stateDir: join(path, ".veyra") });

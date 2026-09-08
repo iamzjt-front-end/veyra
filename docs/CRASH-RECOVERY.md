@@ -10,7 +10,7 @@ ve status <run-id> --json
 ve resume <run-id> --recover-interrupted
 ```
 
-`engine.inspectRun({ config, runId, cwd? })` supplies the same inspection to every surface without constructing providers or changing saved files. Its `status` is an observation; `storedStatus` is the original snapshot value. CLI JSON exposes both, `ownerStatus`, and `recovery.allowed/reason/checkpoint`. Ordinary paused and terminal runs retain their saved status.
+`engine.inspectRun({ config, runId, cwd? })` supplies the same inspection to every surface without constructing providers or changing saved run records. Reads coordinate through ephemeral store-lock metadata when the state directory exists. Its `status` is an observation; `storedStatus` is the original snapshot value. CLI JSON exposes both, `ownerStatus`, and `recovery.allowed/reason/checkpoint`. Ordinary paused and terminal runs retain their saved status.
 
 | Saved status           | Owner observation                     | Reported status       | Interrupted recovery                                       |
 | ---------------------- | ------------------------------------- | --------------------- | ---------------------------------------------------------- |
@@ -22,7 +22,7 @@ ve resume <run-id> --recover-interrupted
 
 Core records an optional `state.owner` containing the execution coordinator's PID, hostname and approximate process start timestamp before emitting execution events. Runtime owns metadata collection and the signal-zero liveness probe. The timestamp is diagnostic, not proof of PID identity. PID reuse is conservatively treated as alive; denied probes and foreign-host metadata stay unknown. These are local-machine observations, not remote leases or a distributed identity system. Do not share active state directories between hosts.
 
-Inspection is a point-in-time observation, not a lock. Resume checks ownership/evidence again after acquiring the saved workspace lease. `--recover-interrupted` also asserts that the previous coordinator **and its child processes have stopped**. A missing coordinator PID does not prove orphaned children or external services stopped. A paused run with a stale workspace lease may also need the flag to reclaim that lease; its normal completed pause and approval checks still apply.
+Inspection is a point-in-time observation. Resume acquires a per-run control lease, refuses a changed revision/event boundary, and checks ownership/evidence again under the saved workspace lease. `--recover-interrupted` also asserts that the previous coordinator **and its child processes have stopped**. A missing coordinator PID does not prove orphaned children or external services stopped. A paused run with stale run/workspace leases may also need the flag, including during explicit approval; its normal completed pause and approval checks still apply.
 
 ## Completed boundaries
 
@@ -50,6 +50,6 @@ State snapshots and the active pointer use exclusive temporary files, file sync,
 
 On Windows, file sync and atomic rename still apply; Node cannot portably sync an open directory there. Filesystem and power-loss guarantees vary. The POSIX fault-injection tests exercise real `SIGKILL` before/after rename and during execution/reconciliation; Windows-specific process-death verification is tracked separately.
 
-Event append, state replacement, active selection and provider side effects are separate operations. A partial JSONL tail, invalid JSON or invalid event contract stops inspection/recovery and is preserved for repair, never silently discarded. A crash can leave a terminal snapshot without its final event; terminal state never grants permission to execute that run again. This is a local file store, not a multi-file transaction or database. Cross-process state mutation locking remains M6.5; use one store writer until that work is verified.
+Event append, state replacement, active selection and provider side effects are separate operations. A partial JSONL tail, invalid JSON or invalid event contract stops inspection/recovery and is preserved for repair, never silently discarded. A crash can leave a terminal snapshot without its final event; terminal state never grants permission to execute that run again. This is a local file store, not a multi-file transaction or database. [Run/store locking](LOCKING.md) excludes cooperating concurrent controllers and partial reads, but does not turn these separate operations into a transaction.
 
 See [state storage](STATE.md), [Core execution](CORE.md), [approval boundaries](APPROVALS.md), and [secret handling](AUTHENTICATION.md) for the related contracts.

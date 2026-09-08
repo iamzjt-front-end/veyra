@@ -18,6 +18,7 @@ export interface ReadRunRequest {
 }
 
 export interface ResolveApprovalRequest extends ReadRunRequest {
+  recoverInterrupted?: boolean;
   approvalId: string;
   decision: ApprovalDecision;
   comment?: string;

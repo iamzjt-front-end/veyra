@@ -4,7 +4,7 @@ import type { AgentConfig } from "@veyra/config";
 import { parseConfig } from "@veyra/config";
 import { LocalRunStore } from "@veyra/core";
 import type { AgentAdapter } from "@veyra/protocol";
-import type { ProcessRunner } from "@veyra/runtime";
+import { runProcess, type ProcessRunner } from "@veyra/runtime";
 import type { WorkflowDefinition } from "@veyra/workflow";
 import { describe, expect, it } from "vitest";
 import { FakeAgent } from "../../../test/helpers/fake-agent.js";
@@ -41,6 +41,43 @@ function commands(cwd: string, dependencies: CliServices = {}) {
 }
 
 describe("CLI application commands", () => {
+  it.skipIf(process.platform === "win32")(
+    "explicitly recovers a paused owner's leases while approving and resuming through the CLI",
+    async () => {
+      await withFixtureWorkspace(async ({ path }) => {
+        const config = parseConfig({ version: 1, agents: {}, workflow: { use: "workflow.yaml" } });
+        const workflow: WorkflowDefinition = {
+          version: 1,
+          name: "gate",
+          start: "gate",
+          steps: {
+            gate: { type: "human", on: { approved: "done" } },
+            done: { type: "end" },
+          },
+        };
+        await writeFile(join(path, "veyra.yaml"), JSON.stringify(config));
+        await writeFile(join(path, "workflow.yaml"), JSON.stringify(workflow));
+        const moduleUrl = new URL("../../../packages/core/src/index.ts", import.meta.url).href;
+        const source = `import {writeFileSync} from 'node:fs'; import {join} from 'node:path';
+import {VeyraEngine} from ${JSON.stringify(moduleUrl)};
+await new VeyraEngine({emit:event=>{if(event.type==='run.paused'){writeFileSync(join(process.argv[1],'run-id'),event.runId);process.kill(process.pid,'SIGKILL');}}}).run({config:${JSON.stringify(config)},workflow:${JSON.stringify(workflow)},cwd:process.argv[1],goal:'CLI recovery',agents:{}});`;
+        const child = await runProcess({
+          executable: process.execPath,
+          args: ["--import", "tsx", "--input-type=module", "-e", source, path],
+          timeoutMs: 30_000,
+        });
+        expect(child.signal, child.stderr).toBe("SIGKILL");
+        const id = await readFile(join(path, "run-id"), "utf8");
+        const ve = commands(path);
+        const blocked = await ve(["resume", id, "--approve", "--json"]);
+        expect(blocked.records().at(-1)).toMatchObject({ code: "lock_busy" });
+        const recovered = await ve(["resume", id, "--approve", "--recover-interrupted", "--json"]);
+        expect(recovered.code, recovered.stdout + recovered.stderr).toBe(0);
+        expect(recovered.records().at(-1)).toMatchObject({ status: "completed" });
+      });
+    },
+    30_000,
+  );
   it("reports unknown legacy ownership in plain and JSON status without creating providers or mutating state", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const config = parseConfig({ version: 1, workflow: { use: "fixture" }, agents: {} });

@@ -36,7 +36,7 @@ Git leases live in the common Git directory under `veyra-workspaces/<hash-of-can
 
 There is no age-based lease stealing. A live PID, a different run owner or malformed ownership blocks execution. `resume --recover-interrupted` may retire a lease only for that same run after the old PID is absent and Core has verified an existing completed scheduling checkpoint. Unknown partial mutations remain blocked. PID reuse is conservatively treated as live. A process crash during a lease update can leave its `.guard` directory; inspect the recorded owner and confirm every associated process has stopped before removing that specific stale guard. Do not remove another task's lease or use broad cleanup commands.
 
-This workspace lease is the minimum supporting primitive required by M6.1. It does not complete M6.5: approval/state-store transactions, a full project/run lock design and comprehensive stale-lock recovery remain separate work. Local files and cooperating Veyra processes are assumed; hostile same-user filesystem races and independent native commands are outside the lease guarantee.
+Core also holds a [run control lease](LOCKING.md) across execution, approval and cleanup, while short store locks serialize file operations across processes. Separate worktrees can therefore execute concurrently against the same store; state/event writes and provider effects remain separate operations. Local files and cooperating Veyra processes are assumed; hostile same-user filesystem races and independent native commands are outside the lease guarantee.
 
 ## Inspect and preserve work
 
@@ -59,6 +59,8 @@ ve workspace remove <run-id> --config /absolute/project/veyra.yaml --json
 ```
 
 The command accepts only a completed or failed run with a matching Veyra-owned worktree. It acquires the workspace lease, checks the source repository and starting commit, and refuses tracked changes, untracked files, ignored files, index flags that conceal edits or additional commits. It delegates to `git worktree remove` without `--force`. Paused/running runs, shared directories, replacement paths and active leases are refused. There is deliberately no force option.
+
+If the coordinator died after completing a run, `ve workspace remove <run-id> --recover-interrupted` may reclaim its proven stale run/workspace leases after you confirm its children have stopped. This does not relax the clean, unchanged, terminal-run checks.
 
 After removal, input/state/events/artifacts remain in the original state directory, and `workspace.removed` records the action. Status reports the saved directory as missing or removed. If event persistence fails after Git removed the worktree, the command reports that failure; inspect availability instead of assuming filesystem deletion and event append were one transaction. Git worktree removal can also fail because of Git's own locks or submodule rules; Veyra preserves the failure instead of forcing cleanup.
 
