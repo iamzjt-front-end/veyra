@@ -117,7 +117,7 @@ Development is intentionally executed one focused task at a time:
 
 The current next task is defined at the bottom of `docs/TODO.md`.
 
-For a first contribution, complete the [development setup](#development), read the coding rules and architecture above, then follow the [next eligible TODO](docs/TODO.md#next-task). The TODO contains implementation truth and acceptance criteria; the roadmap is a summary. Commit history is not required to find the next task.
+For a first contribution, start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [local development guide](docs/DEVELOPMENT.md), then follow the [next eligible TODO](docs/TODO.md#next-task). The TODO contains implementation truth and acceptance criteria; the roadmap is a summary. Commit history is not required to find the next task.
 
 ## Development
 

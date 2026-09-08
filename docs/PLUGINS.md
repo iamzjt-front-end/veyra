@@ -1,5 +1,7 @@
 # Provider plugins and the SDK
 
+For a runnable introduction with no provider credentials, follow the [plugin author tutorial](tutorials/PLUGIN.md).
+
 The explicit provider plugin registry lives in `@veyraoss/sdk`. A plugin constructs protocol adapters; Core continues to receive injected `AgentAdapter` instances and never imports provider code or plugin modules. This initial contract covers providers. Custom workflow node/tool registration remains separate work.
 
 Official packages share one release version; registrations and adapter descriptors report their installed package version through each plugin's exported `ADAPTER_VERSION`. The SDK contract identifier `PLUGIN_API_VERSION = 1` is independent. Third-party plugins version independently, and configured implementation pins remain exact. See [Versioning](VERSIONING.md) for compatibility, bump and upgrade rules.

@@ -1,5 +1,7 @@
 # Workflow loading and validation
 
+Start with the [workflow author tutorial](tutorials/WORKFLOW.md) to run, inspect and approve a provider-free workflow in a disposable project.
+
 `@veyraoss/workflow` owns YAML loading and graph validation. Core receives a `WorkflowDefinition` and does not parse YAML or import the config parser.
 
 - `loadWorkflow(reference, cwd?)` loads `dev`, `bugfix`, `review`, or `research` from the Workflow package's built-in assets, independently of the project working directory. Its build copies the canonical root `workflows/*.yaml` into `dist/presets/`, so presets also work outside the checkout; build before running source-based loader tests. Other references are absolute paths or paths resolved relative to `cwd` (the current directory by default). Pass the config directory when resolving `workflow.use`.

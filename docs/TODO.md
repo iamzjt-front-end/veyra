@@ -1595,13 +1595,17 @@ Verified `pnpm installation:check` with real npm in a disposable global prefix: 
 
 ## M7.5 — Contributor documentation
 
-- [ ] `CONTRIBUTING.md`
-- [ ] local development guide
-- [ ] architecture decision process
-- [ ] provider/plugin author tutorial
-- [ ] workflow author tutorial
-- [ ] test strategy
-- [ ] release process
+**Status:** [x] Complete and verified.
+
+- [x] `CONTRIBUTING.md`
+- [x] local development guide
+- [x] architecture decision process
+- [x] provider/plugin author tutorial
+- [x] workflow author tutorial
+- [x] test strategy
+- [x] release process
+
+[Contributing](../CONTRIBUTING.md) connects local setup, package ownership, test strategy, the ADR process and the existing version/release approval process. Both tutorial code blocks were extracted into disposable projects and exercised through the built CLI: strict SDK checking of the local plugin, measured character output, missing trust/version refusal, real Node command evidence, approval pause/resume, failing command and invalid transition. All temporary files were removed. Verified 38 new contributor documentation links and the full five-command baseline (1,697 tests). No public packages or releases were published.
 
 ---
 
@@ -1721,4 +1725,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.5 — Contributor documentation.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.6 — Community/security files.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
