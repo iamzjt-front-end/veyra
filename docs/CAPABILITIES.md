@@ -33,6 +33,8 @@ The Claude API adapter also advertises planner/reviewer/judge roles and reasonin
 
 [Gemini](GEMINI.md) advertises planner/reviewer and reasoning/structured-output. Its inline-image path adds vision only with explicit `vision: true` for documented exact models; unknown model IDs cannot enable vision. Gemini readiness checks only its configured credential variable.
 
+[Gemini CLI](GEMINI-CLI.md) uses the separate provider `gemini-cli` with executor and code-execution/tool-use/local-cli/structured-output capabilities. It validates prompt-requested JSON locally; native permissions and model access remain external requirements. Readiness checks CLI flags and environment credential presence without claiming an offline native login check.
+
 ## Explicit workflow requirements
 
 ```yaml

@@ -87,24 +87,24 @@ In this checkout use `pnpm ve -- <command>` after building. The commands above w
 
 The **architecture scaffold is intentionally stable** while implementation lands incrementally:
 
-| Area        | Scaffold | Current status                  |
-| ----------- | -------- | ------------------------------- |
-| CLI         | ✓        | headless workflow commands      |
-| TUI         | ✓        | scaffolded                      |
-| Dashboard   | ✓        | planned                         |
-| Core        | ✓        | persisted workflow loop         |
-| Workflow    | ✓        | YAML loader and validation      |
-| Runtime     | ✓        | local process execution         |
-| Verifier    | ✓        | sequential shell checks         |
-| Protocol    | ✓        | contracts and JSON guard        |
-| Config      | ✓        | YAML loader and validation      |
-| SDK         | ✓        | plugin registry and contracts   |
-| OpenAI      | ✓        | planner/reviewer adapter        |
-| Codex       | ✓        | CLI executor adapter            |
-| Claude      | ✓        | API adapter; live smoke blocked |
-| Claude Code | ✓        | CLI adapter; live smoke blocked |
-| Gemini      | ✓        | API adapter; live smoke blocked |
-| OpenCode    | ✓        | planned                         |
+| Area        | Scaffold | Current status                    |
+| ----------- | -------- | --------------------------------- |
+| CLI         | ✓        | headless workflow commands        |
+| TUI         | ✓        | scaffolded                        |
+| Dashboard   | ✓        | planned                           |
+| Core        | ✓        | persisted workflow loop           |
+| Workflow    | ✓        | YAML loader and validation        |
+| Runtime     | ✓        | local process execution           |
+| Verifier    | ✓        | sequential shell checks           |
+| Protocol    | ✓        | contracts and JSON guard          |
+| Config      | ✓        | YAML loader and validation        |
+| SDK         | ✓        | plugin registry and contracts     |
+| OpenAI      | ✓        | planner/reviewer adapter          |
+| Codex       | ✓        | CLI executor adapter              |
+| Claude      | ✓        | API adapter; live smoke blocked   |
+| Claude Code | ✓        | CLI adapter; live smoke blocked   |
+| Gemini      | ✓        | API/CLI adapters; live unverified |
+| OpenCode    | ✓        | planned                           |
 
 ## Implementation plan
 
@@ -176,6 +176,8 @@ The [Claude adapter reference](docs/CLAUDE.md) covers planner/reviewer/judge res
 The [Claude Code reference](docs/CLAUDE-CODE.md) covers native CLI execution, permissions, readiness, bounded diagnostics and the guarded fixture smoke test.
 
 The [Gemini reference](docs/GEMINI.md) covers structured reasoning, explicit inline image input, bounded requests and the guarded API smoke test.
+
+The [Gemini CLI reference](docs/GEMINI-CLI.md) covers native execution, strict result validation, permissions and offline readiness limitations.
 
 ## Current milestone
 

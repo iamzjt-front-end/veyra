@@ -1,0 +1,17 @@
+version: 1
+project:
+  name: gemini-cli-development
+workflow:
+  use: dev
+agents:
+  planner:
+    provider: openai
+    model: replace-with-an-accessible-structured-output-model
+  executor:
+    provider: gemini-cli
+    options:
+      timeoutMs: 900000
+      # Configure required tool permissions in native Gemini CLI policy.
+  reviewer:
+    provider: openai
+    model: replace-with-an-accessible-structured-output-model

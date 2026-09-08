@@ -1161,11 +1161,17 @@ Live blocker: neither `GEMINI_API_KEY` nor `GOOGLE_API_KEY` is present (presence
 
 ## M4.6 — Gemini CLI executor
 
-- [ ] decide whether it shares `plugins/gemini` or needs a separate package; do not silently change top-level architecture—document decision first
-- [ ] runtime-based invocation
-- [ ] readiness and auth detection
-- [ ] structured/non-interactive output
-- [ ] tests
+**Status:** [x] Complete and verified with deterministic process tests; live execution unverified.
+
+Implementation decision (before coding): keep `GeminiCliAdapter` alongside the API adapter in the existing `plugins/gemini` package, with separate implementation modules and provider names (`gemini-cli` versus `gemini`). This follows the scaffold's stated API/later-CLI ownership, avoids adding a top-level package boundary, and keeps every process operation in Runtime. The API adapter and its credentials remain separate from native CLI execution/authentication.
+
+- [x] decide whether it shares `plugins/gemini` or needs a separate package; do not silently change top-level architecture—document decision first
+- [x] runtime-based invocation
+- [x] readiness and auth detection
+- [x] structured/non-interactive output
+- [x] tests
+
+Verified all five baseline commands (1171 tests), example workflow validation and root doctor. Eighty Gemini CLI tests cover strict executor results, native errors and permission/warning handling, reported usage, prompt file-inclusion escaping, bounded output, cancellation/timeouts, secret masking and scoped offline readiness; a real disposable Node child verifies Runtime stdin/output transport. CLI integration verifies provider registration, read-only validation, doctor and persisted execution through the existing contracts. No package dependency or architecture boundary changed. `docs/GEMINI-CLI.md` documents native policy/authentication ownership and the pinned 0.58.0 contract. The actual readiness probe returned `unavailable` with `Gemini CLI executable was not found; install it or configure its executable path.` No live inference was attempted or claimed; this item requires deterministic tests, not a live smoke acceptance check.
 
 ---
 
@@ -1606,4 +1612,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.6 — Gemini CLI executor.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M4.7 — OpenCode executor.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

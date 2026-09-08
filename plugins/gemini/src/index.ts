@@ -11,6 +11,7 @@ import {
 import { createDeadline } from "@veyra/runtime";
 import { requestParts, redact, visionModels } from "./input.js";
 import { readJson } from "./http.js";
+export { GeminiCliAdapter, type GeminiCliAdapterOptions } from "./cli.js";
 import {
   type GeminiRole,
   normalizeUsage,

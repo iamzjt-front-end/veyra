@@ -2,7 +2,12 @@ import type { AgentConfig, VeyraConfig } from "@veyra/config";
 import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
 import { ClaudeAdapter, type ClaudeAdapterOptions } from "@veyra/claude";
 import { ClaudeCodeAdapter, type ClaudeCodeAdapterOptions } from "@veyra/claude-code";
-import { GeminiAdapter, type GeminiAdapterOptions } from "@veyra/gemini";
+import {
+  GeminiAdapter,
+  type GeminiAdapterOptions,
+  GeminiCliAdapter,
+  type GeminiCliAdapterOptions,
+} from "@veyra/gemini";
 import { OpenAIAdapter, type OpenAIAdapterOptions } from "@veyra/openai";
 import type { JsonObject } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
@@ -48,6 +53,18 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
       runProcess: services.runProcess,
     });
   return [
+    {
+      apiVersion: 1,
+      provider: "gemini-cli",
+      version: "0.1.0",
+      createAgent: (agent, context) =>
+        new GeminiCliAdapter(adapterOptions(agent, context) as GeminiCliAdapterOptions, services),
+      checkReadiness: (agent, context, controls) =>
+        new GeminiCliAdapter(
+          adapterOptions(agent, context) as GeminiCliAdapterOptions,
+          services,
+        ).checkReadiness(controls),
+    },
     {
       apiVersion: 1,
       provider: "gemini",

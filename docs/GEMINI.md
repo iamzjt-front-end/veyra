@@ -1,6 +1,6 @@
 # Gemini API adapter
 
-`@veyra/gemini` implements planner and reviewer roles using the Gemini Developer API's `models.generateContent` endpoint and Node.js's built-in `fetch`. It adds no third-party runtime dependency. Core remains provider-neutral; the CLI registers `gemini` through the [SDK plugin contract](PLUGINS.md). Gemini CLI execution is a separate TODO.
+`@veyra/gemini` implements planner and reviewer roles using the Gemini Developer API's `models.generateContent` endpoint and Node.js's built-in `fetch`. It adds no third-party runtime dependency. Core remains provider-neutral; the CLI registers `gemini` through the [SDK plugin contract](PLUGINS.md). The separate [Gemini CLI executor](GEMINI-CLI.md) shares this package under provider `gemini-cli`.
 
 ```yaml
 agents:

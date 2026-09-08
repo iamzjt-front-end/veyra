@@ -138,88 +138,111 @@ describe("CLI plugin composition", () => {
       expect(run.stdout).toContain("gemini_missing_api_key");
     });
   });
-  it("validates, discovers and executes the Claude Code built-in through injected runtime", async () => {
-    await withFixtureWorkspace(async ({ path }) => {
-      await writeFile(
-        join(path, "veyra.yaml"),
-        JSON.stringify({
-          version: 1,
-          workflow: { use: "workflow.yaml" },
-          agents: { coding: { provider: "claude-code" } },
-        }),
-      );
-      await writeFile(
-        join(path, "workflow.yaml"),
-        JSON.stringify({
-          name: "Claude Code fixture",
-          version: 1,
-          start: "execute",
-          steps: {
-            execute: {
-              type: "agent",
-              agent: "coding",
-              requires: { role: "executor", capabilities: ["local-cli", "structured-output"] },
+  it.each(["claude-code", "gemini-cli"])(
+    "validates, discovers and executes %s through injected runtime",
+    async (provider) => {
+      await withFixtureWorkspace(async ({ path }) => {
+        await writeFile(
+          join(path, "veyra.yaml"),
+          JSON.stringify({
+            version: 1,
+            workflow: { use: "workflow.yaml" },
+            agents: { coding: { provider } },
+          }),
+        );
+        await writeFile(
+          join(path, "workflow.yaml"),
+          JSON.stringify({
+            name: "Native CLI executor fixture",
+            version: 1,
+            start: "execute",
+            steps: {
+              execute: {
+                type: "agent",
+                agent: "coding",
+                requires: { role: "executor", capabilities: ["local-cli", "structured-output"] },
+              },
             },
-          },
-        }),
-      );
-      const calls: string[][] = [];
-      const runner: ProcessRunner = async (request) => {
-        calls.push([request.executable, ...(request.args ?? [])]);
-        const stdout =
-          request.executable === "pnpm" || request.executable.endsWith("cmd.exe")
-            ? "10.15.1"
-            : request.args?.[0] === "--version"
-              ? "2.1.159 (Claude Code)"
-              : request.args?.[0] === "--help"
-                ? "--print --output-format --json-schema --no-session-persistence --permission-mode"
-                : request.args?.[0] === "auth"
-                  ? '{"loggedIn":true}'
-                  : JSON.stringify({
-                      type: "result",
-                      subtype: "success",
-                      is_error: false,
-                      structured_output: {
-                        status: "success",
-                        summary: "Fixture executor completed",
-                        changedFiles: [],
-                        commandsRun: [],
-                      },
-                    });
-        return {
-          exitCode: 0,
-          signal: null,
-          stdout,
-          stderr: "",
-          stdoutTruncated: false,
-          stderrTruncated: false,
-          durationMs: 1,
+          }),
+        );
+        const calls: string[][] = [];
+        const runner: ProcessRunner = async (request) => {
+          calls.push([request.executable, ...(request.args ?? [])]);
+          const stdout =
+            request.executable === "pnpm" || request.executable.endsWith("cmd.exe")
+              ? "10.15.1"
+              : request.args?.[0] === "--version"
+                ? provider === "claude-code"
+                  ? "2.1.159 (Claude Code)"
+                  : "0.58.0"
+                : request.args?.[0] === "--help"
+                  ? "--print --output-format --json-schema --no-session-persistence --permission-mode --prompt --approval-mode"
+                  : request.args?.[0] === "auth"
+                    ? '{"loggedIn":true}'
+                    : provider === "gemini-cli"
+                      ? JSON.stringify({
+                          response: JSON.stringify({
+                            status: "success",
+                            summary: "Fixture executor completed",
+                            changedFiles: [],
+                            commandsRun: [],
+                          }),
+                        })
+                      : JSON.stringify({
+                          type: "result",
+                          subtype: "success",
+                          is_error: false,
+                          structured_output: {
+                            status: "success",
+                            summary: "Fixture executor completed",
+                            changedFiles: [],
+                            commandsRun: [],
+                          },
+                        });
+          return {
+            exitCode: 0,
+            signal: null,
+            stdout,
+            stderr: "",
+            stdoutTruncated: false,
+            stderrTruncated: false,
+            durationMs: 1,
+          };
         };
-      };
-      expect(
-        (
-          await invoke(path, ["workflow", "validate", "workflow.yaml", "--config", "veyra.yaml"], {
-            runProcess: runner,
-          })
-        ).code,
-      ).toBe(0);
-      expect(calls).toEqual([]);
-      const doctor = await invoke(path, ["doctor"], { runProcess: runner });
-      expect(doctor.code, doctor.stdout).toBe(0);
-      expect(doctor.records[0].providers[0]).toMatchObject({
-        provider: "claude-code",
-        ready: true,
-        scope: "local",
-        descriptor: { roles: ["executor"] },
+        expect(
+          (
+            await invoke(
+              path,
+              ["workflow", "validate", "workflow.yaml", "--config", "veyra.yaml"],
+              {
+                runProcess: runner,
+              },
+            )
+          ).code,
+        ).toBe(0);
+        expect(calls).toEqual([]);
+        const doctor = await invoke(path, ["doctor"], {
+          runProcess: runner,
+          env: { GEMINI_API_KEY: "fixture-key" },
+        });
+        expect(doctor.code, doctor.stdout).toBe(0);
+        expect(doctor.records[0].providers[0]).toMatchObject({
+          provider,
+          ready: true,
+          scope: provider === "claude-code" ? "local" : "configuration",
+          descriptor: { roles: ["executor"] },
+        });
+        const run = await invoke(path, ["run", "Repair fixture"], { runProcess: runner });
+        expect(run.code, run.stdout).toBe(0);
+        expect(run.stdout).toContain("Fixture executor completed");
+        expect(
+          calls.filter((call) => call[1] === (provider === "claude-code" ? "--print" : "--prompt")),
+        ).toHaveLength(1);
+        const state = await invoke(path, ["status"]);
+        expect(state.stdout).toContain("completed");
       });
-      const run = await invoke(path, ["run", "Repair fixture"], { runProcess: runner });
-      expect(run.code, run.stdout).toBe(0);
-      expect(run.stdout).toContain("Fixture executor completed");
-      expect(calls.filter((call) => call[1] === "--print")).toHaveLength(1);
-      const state = await invoke(path, ["status"]);
-      expect(state.stdout).toContain("completed");
-    });
-  });
+    },
+  );
   it("discovers the Claude built-in and checks only credential presence through doctor", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       await fixture(path);
