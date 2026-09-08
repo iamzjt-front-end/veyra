@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION as CODEX_VERSION } from "@veyraoss/codex";
 import { readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { AgentConfig } from "@veyraoss/config";
@@ -502,7 +503,7 @@ await new VeyraEngine({emit:event=>{if(event.type==='run.paused'){writeFileSync(
           ready: false,
           descriptor: expect.objectContaining({
             schemaVersion: 1,
-            adapterVersion: "0.1.0",
+            adapterVersion: CODEX_VERSION,
             roles: ["executor"],
             capabilities: expect.arrayContaining(["code-execution", "local-cli"]),
           }),

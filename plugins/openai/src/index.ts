@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "./version.js";
 import {
   type AgentAdapter,
   type AgentDescriptor,
@@ -83,7 +84,7 @@ export class OpenAIAdapter implements AgentAdapter {
       schemaVersion: 1,
       id: this.id,
       provider: this.provider,
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       model: this.#options.model,
       roles: this.#options.role ? [this.#options.role] : ["planner", "reviewer", "judge"],
       capabilities: ["reasoning", "structured-output"],
@@ -298,3 +299,5 @@ function normalizeUsage(value: Response["usage"]): UsageMetadata | undefined {
   }
   return Object.keys(usage).length > 0 ? usage : undefined;
 }
+
+export { ADAPTER_VERSION } from "./version.js";

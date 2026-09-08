@@ -2,6 +2,8 @@
 
 The public executable is `ve`. In this checkout, build the workspace and use `pnpm ve -- <command>` from the repository root. For another project, pass `--config /absolute/project/veyra.yaml`; paths and execution resolve relative to that config's directory. Public package installation is a later milestone.
 
+`ve version` prints `ve <installed-package-version>`; `ve version --json` returns `{ "version": "<installed-package-version>", "executable": "ve" }`. This comes from the CLI package manifest, including any prerelease suffix. It does not infer publication status from the version. See [Versioning](VERSIONING.md).
+
 ## Inspect workflows before running
 
 ```bash

@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "../src/version.js";
 import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
 import OpenAI from "openai";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -59,7 +60,7 @@ describe("OpenAI reasoning adapter", () => {
     expect(description).toMatchObject({
       schemaVersion: 1,
       provider: "openai",
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       model: "fixture-model",
       roles: ["planner", "reviewer", "judge"],
       capabilities: ["reasoning", "structured-output"],

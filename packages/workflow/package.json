@@ -37,7 +37,8 @@
     "dist",
     "LICENSE",
     "README.md",
-    "schema/workflow-v1.schema.json"
+    "schema/workflow-v1.schema.json",
+    "CHANGELOG.md"
   ],
   "publishConfig": {
     "access": "public",

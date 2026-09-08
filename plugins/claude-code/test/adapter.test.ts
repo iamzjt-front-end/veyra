@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "../src/version.js";
 import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
 import {
   ProcessExecutionError,
@@ -60,7 +61,7 @@ describe("Claude Code runtime adapter", () => {
       schemaVersion: 1,
       id: "coding",
       provider: "claude-code",
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       model: "configured",
       roles: ["executor"],
       permissions: { mode: "default", source: "adapter-argument", toolAllowRules: 0 },

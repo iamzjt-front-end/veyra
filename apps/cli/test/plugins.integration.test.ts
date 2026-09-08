@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION as OPENAI_VERSION } from "@veyraoss/openai";
 import { createRequire } from "node:module";
 import { createServer } from "node:http";
 import { readFile, writeFile } from "node:fs/promises";
@@ -666,7 +667,7 @@ describe("CLI plugin composition", () => {
       agents: {},
       workflow: { use: "dev" },
       plugins: {
-        openai: { version: "0.1.0", options: { model: "default-model", role: "reviewer" } },
+        openai: { version: OPENAI_VERSION, options: { model: "default-model", role: "reviewer" } },
       },
     });
     const registry = await registryForProviders(config, ["openai"], process.cwd());

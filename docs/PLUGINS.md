@@ -1,6 +1,8 @@
 # Provider plugins and the SDK
 
-M4.2 adds an explicit provider plugin registry to `@veyraoss/sdk` in this `0.1.0` development checkout. A plugin constructs protocol adapters; Core continues to receive injected `AgentAdapter` instances and never imports provider code or plugin modules. This initial contract covers providers. Custom workflow node/tool registration remains separate work.
+The explicit provider plugin registry lives in `@veyraoss/sdk`. A plugin constructs protocol adapters; Core continues to receive injected `AgentAdapter` instances and never imports provider code or plugin modules. This initial contract covers providers. Custom workflow node/tool registration remains separate work.
+
+Official packages share one release version; registrations and adapter descriptors report their installed package version through each plugin's exported `ADAPTER_VERSION`. The SDK contract identifier `PLUGIN_API_VERSION = 1` is independent. Third-party plugins version independently, and configured implementation pins remain exact. See [Versioning](VERSIONING.md) for compatibility, bump and upgrade rules.
 
 Current Core inputs carry labeled `instructionSources` alongside general `instructions`, plus `context.provenance` for supplied evidence. Deliver the complete envelope or preserve these fields explicitly in the provider prompt; forwarding only the former flattened `instructions` string loses project/workflow guidance. SDK exports the source contracts, guards and shared safety guidance. See [prompt source integration](PROMPT-SAFETY.md).
 

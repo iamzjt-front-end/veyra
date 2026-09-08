@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "../src/version.js";
 import { access, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
@@ -55,7 +56,7 @@ describe("Codex CLI adapter", () => {
     expect(adapter.describe()).toMatchObject({
       permissions: { mode: "unknown", source: "native-configuration", sandbox: "workspace-write" },
       provider: "codex",
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       model: "fixture-model",
       roles: ["executor"],
       capabilities: ["code-execution", "tool-use", "local-cli", "structured-output"],

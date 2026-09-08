@@ -1548,10 +1548,16 @@ Verified the completed scope migration with `pnpm install --frozen-lockfile`, `p
 
 ## M7.2 — Versioning and changelog
 
-- [ ] semantic versioning policy
-- [ ] changeset/release-note workflow
-- [ ] changelog generation
-- [ ] plugin/core compatibility version policy
+**Status:** [x] Complete and verified.
+
+- [x] semantic versioning policy
+- [x] changeset/release-note workflow
+- [x] changelog generation
+- [x] plugin/core compatibility version policy
+
+The [versioning policy](VERSIONING.md) defines pre/post-1.0 compatibility, independent schema/API identifiers and exact plugin pins. Pinned Changesets CLI 2.31.1 versions the fourteen official packages together, generates local Git changelogs and excludes private scaffolds. `pnpm changeset`, `pnpm release:status` and `pnpm release:version` provide note creation, preview and local preparation; none automatically commits, tags or publishes. The CLI and all eight official adapter variants now report installed manifest versions. Generated package changelogs are included in tarballs when present.
+
+Verified frozen installation, `pnpm release:status`, `pnpm versioning:check`, `pnpm packages:check` and all five baseline commands (1,686 tests). Five disposable-monorepo tests run real patch/minor/major preparation, invalid-target rejection, fixed-group propagation, dependency/changelog updates, private exclusions and idempotent repeated versioning; the full preparation script passes offline with its frozen lockfile and formatter configuration. The tarball consumer verifies future prerelease versions in fresh processes without a rebuild. Ninety-two relative documentation links resolve. Repository package versions remain `0.1.0`, with a pending release note; no public release or publication occurred.
 
 ---
 
@@ -1703,4 +1709,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.2 — Versioning and changelog.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm organization ownership and the official scope migration are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.3 — Release CI.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm organization ownership, the official scope migration and local versioning/changelog preparation are verified. Public publication remains gated; independent productization work can proceed.

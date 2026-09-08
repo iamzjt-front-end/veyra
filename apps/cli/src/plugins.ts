@@ -1,23 +1,42 @@
 import type { AgentConfig, VeyraConfig } from "@veyraoss/config";
-import { CodexAdapter, type CodexAdapterOptions } from "@veyraoss/codex";
-import { ClaudeAdapter, type ClaudeAdapterOptions } from "@veyraoss/claude";
-import { ClaudeCodeAdapter, type ClaudeCodeAdapterOptions } from "@veyraoss/claude-code";
 import {
+  ADAPTER_VERSION as CODEX_VERSION,
+  CodexAdapter,
+  type CodexAdapterOptions,
+} from "@veyraoss/codex";
+import {
+  ADAPTER_VERSION as CLAUDE_VERSION,
+  ClaudeAdapter,
+  type ClaudeAdapterOptions,
+} from "@veyraoss/claude";
+import {
+  ADAPTER_VERSION as CLAUDE_CODE_VERSION,
+  ClaudeCodeAdapter,
+  type ClaudeCodeAdapterOptions,
+} from "@veyraoss/claude-code";
+import {
+  ADAPTER_VERSION as GEMINI_VERSION,
   GeminiAdapter,
   type GeminiAdapterOptions,
   GeminiCliAdapter,
   type GeminiCliAdapterOptions,
 } from "@veyraoss/gemini";
 import {
+  ADAPTER_VERSION as OPENAI_VERSION,
   OpenAIAdapter,
   type OpenAIAdapterOptions,
   OpenAICompatibleAdapter,
   type OpenAICompatibleAdapterOptions,
 } from "@veyraoss/openai";
-import { OpenCodeAdapter, type OpenCodeAdapterOptions } from "@veyraoss/opencode";
+import {
+  ADAPTER_VERSION as OPENCODE_VERSION,
+  OpenCodeAdapter,
+  type OpenCodeAdapterOptions,
+} from "@veyraoss/opencode";
 import type { JsonObject } from "@veyraoss/protocol";
 import type { ProcessRunner } from "@veyraoss/runtime";
 import {
+  PLUGIN_API_VERSION,
   PluginError,
   PluginRegistry,
   loadLocalPlugin,
@@ -63,9 +82,9 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
     });
   return [
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "openai-compatible",
-      version: "0.1.0",
+      version: OPENAI_VERSION,
       createAgent: (agent, context) =>
         new OpenAICompatibleAdapter(
           adapterOptions(agent, context) as unknown as OpenAICompatibleAdapterOptions,
@@ -86,9 +105,9 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
       },
     },
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "opencode",
-      version: "0.1.0",
+      version: OPENCODE_VERSION,
       createAgent: (agent, context) =>
         new OpenCodeAdapter(adapterOptions(agent, context) as OpenCodeAdapterOptions, services),
       checkReadiness: (agent, context, controls) => {
@@ -102,9 +121,9 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
       },
     },
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "gemini-cli",
-      version: "0.1.0",
+      version: GEMINI_VERSION,
       createAgent: (agent, context) =>
         new GeminiCliAdapter(adapterOptions(agent, context) as GeminiCliAdapterOptions, services),
       checkReadiness: (agent, context, controls) =>
@@ -114,9 +133,9 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
         ).checkReadiness(controls),
     },
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "gemini",
-      version: "0.1.0",
+      version: GEMINI_VERSION,
       createAgent: (agent, context) =>
         new GeminiAdapter(adapterOptions(agent, context) as unknown as GeminiAdapterOptions, {
           env: services.env,
@@ -127,31 +146,31 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
         }).checkReadiness(controls),
     },
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "claude-code",
-      version: "0.1.0",
+      version: CLAUDE_CODE_VERSION,
       createAgent: claudeCode,
       checkReadiness: (agent, context, controls) =>
         claudeCode(agent, context).checkReadiness(controls),
     },
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "claude",
-      version: "0.1.0",
+      version: CLAUDE_VERSION,
       createAgent: claude,
       checkReadiness: (agent, context, controls) => claude(agent, context).checkReadiness(controls),
     },
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "openai",
-      version: "0.1.0",
+      version: OPENAI_VERSION,
       createAgent: openai,
       checkReadiness: (agent, context, controls) => openai(agent, context).checkReadiness(controls),
     },
     {
-      apiVersion: 1,
+      apiVersion: PLUGIN_API_VERSION,
       provider: "codex",
-      version: "0.1.0",
+      version: CODEX_VERSION,
       createAgent: codex,
       checkReadiness: (agent, context, controls) => codex(agent, context).checkReadiness(controls),
     },

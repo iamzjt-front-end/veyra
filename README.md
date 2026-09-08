@@ -147,6 +147,8 @@ See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/i
 
 The [package strategy](docs/PACKAGES.md) identifies fourteen release candidates under the verified official npm scope `@veyraoss`. `pnpm packages:check` verifies actual tarballs from an isolated consumer. Public-package metadata is prepared; publication requires explicit human approval. The product remains Veyra, the executable remains `ve`, and configuration/state paths remain `veyra.yaml` and `.veyra/`.
 
+The [versioning policy](docs/VERSIONING.md) covers compatible changes, official package versions and the local Changesets workflow. Use `pnpm changeset` to add a release note and `pnpm release:status` to preview the next version. [Changelog](CHANGELOG.md) identifies pending notes and generated package histories.
+
 The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The Core loop, first adapters, and headless CLI commands work; live provider runs require the corresponding accounts and credentials.
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.

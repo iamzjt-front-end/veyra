@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "./version.js";
 import { resolve } from "node:path";
 import {
   type AgentAdapter,
@@ -114,7 +115,7 @@ export class OpenCodeAdapter implements AgentAdapter {
       schemaVersion: 1,
       id: this.id,
       provider: this.provider,
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       ...(this.#options.model ? { model: this.#options.model } : {}),
       roles: ["executor"],
       permissions: { mode: "unknown", source: "native-configuration" },
@@ -369,3 +370,5 @@ export class OpenCodeAdapter implements AgentAdapter {
     }
   }
 }
+
+export { ADAPTER_VERSION } from "./version.js";

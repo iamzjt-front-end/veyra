@@ -107,7 +107,8 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] labeled prompt sources and persisted decision evidence provenance
 - [x] macOS/Linux platform verification and explicit unsupported native Windows policy
 - [x] public package strategy (fourteen verified `@veyraoss` candidates, authenticated organization ownership and isolated tarball tests)
-- [ ] version/changelog and release automation (publication requires human approval)
+- [x] fixed official package versions, release notes and local changelog generation
+- [ ] release CI (publication requires human approval)
 - [ ] contributor/security/community docs
 - [ ] example gallery and docs polish
 - [ ] evaluation/benchmark harness

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.4/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "@veyraoss/config",
+      "@veyraoss/core",
+      "@veyraoss/protocol",
+      "@veyraoss/runtime",
+      "@veyraoss/sdk",
+      "@veyraoss/verifier",
+      "@veyraoss/workflow",
+      "@veyraoss/claude",
+      "@veyraoss/claude-code",
+      "@veyraoss/codex",
+      "@veyraoss/gemini",
+      "@veyraoss/openai",
+      "@veyraoss/opencode",
+      "@veyraoss/cli"
+    ]
+  ],
+  "linked": [],
+  "access": "public",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "privatePackages": {
+    "version": false,
+    "tag": false
+  },
+  "ignore": []
+}

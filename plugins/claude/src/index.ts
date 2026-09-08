@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "./version.js";
 import Anthropic from "@anthropic-ai/sdk";
 import { createDeadline, createSecretRedactor } from "@veyraoss/runtime";
 import type {
@@ -97,7 +98,7 @@ export class ClaudeAdapter implements AgentAdapter {
       schemaVersion: 1,
       id: this.id,
       provider: this.provider,
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       model: this.#options.model,
       roles: this.#options.role ? [this.#options.role] : ["planner", "reviewer", "judge"],
       capabilities: ["reasoning", "structured-output"],
@@ -335,3 +336,5 @@ function normalizeUsage(value: Message["usage"]): UsageMetadata | undefined {
     usage.totalTokens = usage.inputTokens + usage.outputTokens;
   return Object.keys(usage).length ? usage : undefined;
 }
+
+export { ADAPTER_VERSION } from "./version.js";

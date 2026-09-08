@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "./version.js";
 import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
 import {
   type AgentAdapter,
@@ -122,7 +123,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       schemaVersion: 1,
       id: this.id,
       provider: this.provider,
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       ...(this.#options.model ? { model: this.#options.model } : {}),
       roles: ["executor"],
       permissions: {
@@ -382,3 +383,5 @@ export function buildPrompt(input: AgentInput, env: NodeJS.ProcessEnv = process.
     JSON.stringify(redactor(env).json(input), null, 2),
   ].join("\n\n");
 }
+
+export { ADAPTER_VERSION } from "./version.js";

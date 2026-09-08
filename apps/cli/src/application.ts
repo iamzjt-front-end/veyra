@@ -1,3 +1,4 @@
+import { CLI_VERSION } from "./version.js";
 import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
@@ -51,7 +52,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       return 0;
     }
     if (command === "version") {
-      write({ version: "0.1.0-dev", executable: "ve" }, "ve 0.1.0-dev");
+      write({ version: CLI_VERSION, executable: "ve" }, `ve ${CLI_VERSION}`);
       return 0;
     }
     const configPath = resolve(cwd, values.config ?? "veyra.yaml");

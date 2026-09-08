@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "./version.js";
 import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -100,7 +101,7 @@ export class CodexAdapter implements AgentAdapter {
       schemaVersion: 1,
       id: this.id,
       provider: this.provider,
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       ...(this.#options.model ? { model: this.#options.model } : {}),
       roles: this.#options.mode === "sdk" ? [] : ["executor"],
       ...(this.#options.mode === "sdk"
@@ -330,3 +331,5 @@ function processEvidence(result: ProcessResult, redactor: SecretRedactor): JsonO
     ...(result.terminationReason ? { terminationReason: result.terminationReason } : {}),
   };
 }
+
+export { ADAPTER_VERSION } from "./version.js";

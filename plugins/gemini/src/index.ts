@@ -1,3 +1,4 @@
+import { ADAPTER_VERSION } from "./version.js";
 import {
   type AgentAdapter,
   type AgentDescriptor,
@@ -107,7 +108,7 @@ export class GeminiAdapter implements AgentAdapter {
       schemaVersion: 1,
       id: this.id,
       provider: this.provider,
-      adapterVersion: "0.1.0",
+      adapterVersion: ADAPTER_VERSION,
       model: this.#options.model,
       roles: this.#options.role ? [this.#options.role] : ["planner", "reviewer"],
       capabilities: ["reasoning", "structured-output", ...(this.#options.vision ? ["vision"] : [])],
@@ -360,3 +361,5 @@ function httpFailure(status: number): [string, string, boolean] {
     return ["gemini_rate_limited", "Gemini rate limit or quota was exceeded.", true];
   return ["gemini_request_failed", "Gemini API request failed.", status === 408 || status >= 500];
 }
+
+export { ADAPTER_VERSION } from "./version.js";

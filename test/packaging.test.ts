@@ -65,7 +65,7 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
       ) as { filename: string; files: { path: string }[] };
       for (const { path } of packed.files) {
         expect(
-          /^(package\.json|README\.md|LICENSE|dist\/[\w/-]+\.(js|js\.map|d\.ts)|dist\/presets\/(dev|bugfix|review|research)\.yaml|schema\/workflow-v1\.schema\.json)$/.test(
+          /^(package\.json|README\.md|CHANGELOG\.md|LICENSE|dist\/[\w/-]+\.(js|js\.map|d\.ts)|dist\/presets\/(dev|bugfix|review|research)\.yaml|schema\/workflow-v1\.schema\.json)$/.test(
             path,
           ),
           `${directory} packs unexpected file: ${path}`,
@@ -150,7 +150,9 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
     );
     expect(await command(process.execPath, ["check.mjs"], consumer)).toContain("passed");
     const cli = join(consumer, "node_modules/@veyraoss/cli/dist/index.js");
-    expect(await command(process.execPath, [cli, "version"], consumer)).toContain("0.1.0");
+    expect((await command(process.execPath, [cli, "version"], consumer)).trim()).toBe(
+      `ve ${manifests.find((manifest) => manifest.name === "@veyraoss/cli")?.version}`,
+    );
     const list = JSON.parse(
       await command(process.execPath, [cli, "workflow", "list", "--json"], consumer),
     );
@@ -188,6 +190,38 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
       ],
       consumer,
     );
+
+    // Exercise a future version without changing source or rebuilding. Fresh processes
+    // must report the installed manifests, including both variants of shared plugins.
+    const futureVersion = "0.9.7-test.1";
+    for (const directory of candidates) {
+      const path = join(temporary, directory, "package.json");
+      const manifest = JSON.parse(await readFile(path, "utf8"));
+      await writeFile(path, JSON.stringify({ ...manifest, version: futureVersion }));
+    }
+    await writeFile(
+      join(consumer, "versions.mjs"),
+      `
+      import assert from 'node:assert/strict';
+      import { pathToFileURL } from 'node:url';
+      const { builtinPlugins } = await import(pathToFileURL(${JSON.stringify(join(consumer, "node_modules/@veyraoss/cli/dist/plugins.js"))}));
+      const plugins = builtinPlugins({ env: {} });
+      assert.equal(plugins.length, 8);
+      for (const plugin of plugins) {
+        assert.equal(plugin.version, ${JSON.stringify(futureVersion)}, plugin.provider);
+        const adapter = plugin.createAgent({ id: 'fixture', model: plugin.provider === 'opencode' ? 'fixture/model' : 'fixture-model', options: {} }, { options: { ...(plugin.provider === 'openai-compatible' ? { baseURL: 'http://127.0.0.1:1/v1' } : {}) } });
+        assert.equal((await adapter.describe()).adapterVersion, ${JSON.stringify(futureVersion)}, plugin.provider);
+      }
+      console.log('all installed adapter versions passed');
+    `,
+    );
+    expect(await command(process.execPath, ["versions.mjs"], consumer)).toContain("passed");
+    expect(
+      JSON.parse(await command(process.execPath, [cli, "version", "--json"], consumer)),
+    ).toEqual({
+      version: futureVersion,
+      executable: "ve",
+    });
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }
