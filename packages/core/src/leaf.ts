@@ -220,6 +220,7 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
       type: "verification.started",
       ...active,
       commands: [...commands],
+      commandSource: "workflow",
       at: now(),
     });
     let report: VerificationReport;
@@ -228,6 +229,7 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
     try {
       report = await verifier.verify({
         commands: [...commands],
+        commandSource: "workflow",
         ...controls,
         execution: { ...active },
         maxOutputBytes: 64 * 1024,
@@ -244,6 +246,7 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
     }
     const event = {
       type: "verification.completed" as const,
+      commandSource: "workflow" as const,
       ...active,
       success: report.success,
       results: report.results,

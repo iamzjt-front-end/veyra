@@ -3,6 +3,30 @@ import { describe, expect, it } from "vitest";
 import { isStoredEvent } from "../src/state-events.js";
 
 const metadata = { runId: "run", stepId: "step", at: "2026-09-08T00:00:00.000Z" };
+
+it.each(["workflow", "caller", "provider", "", null])(
+  "validates persisted command provenance %j",
+  (commandSource) => {
+    const valid = commandSource === "workflow" || commandSource === "caller";
+    expect(
+      isStoredEvent({
+        ...metadata,
+        type: "verification.started",
+        commands: ["node --test"],
+        commandSource,
+      }),
+    ).toBe(valid);
+    expect(
+      isStoredEvent({
+        ...metadata,
+        type: "verification.completed",
+        success: true,
+        results: [],
+        commandSource,
+      }),
+    ).toBe(valid);
+  },
+);
 const error = {
   code: "fixture_failure",
   message: "Failed",

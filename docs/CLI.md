@@ -89,3 +89,7 @@ Agent nodes may opt into [ordered provider fallbacks](PROVIDER-ROUTING.md). Run 
 ## Workspace inspection and cleanup
 
 Optional `runtime.workspace.mode: worktree` creates a detached per-run workspace. `run.started` and `status` show the saved directory, isolation mode and starting commit; `status --json` adds `workspace` and `workspaceAvailable`. Resume retains that location even when current configuration changes. `ve workspace remove <run-id> [--config <file>] [--json]` removes only a clean, unchanged, Veyra-owned worktree for a completed/failed run and preserves its run history. There is no force option. See [workspace policies and boundaries](WORKSPACES.md).
+
+## Command safety visibility
+
+Doctor/run output displays declared native permission controls when an adapter supplies them, including explicit unknown/native configuration modes. Verification startup identifies its trusted command source and host shell permissions. `status` shows the protected operation preview for policy-generated approval gates. See [command safety](COMMAND-SAFETY.md) for the enforced gate behavior, intentional shell syntax and native-provider boundaries.

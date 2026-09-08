@@ -34,6 +34,7 @@ export function isAgentDescriptor(value: unknown): value is AgentDescriptor {
         "model",
         "roles",
         "capabilities",
+        "permissions",
       ].includes(key),
     ) &&
     value.schemaVersion === 1 &&
@@ -42,7 +43,19 @@ export function isAgentDescriptor(value: unknown): value is AgentDescriptor {
     text(value.adapterVersion) &&
     (value.model === undefined || text(value.model, 512)) &&
     list(value.roles, (item) => text(item)) &&
-    list(value.capabilities, capability)
+    list(value.capabilities, capability) &&
+    (value.permissions === undefined ||
+      (object(value.permissions) &&
+        Object.keys(value.permissions).every((key) =>
+          ["mode", "source", "sandbox", "toolAllowRules"].includes(key),
+        ) &&
+        text(value.permissions.mode) &&
+        ["adapter-argument", "native-configuration"].includes(value.permissions.source as string) &&
+        (value.permissions.sandbox === undefined || text(value.permissions.sandbox)) &&
+        (value.permissions.toolAllowRules === undefined ||
+          (Number.isSafeInteger(value.permissions.toolAllowRules) &&
+            (value.permissions.toolAllowRules as number) >= 0 &&
+            (value.permissions.toolAllowRules as number) <= 1024))))
   );
 }
 

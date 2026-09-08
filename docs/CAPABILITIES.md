@@ -59,3 +59,7 @@ When metadata or `requires` is present, `agent.selected` records the binding, re
 Adapters without `describe()` remain supported for existing workflows without explicit constraints. With no explicit role, the legacy binding name supplies the input role, except for consensus's imposed role. An empty requirements object adds no constraints. Built-in presets retain their earlier author-facing `metadata.requiredCapabilities` annotations; those annotations are advisory. Use the executable `requires` field in a user workflow to enforce matching. See the complete [capability example](../examples/workflows/v1/capabilities.yaml).
 
 `ve doctor --json` includes validated adapter descriptors alongside readiness results. `ve workflow validate` validates the `requires` syntax and configured binding/provider names without constructing adapters or probing capabilities; execution performs the actual descriptor match. [Plugin registration and loading](PLUGINS.md) compose these adapters through the public SDK; third-party imports require explicit trust.
+
+## Permission declarations
+
+Optional `AgentDescriptor.permissions` records a bounded `mode`, `source` (`adapter-argument` or `native-configuration`), optional `sandbox` flag and optional non-negative integer `toolAllowRules` count (at most 1,024). Metadata is side-effect-free and returns no rule text or native credentials. It is persisted with selection and displayed by doctor/run; additional native policy remains uninspected. See [command safety](COMMAND-SAFETY.md) for exact official adapter controls and limits.

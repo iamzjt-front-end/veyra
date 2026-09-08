@@ -102,6 +102,15 @@ export class CodexAdapter implements AgentAdapter {
       adapterVersion: "0.1.0",
       ...(this.#options.model ? { model: this.#options.model } : {}),
       roles: this.#options.mode === "sdk" ? [] : ["executor"],
+      ...(this.#options.mode === "sdk"
+        ? {}
+        : {
+            permissions: {
+              mode: "unknown",
+              source: "native-configuration" as const,
+              sandbox: "workspace-write",
+            },
+          }),
       capabilities:
         this.#options.mode === "sdk"
           ? []

@@ -21,4 +21,8 @@ An injected `EventSink` receives `verification.started` and `verification.comple
 
 Shell command text is intentional here: POSIX uses `/bin/sh -c`, and Windows uses `cmd.exe /d /s /c`. Commands come from trusted workflow configuration. Never interpolate an untrusted goal, agent response, or credential into a command. Environment values are passed to the runtime and are not included in results/events. Command text and output are evidence, so callers must also avoid secrets there and apply redaction where needed. See [runtime limits and cancellation behavior](RUNTIME.md).
 
-Core integration and workflow scheduling remain separate TODO items. Loading the `verify` step's `run` array and passing it to `ShellVerifier.verify` is already supported.
+Core schedules each saved command step through this Verifier boundary, keeping deterministic results separate from LLM review.
+
+## Command provenance
+
+`VerificationRequest.commandSource` is `workflow` for Core-scheduled commands and defaults to `caller` for the direct API. Only these trusted sources are accepted; provider/agent sources are rejected before process creation. Both verification event types record the source. Provider `commandsRun` results remain claims and never become command requests. See the [command safety and approval policy](COMMAND-SAFETY.md) for explicit shell semantics, host permissions and high-risk gates.

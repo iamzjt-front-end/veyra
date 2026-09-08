@@ -409,9 +409,16 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
         )
       );
     case "verification.started":
-      return array(value.commands, string);
+      return (
+        array(value.commands, string) &&
+        optional(value.commandSource, (item) => item === "workflow" || item === "caller")
+      );
     case "verification.completed":
-      return boolean(value.success) && array(value.results, verification);
+      return (
+        boolean(value.success) &&
+        array(value.results, verification) &&
+        optional(value.commandSource, (item) => item === "workflow" || item === "caller")
+      );
     case "approval.required":
       return (
         string(value.message) &&

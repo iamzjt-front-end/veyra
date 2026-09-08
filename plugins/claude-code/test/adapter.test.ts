@@ -63,6 +63,7 @@ describe("Claude Code runtime adapter", () => {
       adapterVersion: "0.1.0",
       model: "configured",
       roles: ["executor"],
+      permissions: { mode: "default", source: "adapter-argument", toolAllowRules: 0 },
       capabilities: ["code-execution", "tool-use", "local-cli", "structured-output"],
     });
     expect(runner).not.toHaveBeenCalled();

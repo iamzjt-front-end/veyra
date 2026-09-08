@@ -53,6 +53,7 @@ describe("Codex CLI adapter", () => {
     );
     const adapter = new CodexAdapter({ model: "fixture-model" }, { runProcess: runner });
     expect(adapter.describe()).toMatchObject({
+      permissions: { mode: "unknown", source: "native-configuration", sandbox: "workspace-write" },
       provider: "codex",
       adapterVersion: "0.1.0",
       model: "fixture-model",

@@ -173,7 +173,7 @@ The [Core reference](docs/CORE.md) describes programmatic execution, outcome rou
 
 The [remote-control design](docs/REMOTE-CONTROL-DESIGN.md) describes a proposed future worker trust/transport boundary. It is a design document; local execution remains the implemented mode.
 
-The [approval reference](docs/APPROVALS.md) covers explicit human gates, decision auditing, and safe pause/resume through the Core API.
+The [approval reference](docs/APPROVALS.md) covers explicit human gates, decision auditing, and safe pause/resume through the Core API. The [command safety policy](docs/COMMAND-SAFETY.md) defines high-risk gates, configured versus provider-generated commands, and known native permission controls.
 
 The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
 

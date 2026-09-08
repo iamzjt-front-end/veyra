@@ -56,6 +56,37 @@ describe("provider-neutral capability contracts", () => {
       ).toBe(false);
     },
   );
+  it("accepts bounded permission declarations without pretending to inspect native policy", () => {
+    expect(
+      isAgentDescriptor({
+        ...descriptor,
+        permissions: { mode: "default", source: "adapter-argument", toolAllowRules: 3 },
+      }),
+    ).toBe(true);
+    expect(
+      isAgentDescriptor({
+        ...descriptor,
+        permissions: {
+          mode: "unknown",
+          source: "native-configuration",
+          sandbox: "workspace-write",
+        },
+      }),
+    ).toBe(true);
+  });
+  it.each([
+    {},
+    { mode: "default" },
+    { mode: "", source: "adapter-argument" },
+    { mode: "default", source: "assumed" },
+    { mode: "default", source: "adapter-argument", toolAllowRules: -1 },
+    { mode: "default", source: "adapter-argument", toolAllowRules: 1.5 },
+    { mode: "default", source: "adapter-argument", sandbox: "x".repeat(129) },
+    { mode: "default", source: "adapter-argument", token: "private" },
+  ])("rejects malformed permission metadata %j", (permissions) => {
+    expect(isAgentDescriptor({ ...descriptor, permissions })).toBe(false);
+  });
+
   it("does not invoke accessors while validating metadata", () => {
     let reads = 0;
     const value = Object.defineProperty({ ...descriptor }, "model", {

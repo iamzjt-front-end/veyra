@@ -61,3 +61,5 @@ Competing decisions are serialized within one engine instance. The existing sing
 State and events are separate durable writes. An interruption inside approval resolution may leave an incomplete control boundary that requires inspection; Core refuses a missing final pause boundary rather than replaying the gated action. Automated reconciliation of partially written transitions remains the crash-recovery TODO. Approval histories without IDs or with inconsistent required/resolved pairs are refused.
 
 Integration tests cover approve/resume, rejection branches, rejection without a branch, consecutive gates, stale/duplicate decisions, competing submissions, comment redaction, subscriber failure, and a real fixture action after a separate writer process exits at its gate.
+
+Policy-generated gates now include a bounded `context.operation` preview of the protected command/agent/group. CLI status shows it with the saved approval. `truncated: true` means the full saved workflow and referenced scripts must be inspected before a decision. The [command safety policy](COMMAND-SAFETY.md) defines high-risk effects, source boundaries and native permission limits.

@@ -117,6 +117,7 @@ export class OpenCodeAdapter implements AgentAdapter {
       adapterVersion: "0.1.0",
       ...(this.#options.model ? { model: this.#options.model } : {}),
       roles: ["executor"],
+      permissions: { mode: "unknown", source: "native-configuration" },
       capabilities: ["code-execution", "tool-use", "local-cli", "structured-output"],
     };
   }

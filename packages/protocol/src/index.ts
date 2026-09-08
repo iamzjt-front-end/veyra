@@ -143,7 +143,20 @@ export interface AgentDescriptor {
   model?: string;
   roles: AgentRole[];
   capabilities: AgentCapability[];
+  /** Declared invocation controls; this does not inspect the provider's complete native policy. */
+  permissions?: AgentPermissions;
 }
+
+export interface AgentPermissions {
+  mode: string;
+  source: "adapter-argument" | "native-configuration";
+  sandbox?: string;
+  /** Number of explicitly configured native allow rules, not their potentially sensitive text. */
+  toolAllowRules?: number;
+}
+
+/** Provider responses are data and are never accepted as verifier command requests. */
+export type VerificationCommandSource = "workflow" | "caller";
 
 export interface AgentReadiness {
   status: "ready" | "unavailable" | "unknown";
@@ -342,9 +355,14 @@ export type VeyraEvent = EventMetadata &
     | (AgentEventMetadata & { type: "agent.input"; input: AgentInput })
     | (AgentEventMetadata & { type: "agent.completed"; result: AgentResult })
     | (AgentEventMetadata & { type: "agent.failed"; error: SerializedError })
-    | (StepEventMetadata & { type: "verification.started"; commands: string[] })
+    | (StepEventMetadata & {
+        type: "verification.started";
+        commands: string[];
+        commandSource?: VerificationCommandSource;
+      })
     | (StepEventMetadata & {
         type: "verification.completed";
+        commandSource?: VerificationCommandSource;
         success: boolean;
         results: VerificationResult[];
       })

@@ -2,6 +2,8 @@ export type {
   AgentAdapter,
   AgentCapability,
   AgentDescriptor,
+  AgentPermissions,
+  VerificationCommandSource,
   AgentReadiness,
   AgentRequirements,
   AgentRoutingPolicy,

@@ -54,6 +54,7 @@ describe("Gemini CLI execution", () => {
       { runProcess: runner },
     );
     expect(adapter.describe()).toMatchObject({
+      permissions: { mode: "default", source: "adapter-argument" },
       id: "coding",
       provider: "gemini-cli",
       model: "selected",

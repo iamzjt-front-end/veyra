@@ -290,12 +290,23 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
           return success();
         }
         if (step.type === "human") {
+          const protectedId = [...graph.policyGates].find(([, gate]) => gate === stepId)?.[0];
+          const protectedStep = protectedId ? graph.steps[protectedId] : undefined;
+          const operation =
+            protectedId && protectedStep
+              ? {
+                  stepId: protectedId,
+                  type: protectedStep.type,
+                  ...(protectedStep.type === "command" ? { commandSource: "workflow" } : {}),
+                  ...operationPreview(protectedStep),
+                }
+              : undefined;
           await record({
             type: "approval.required",
             ...active,
             message: step.message ?? "Human approval required.",
             approvalId: randomUUID(),
-            context: context.input(step.inputs).context,
+            context: { ...context.input(step.inputs).context, ...(operation ? { operation } : {}) },
             at: now(),
           });
           return { status: "paused", lastStep: stepId, reason: "human_approval" };
@@ -519,6 +530,24 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
     lastStep: result.lastStep,
     ...(saved.type === "run.failed" && saved.error ? { error: saved.error } : {}),
   };
+}
+
+function operationPreview(step: WorkflowStep): { preview: string; truncated: boolean } {
+  const text = JSON.stringify(
+    step.type === "command"
+      ? { run: step.run }
+      : {
+          type: step.type,
+          ...(step.agent ? { agent: step.agent } : {}),
+          ...(step.requires ? { requires: step.requires } : {}),
+          ...(step.routing ? { routing: step.routing } : {}),
+          ...(step.instructions ? { instructions: step.instructions } : {}),
+          ...(step.children ? { children: step.children } : {}),
+          ...(step.reviewers ? { reviewers: step.reviewers } : {}),
+          ...(step.judge ? { judge: step.judge } : {}),
+        },
+  );
+  return { preview: text.slice(0, 8192), truncated: text.length > 8192 };
 }
 
 function normalizeError(error: unknown, stepId?: string): SerializedError {

@@ -99,6 +99,7 @@ export class GeminiCliAdapter implements AgentAdapter {
       adapterVersion: "0.1.0",
       ...(this.#options.model ? { model: this.#options.model } : {}),
       roles: ["executor"],
+      permissions: { mode: "default", source: "adapter-argument" },
       capabilities: ["code-execution", "tool-use", "local-cli", "structured-output"],
     };
   }

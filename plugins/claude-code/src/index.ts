@@ -124,6 +124,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       adapterVersion: "0.1.0",
       ...(this.#options.model ? { model: this.#options.model } : {}),
       roles: ["executor"],
+      permissions: {
+        mode: "default",
+        source: "adapter-argument",
+        toolAllowRules: this.#options.allowedTools?.length ?? 0,
+      },
       capabilities: ["code-execution", "tool-use", "local-cli", "structured-output"],
     };
   }

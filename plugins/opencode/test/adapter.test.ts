@@ -18,6 +18,7 @@ describe("OpenCode runtime adapter", () => {
       { runProcess: runner },
     );
     expect(adapter.describe()).toMatchObject({
+      permissions: { mode: "unknown", source: "native-configuration" },
       id: "coding",
       provider: "opencode",
       model: "provider/model",

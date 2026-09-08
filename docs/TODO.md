@@ -1409,11 +1409,16 @@ Verified all five baseline commands (1,494 tests), including real temporary Git 
 
 ## M6.2 — Command execution safety model
 
-- [ ] distinguish provider-generated commands from configured verifier commands
-- [ ] define approval policy for high-risk operations
-- [ ] avoid implicit shell interpolation
-- [ ] document that local coding agents may still execute commands according to their own permission model
-- [ ] surface effective permission mode to user where detectable
+**Status:** [x] Complete and verified.
+
+- [x] distinguish provider-generated commands from configured verifier commands
+- [x] define approval policy for high-risk operations
+- [x] avoid implicit shell interpolation
+- [x] document that local coding agents may still execute commands according to their own permission model
+- [x] surface effective permission mode to user where detectable
+
+Verified all five baseline commands (1,519 tests). New cases cover trusted verifier source tagging/rejection before spawn, non-execution of provider command claims and goal shell syntax, explicit approval/rejection before a real fixture effect, bounded protected-operation previews, permission metadata validation, and CLI rendering. Official CLI adapter metadata matches their existing native flags; unknown native policy remains explicit. Sixty-five local documentation links passed. The [command safety model](COMMAND-SAFETY.md) defines high-risk authoring policy using existing enforced workflow gates, intentional shell semantics and native/host permission limits; it does not claim automatic shell-risk classification.
+Root `pnpm ve -- doctor` passed. The Claude Code example doctor displayed `default` mode and six explicit allow rules; its exit 1 correctly reports the existing missing `OPENAI_API_KEY` for planner/reviewer, not a permission-metadata failure.
 
 ---
 
@@ -1654,4 +1659,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.2 — Command execution safety model.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and independent hardening work can proceed.
+**Next eligible: M6.3 — Secret redaction.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and independent hardening work can proceed.

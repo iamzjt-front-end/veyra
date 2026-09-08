@@ -3,6 +3,7 @@ import type {
   ExecutionMetadata,
   SerializedError,
   VerificationResult,
+  VerificationCommandSource,
 } from "@veyra/protocol";
 import {
   ProcessExecutionError,
@@ -15,6 +16,8 @@ export const DEFAULT_VERIFICATION_TIMEOUT_MS = 300_000;
 
 export interface VerificationRequest {
   commands: string[];
+  /** Defaults to a trusted direct caller; provider-generated commands are not supported. */
+  commandSource?: VerificationCommandSource;
   cwd?: string;
   env?: Record<string, string | undefined>;
   timeoutMs?: number;
@@ -49,6 +52,11 @@ export class ShellVerifier implements Verifier {
   }
 
   async verify(request: VerificationRequest): Promise<VerificationReport> {
+    const commandSource = request.commandSource === undefined ? "caller" : request.commandSource;
+    if (commandSource !== "workflow" && commandSource !== "caller")
+      throw new Error(
+        "Verifier commands must come from trusted workflow configuration or an explicit caller, never provider output.",
+      );
     if (
       !Array.isArray(request.commands) ||
       request.commands.some((command) => typeof command !== "string" || !command.trim())
@@ -69,6 +77,7 @@ export class ShellVerifier implements Verifier {
         ...execution,
         at: new Date().toISOString(),
         commands: [...commands],
+        commandSource,
       });
     }
     const results: VerificationResult[] = [];
@@ -126,6 +135,7 @@ export class ShellVerifier implements Verifier {
         ...execution,
         at: new Date().toISOString(),
         success: report.success,
+        commandSource,
         results: structuredClone(results),
       });
     }

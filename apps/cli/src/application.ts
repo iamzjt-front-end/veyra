@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { loadConfig } from "@veyra/config";
 import { LocalRunStore, type RunResult, VeyraEngine } from "@veyra/core";
-import type { VeyraEvent } from "@veyra/protocol";
+import type { AgentPermissions, VeyraEvent } from "@veyra/protocol";
 import { type ProcessRunner, runProcess } from "@veyra/runtime";
 import { loadWorkflow } from "@veyra/workflow";
 import { argumentsFor, CliError, help } from "./arguments.js";
@@ -125,7 +125,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           `Config:   ${result.config.status}${result.config.message ? ` — ${result.config.message}` : ""}`,
           ...result.providers.map(
             (provider) =>
-              `${provider.required ? "Required" : provider.routingCandidate ? "Routing candidate" : "Optional"} ${provider.agent} (${provider.provider}${provider.version ? ` ${provider.version}` : ""}): ${provider.ready ? "ready" : "not ready"} — ${provider.message}`,
+              `${provider.required ? "Required" : provider.routingCandidate ? "Routing candidate" : "Optional"} ${provider.agent} (${provider.provider}${provider.version ? ` ${provider.version}` : ""}): ${provider.ready ? "ready" : "not ready"} — ${provider.message}${provider.descriptor?.permissions ? `\n  ${permissionText(provider.descriptor.permissions)}` : ""}`,
           ),
           ...result.routing.map(
             (route) =>
@@ -151,9 +151,11 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       else if (event.type === "agent.routed")
         line += `: ${event.decision.attempts.map((attempt) => `${attempt.binding} ${attempt.decision} (${attempt.reason})`).join("; ")}`;
       else if (event.type === "agent.selected")
-        line += `: ${event.binding} → ${event.agentId} (${event.provider}, role ${event.role})`;
+        line += `: ${event.binding} → ${event.agentId} (${event.provider}, role ${event.role})${event.descriptor?.permissions ? `\n${permissionText(event.descriptor.permissions)}` : ""}`;
       else if (event.type === "agent.completed")
         line += `: ${event.result.status} — ${event.result.summary.slice(0, 240)}`;
+      else if (event.type === "verification.started")
+        line += `: ${event.commandSource ?? "legacy/unspecified"} shell commands (host permissions)`;
       else if (event.type === "verification.completed")
         line += `: ${event.success ? "passed" : "failed"}`;
       else if (event.type === "parallel.child.completed")
@@ -261,6 +263,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
               ]
             : []),
           ...(approval ? [`Approval: ${approval.approvalId} — ${approval.message}`] : []),
+          ...(approval?.context?.operation
+            ? [`Operation: ${JSON.stringify(approval.context.operation)}`]
+            : []),
         ].join("\n"),
       );
       return 0;
@@ -331,4 +336,8 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     else stderr(`${stripVTControlCharacters(String(redact(message, secrets)))}\n`);
     return error instanceof CliError ? error.exitCode : 2;
   }
+}
+
+function permissionText(permissions: AgentPermissions): string {
+  return `Permissions: ${permissions.mode} (${permissions.source})${permissions.sandbox ? `; sandbox flag: ${permissions.sandbox}` : ""}${permissions.toolAllowRules !== undefined ? `; explicit allow rules: ${permissions.toolAllowRules}` : ""}; additional native policy not inspected`;
 }

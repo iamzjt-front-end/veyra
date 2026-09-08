@@ -15,6 +15,37 @@ const passed: ProcessResult = {
 const execution = { runId: "run-1", stepId: "verify", attempt: 1 };
 
 describe("ShellVerifier", () => {
+  it.each(["provider", "agent", "", null])(
+    "rejects unsupported command source %j before spawning",
+    async (commandSource) => {
+      const run = vi.fn<ProcessRunner>();
+      await expect(
+        new ShellVerifier({ runProcess: run }).verify({
+          commands: ["touch forbidden"],
+          commandSource,
+        } as unknown as Parameters<ShellVerifier["verify"]>[0]),
+      ).rejects.toThrow(/never provider output/);
+      expect(run).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["caller", "workflow"] as const)(
+    "records the trusted %s command source without rewriting shell text",
+    async (commandSource) => {
+      const run = vi.fn<ProcessRunner>(async () => passed);
+      const events: VeyraEvent[] = [];
+      const command = "printf '%s' '$GOAL $(untrusted) ; literal'";
+      await new ShellVerifier({
+        runProcess: run,
+        emit: (event) => {
+          events.push(event);
+        },
+      }).verify({ commands: [command], commandSource, execution });
+      expect(run.mock.calls[0]?.[0].args?.at(-1)).toBe(command);
+      for (const event of events) expect(event).toMatchObject({ commandSource });
+    },
+  );
+
   it("runs commands sequentially and returns an aggregate plus per-command evidence", async () => {
     let active = false;
     const run = vi.fn<ProcessRunner>(async () => {
