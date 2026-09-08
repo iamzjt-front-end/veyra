@@ -1,4 +1,6 @@
 export type {
+  NativeSessionReference,
+  NativeSessionRequest,
   ProjectId,
   ProjectDescriptor,
   RegisteredProject,
@@ -60,6 +62,8 @@ export type {
   WorkflowStep,
 } from "@veyraoss/workflow";
 export {
+  isNativeSessionReference,
+  isNativeSessionRequest,
   isDaemonRequest,
   isDaemonResponse,
   isDaemonRunView,

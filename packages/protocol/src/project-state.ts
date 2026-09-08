@@ -2,6 +2,7 @@ import type { ArtifactRef, EvidenceReference } from "./index.js";
 import { isJsonValue } from "./json.js";
 import { isEvidenceReference } from "./provenance.js";
 import { isProjectId, type ProjectId } from "./project.js";
+import { isNativeSessionReference, type NativeSessionReference } from "./session.js";
 
 export const MAX_PROJECT_STATE_BYTES = 256 * 1024;
 
@@ -55,6 +56,7 @@ export interface ProjectExecutionResult extends ProjectEnvelope {
   changedFiles: string[];
   evidence: EvidenceReference[];
   artifacts: ProjectArtifactReference[];
+  session?: NativeSessionReference;
 }
 export interface ProjectReview extends ProjectEnvelope {
   kind: "review";
@@ -244,6 +246,7 @@ export function isProjectExecutionResult(value: unknown): value is ProjectExecut
       "changedFiles",
       "evidence",
       "artifacts",
+      "session",
     ]) &&
     value.kind === "result" &&
     id(value.handoffId) &&
@@ -251,7 +254,11 @@ export function isProjectExecutionResult(value: unknown): value is ProjectExecut
     text(value.summary) &&
     list(value.changedFiles, relativePath, 256) &&
     evidence(value.evidence, value.runId) &&
-    list(value.artifacts, (item) => artifact(item, value.runId), 128)
+    list(value.artifacts, (item) => artifact(item, value.runId), 128) &&
+    (value.session === undefined ||
+      (isNativeSessionReference(value.session) &&
+        value.session.projectId === value.projectId &&
+        value.session.runId === value.runId))
   );
 }
 export function isProjectReview(value: unknown): value is ProjectReview {

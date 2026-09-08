@@ -5,6 +5,8 @@ import { join } from "node:path";
 import {
   isProjectHandoff,
   isProjectExecutionResult,
+  isNativeSessionReference,
+  type NativeSessionReference,
   type JsonValue,
   type ProjectDescriptor,
   type ProjectHandoff,
@@ -36,6 +38,19 @@ export class ProjectHandoffStore {
     return value === undefined
       ? undefined
       : (this.validate(value, runId, "handoff") as ProjectHandoff);
+  }
+  async getSession(runId: string): Promise<NativeSessionReference | undefined> {
+    const value = await this.read(runId, "session");
+    return value === undefined
+      ? undefined
+      : (this.validate(value, runId, "session") as NativeSessionReference);
+  }
+  async createSession(reference: NativeSessionReference): Promise<NativeSessionReference> {
+    if (!isNativeSessionReference(reference))
+      throw new ProjectHandoffError("invalid_handoff", "Invalid native session reference.");
+    const safe = this.validate(reference, reference.runId, "session") as NativeSessionReference;
+    await this.write(safe, "session");
+    return safe;
   }
   async getResult(runId: string): Promise<ProjectExecutionResult | undefined> {
     const value = await this.read(runId, "result");
@@ -69,9 +84,14 @@ export class ProjectHandoffStore {
     await this.write(safe, "result");
     return safe;
   }
-  private validate(value: unknown, runId: string, kind: "handoff" | "result") {
+  private validate(value: unknown, runId: string, kind: "handoff" | "result" | "session") {
     this.validateId(runId);
-    const guard = kind === "handoff" ? isProjectHandoff : isProjectExecutionResult;
+    const guard =
+      kind === "handoff"
+        ? isProjectHandoff
+        : kind === "result"
+          ? isProjectExecutionResult
+          : isNativeSessionReference;
     if (!guard(value) || value.projectId !== this.project.id || value.runId !== runId)
       throw new ProjectHandoffError(
         "invalid_handoff",
@@ -113,7 +133,7 @@ export class ProjectHandoffStore {
     }
     return directory;
   }
-  private async read(runId: string, kind: "handoff" | "result"): Promise<unknown> {
+  private async read(runId: string, kind: "handoff" | "result" | "session"): Promise<unknown> {
     this.validateId(runId);
     const directory = await this.directory(false);
     if (!directory) return;
@@ -153,7 +173,10 @@ export class ProjectHandoffStore {
       );
     }
   }
-  private async write(value: ProjectHandoff | ProjectExecutionResult, kind: "handoff" | "result") {
+  private async write(
+    value: ProjectHandoff | ProjectExecutionResult | NativeSessionReference,
+    kind: "handoff" | "result" | "session",
+  ) {
     const directory = (await this.directory(true)) as string;
     const path = join(directory, `${value.runId}.${kind}.json`);
     const temporary = join(directory, `.${randomUUID()}.tmp`);

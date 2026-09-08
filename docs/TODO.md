@@ -425,7 +425,7 @@ Verification: with `OPENAI_API_KEY` unset, default `ve doctor --json` and explic
 
 ## P0.7 — Add project-bound Codex session continuity
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.6, P0.3
 
@@ -437,22 +437,24 @@ Allow Veyra to start and continue Codex work associated with one project/run.
 
 ### Requirements
 
-- [ ] define a safe provider-neutral session reference type;
-- [ ] create a new Codex execution/session for a project task using supported native interfaces;
-- [ ] resume/continue a known session where Codex supports it;
-- [ ] bind stored session reference to project id/run id;
-- [ ] never persist authentication credentials;
-- [ ] session references must be optional/recoverable if the native tool changes/loses history;
-- [ ] project working directory must be explicit;
-- [ ] preserve existing permission/sandbox visibility;
-- [ ] cancellation and timeout use existing Runtime semantics;
-- [ ] collect final native result and relevant structured metadata.
+- [x] define a safe provider-neutral session reference type;
+- [x] create a new Codex execution/session for a project task using supported native interfaces;
+- [x] resume/continue a known session where Codex supports it;
+- [x] bind stored session reference to project id/run id;
+- [x] never persist authentication credentials;
+- [x] session references must be optional/recoverable if the native tool changes/loses history;
+- [x] project working directory must be explicit;
+- [x] preserve existing permission/sandbox visibility;
+- [x] cancellation and timeout use existing Runtime semantics;
+- [x] collect final native result and relevant structured metadata.
 
 ### Acceptance criteria
 
 Two separate Veyra processes can dispatch then continue a Codex task for the same test project using only the stored safe session reference/native client state.
 
 If native Codex does not expose reliable resumable session semantics, document the limitation and preserve continuity through Project Shared State instead of scraping private storage.
+
+Verification: `env -u OPENAI_API_KEY pnpm --filter @veyraoss/codex smoke:session` passed with native `codex-cli 0.153.4`. Two independent Veyra processes created then resumed session `01a081cb-cf95-72d3-a7e4-f46ac48ccd4c` for one disposable Project/run, verified both scoped edits, preserved protected files, and recalled prior native context absent from the stored reference. The fixture was removed; native history remains native-client-owned. Protocol/store/Core/daemon tests validate safe optional references, UUID and scope enforcement, failures and Runtime controls. All five baseline commands passed (1,843 tests), plus frozen offline installation. The first full run exposed missing development workspace links in the isolated packaging fixture; those links were added and the complete suite then passed. See `docs/CODEX.md` for exact commands and explicit Shared State recovery when native history is unavailable.
 
 ---
 
@@ -825,6 +827,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.7 — Add project-bound Codex session continuity.**
+**P0.8 — Bind Project roles to native Codex.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

@@ -5,6 +5,7 @@ import {
   isAgentRoleProfile,
   isAgentRoutingDecision,
   isJsonValue,
+  isNativeSessionReference,
   type VeyraEvent,
   type SerializedError,
 } from "@veyraoss/protocol";
@@ -100,7 +101,7 @@ function artifact(value: unknown): boolean {
   );
 }
 
-function agentResult(value: unknown): boolean {
+function agentResult(value: unknown, event: RecordValue): boolean {
   return (
     record(value) &&
     string(value.status) &&
@@ -112,7 +113,14 @@ function agentResult(value: unknown): boolean {
     optional(value.execution, (item) => record(item) && execution(item)) &&
     optional(value.timing, timing) &&
     optional(value.usage, usage) &&
-    optional(value.error, isSerializedError)
+    optional(value.error, isSerializedError) &&
+    optional(
+      value.session,
+      (session) =>
+        isNativeSessionReference(session) &&
+        session.runId === event.runId &&
+        session.provider === event.provider,
+    )
   );
 }
 
@@ -450,7 +458,7 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
           (value.type === "agent.input"
             ? agentInput(value.input, value)
             : value.type === "agent.completed"
-              ? agentResult(value.result)
+              ? agentResult(value.result, value)
               : isSerializedError(value.error)))
       );
     case "agent.routed":

@@ -124,6 +124,8 @@ export interface AgentResult {
   timing?: ExecutionTiming;
   usage?: UsageMetadata;
   error?: SerializedError;
+  /** Optional safe locator. Native credentials/history remain owned by the native client. */
+  session?: import("./session.js").NativeSessionReference;
 }
 
 /** Ephemeral execution controls; these never belong in persisted AgentInput or events. */
@@ -433,6 +435,13 @@ export type VeyraEvent = EventMetadata &
 export type EventSink = (event: VeyraEvent) => void | Promise<void>;
 export { isWorkspaceInfo, type WorkspaceInfo } from "./workspace.js";
 export { isJsonValue } from "./json.js";
+export {
+  isSessionId,
+  isNativeSessionReference,
+  isNativeSessionRequest,
+  type NativeSessionReference,
+  type NativeSessionRequest,
+} from "./session.js";
 export {
   MAX_DAEMON_REQUEST_BYTES,
   MAX_DAEMON_RESPONSE_BYTES,

@@ -40,6 +40,29 @@ The adapter incrementally parses JSONL so a late final result survives bounded s
 
 Known credential values from `OPENAI_API_KEY`, `CODEX_API_KEY`, and `CODEX_ACCESS_TOKEN` are redacted from prompts and retained diagnostics; credential-shaped fields and environment objects are removed from prompt context. Bearer diagnostics are masked. This does not claim that every unknown secret in arbitrary tool output is detectable; centralized redaction remains a separate hardening task.
 
+## Explicit Project session continuity
+
+The default adapter stays ephemeral. To create resumable native work, supply `session: { project }`, where `project` is an opened Veyra `ProjectDescriptor`, and an explicit `cwd` or `workingDirectory` matching its physical root. The input run ID must be a UUID. This opts into the native client's own session persistence; Veyra still does not read native storage.
+
+```ts
+const first = await new CodexAdapter({ session: { project } }).run(input, { cwd: project.root });
+if (first.session) await handoffStore.createSession(first.session);
+
+// In another Veyra process, after opening the same Project:
+const resume = await handoffStore.getSession(input.runId);
+if (!resume) throw new Error("Inspect Shared State before explicitly starting fresh");
+const next = await new CodexAdapter({ session: { project, resume } }).run(nextInput, {
+  cwd: project.root,
+  timeoutMs: 180_000,
+});
+```
+
+Session creation omits `--ephemeral`. Continuation uses `codex exec --sandbox workspace-write --color never resume --json --output-schema <temporary-schema> <exact-session-uuid> -`, preserving explicit workspace-write visibility, native configuration/rules and Runtime cancellation/deadline handling. It never uses `--last`, a session name, history listing or private-storage scraping. The current CLI accepts the sandbox/color options on the parent `exec` command and the result schema on `resume`. See the [official non-interactive resume guide](https://learn.chatgpt.com/docs/non-interactive-mode#resume-a-non-interactive-session) and installed `codex exec resume --help`.
+
+`AgentResult.session` is an optional provider-neutral `NativeSessionReference`: version, kind, provider, native UUID, Project ID, originating run UUID and creation time. The UUID comes from the native `thread.started` event, not model-written final text. Continuation requires the same Project and run UUID and verifies that the returned native ID is unchanged. Core validates reference/run/provider consistency before persisting an agent event; daemon results retain validated references and archive them through Project storage.
+
+An absent, invalid or changed returned ID is `codex_session_unavailable`; unsuccessful resume is `codex_session_resume_failed`. Timeouts/cancellation retain their existing Runtime error semantics and may include a safe reference when the native ID was already observed. No condition silently starts a replacement or claims unknown effects succeeded. If native history is lost or the interface changes, inspect persisted run evidence and explicitly start fresh with a new run ID and bounded Project Shared State. That state, rather than native history, is Veyra's portable memory. Native-client history created by this opt-in remains owned by that client.
+
 ## Authentication and readiness
 
 `describe()` advertises the CLI executor role with code-execution, tool-use, local-cli and structured-output capabilities. The optional `checkReadiness()` contract wraps `doctor()` as a scoped local readiness result. Planned SDK mode advertises no capabilities and reports unavailable. See [capabilities](CAPABILITIES.md).
@@ -61,3 +84,5 @@ pnpm --filter @veyraoss/codex smoke
 ```
 
 This optional live command consumes the existing Codex account's usage. It copies the deterministic fixture into a temporary directory, initializes a disposable Git repository, adds restrictive `AGENTS.md`, and starts with a failing test. It asks Codex to modify only `src/message.js`, then independently checks the changed-file list, instruction preservation, syntax, and tests. The temporary repository is removed even on failure. This script is excluded from the default test suite.
+
+After `pnpm build`, the separate opt-in continuity check is `env -u OPENAI_API_KEY pnpm --filter @veyraoss/codex smoke:session`. Two independent Veyra processes create then resume the same native session using the saved safe locator. Each stage begins with a failing fixture test and verifies implementation, protected files and Git diff scope afterward. The second stage must recall a marker from native-session context that is absent from the Veyra reference. The test project is removed on success or failure; native history stays under native-client ownership. Default tests run this same harness against an isolated fake executable and never require an account/network.

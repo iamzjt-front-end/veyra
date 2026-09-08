@@ -63,7 +63,12 @@ async function withReleaseFixture(action: (fixture: Fixture) => Promise<void>) {
       for (const entry of await readdir(join(root, parent), { withFileTypes: true })) {
         if (!entry.isDirectory()) continue;
         const path = join(parent, entry.name);
-        let manifest: { name: string; version: string; dependencies?: Record<string, string> };
+        let manifest: {
+          name: string;
+          version: string;
+          dependencies?: Record<string, string>;
+          devDependencies?: Record<string, string>;
+        };
         try {
           manifest = await json(join(root, path, "package.json"));
         } catch (error) {
@@ -73,7 +78,7 @@ async function withReleaseFixture(action: (fixture: Fixture) => Promise<void>) {
         manifest.version = "0.1.0";
         workspaces.set(manifest.name, {
           directory: path,
-          dependencies: manifest.dependencies ?? {},
+          dependencies: { ...manifest.dependencies, ...manifest.devDependencies },
         });
         await mkdir(join(cwd, path, "dist"), { recursive: true });
         await writeFile(join(cwd, path, "package.json"), JSON.stringify(manifest));
@@ -90,7 +95,7 @@ async function withReleaseFixture(action: (fixture: Fixture) => Promise<void>) {
         await copyFile(join(root, "LICENSE"), join(cwd, path, "LICENSE"));
       }
     }
-    // pnpm pack resolves workspace:* through installed workspace links. Keep those
+    // pnpm pack resolves production and development workspace:* through installed links. Keep those
     // links within this fixture so tarball versions come from the copied graph.
     for (const workspace of workspaces.values()) {
       for (const dependency of Object.keys(workspace.dependencies)) {

@@ -17,7 +17,7 @@ Goal: let a real ChatGPT workflow hand work to an already-authenticated native C
 - [x] local Veyra Daemon
 - [x] typed daemon IPC/tool API
 - [x] native Codex readiness/auth as default executor path
-- [ ] project-bound Codex session continuity
+- [x] project-bound Codex session continuity
 - [ ] project role binding to native Codex
 - [ ] canonical planner/executor/reviewer handoff protocol
 - [ ] real native Codex Project dispatch E2E with `OPENAI_API_KEY` unset

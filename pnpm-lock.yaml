@@ -205,6 +205,10 @@ importers:
       '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+    devDependencies:
+      '@veyraoss/project':
+        specifier: workspace:*
+        version: link:../../packages/project
 
   plugins/gemini:
     dependencies:

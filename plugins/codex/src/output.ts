@@ -1,4 +1,5 @@
 import type { AgentResult, UsageMetadata } from "@veyraoss/protocol";
+import { isSessionId } from "@veyraoss/protocol";
 
 export const resultSchema = {
   type: "object",
@@ -24,6 +25,8 @@ export class CodexOutput {
   invalid = false;
   droppedRecords = false;
   usage?: UsageMetadata;
+  sessionId?: string;
+  invalidSession = false;
 
   feed(chunk: string) {
     this.#pending += chunk;
@@ -90,6 +93,14 @@ export class CodexOutput {
     if (!object(value) || typeof value.type !== "string") {
       this.invalid = true;
       return;
+    }
+    if (value.type === "thread.started") {
+      if (
+        !isSessionId(value.thread_id) ||
+        (this.sessionId !== undefined && this.sessionId !== value.thread_id)
+      )
+        this.invalidSession = true;
+      else this.sessionId = value.thread_id;
     }
     if (value.type === "turn.failed") this.failed = true;
     if (value.type === "turn.completed") {

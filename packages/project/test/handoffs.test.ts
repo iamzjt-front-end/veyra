@@ -7,6 +7,39 @@ import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { initializeProject, ProjectHandoffStore, projectPaths } from "../src/index.js";
 
 describe("immutable Project run envelopes", () => {
+  it("stores only safe Project/run-bound native locators and preserves an existing reference", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const project = await initializeProject(path);
+      const store = new ProjectHandoffStore({ project });
+      const reference = {
+        version: 1 as const,
+        kind: "session" as const,
+        provider: "native-fixture",
+        id: randomUUID(),
+        projectId: project.id,
+        runId: randomUUID(),
+        createdAt: new Date().toISOString(),
+      };
+      expect(await store.getSession(reference.runId)).toBeUndefined();
+      await store.createSession(reference);
+      expect(await new ProjectHandoffStore({ project }).getSession(reference.runId)).toEqual(
+        reference,
+      );
+      await expect(store.createSession({ ...reference, id: randomUUID() })).rejects.toMatchObject({
+        code: "handoff_exists",
+      });
+      expect(await store.getSession(reference.runId)).toEqual(reference);
+      await expect(
+        store.createSession({ ...reference, projectId: randomUUID() as typeof project.id }),
+      ).rejects.toMatchObject({ code: "invalid_handoff" });
+      const source = await readFile(
+        join(projectPaths(project).handoffs, `${reference.runId}.session.json`),
+        "utf8",
+      );
+      expect(JSON.parse(source)).toEqual(reference);
+      expect(Object.keys(JSON.parse(source))).toHaveLength(7);
+    });
+  });
   it("keeps past handoffs/results redacted and refuses duplicate publication", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const project = await initializeProject(path);

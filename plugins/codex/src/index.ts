@@ -1,6 +1,6 @@
 import { ADAPTER_VERSION } from "./version.js";
 import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -11,6 +11,11 @@ import {
   type AgentResult,
   type AgentRunOptions,
   isJsonValue,
+  isNativeSessionRequest,
+  isNativeSessionReference,
+  isSessionId,
+  type NativeSessionRequest,
+  type NativeSessionReference,
   type JsonObject,
 } from "@veyraoss/protocol";
 import {
@@ -31,6 +36,7 @@ export interface CodexAdapterOptions {
   id?: string;
   timeoutMs?: number;
   maxOutputBytes?: number;
+  session?: NativeSessionRequest;
 }
 
 export interface CodexDoctorResult {
@@ -63,10 +69,17 @@ export class CodexAdapter implements AgentAdapter {
             "id",
             "timeoutMs",
             "maxOutputBytes",
+            "session",
           ].includes(key),
       )
     )
       throw new Error("Unknown Codex adapter option.");
+    if (
+      options.session !== undefined &&
+      (!isNativeSessionRequest(options.session) ||
+        (options.session.resume && options.session.resume.provider !== "codex"))
+    )
+      throw new Error("Codex session must reference the selected Project and native provider.");
     if (options.mode !== undefined && options.mode !== "cli" && options.mode !== "sdk")
       throw new Error("Codex mode must be cli or sdk (planned).");
     for (const name of ["workingDirectory", "executable", "model", "id"] as const) {
@@ -91,7 +104,10 @@ export class CodexAdapter implements AgentAdapter {
     )
       throw new Error("Codex maxOutputBytes must be an integer from zero to 1 MiB per stream.");
     this.id = options.id ?? "codex";
-    this.#options = Object.freeze({ ...options });
+    this.#options = Object.freeze({
+      ...options,
+      ...(options.session ? { session: structuredClone(options.session) } : {}),
+    });
     this.#runProcess = dependencies.runProcess ?? runProcess;
     this.#env = dependencies.env ?? process.env;
   }
@@ -145,9 +161,30 @@ export class CodexAdapter implements AgentAdapter {
     const startedAt = new Date().toISOString();
     const output = new CodexOutput();
     const redactor = createSecretRedactor({ env: this.#env });
+    const selected = this.#options.session;
+    const sessionReference = (): NativeSessionReference | undefined => {
+      if (
+        !selected ||
+        !output.sessionId ||
+        output.invalidSession ||
+        (selected.resume && selected.resume.id !== output.sessionId)
+      )
+        return;
+      const reference: NativeSessionReference = {
+        version: 1,
+        kind: "session",
+        provider: "codex",
+        id: output.sessionId,
+        projectId: selected.project.id,
+        runId: input.runId,
+        createdAt: selected.resume?.createdAt ?? startedAt,
+      };
+      return isNativeSessionReference(reference) ? reference : undefined;
+    };
     let processResult: ProcessResult | undefined;
     const finish = (result: AgentResult): AgentResult => ({
       ...result,
+      ...(sessionReference() ? { session: sessionReference() } : {}),
       execution: {
         runId: input.runId,
         stepId: input.stepId,
@@ -178,6 +215,27 @@ export class CodexAdapter implements AgentAdapter {
       return failure("codex_invalid_input", "Codex input must contain a goal and plain JSON data.");
     if (options.signal?.aborted)
       return failure("codex_cancelled", "Codex execution was cancelled.");
+    const cwd = options.cwd ?? this.#options.workingDirectory;
+    if (selected) {
+      if (
+        !cwd ||
+        !isSessionId(input.runId) ||
+        (selected.resume && selected.resume.runId !== input.runId)
+      )
+        return failure(
+          "codex_session_scope",
+          "Session execution requires an explicit Project directory and the matching run UUID.",
+        );
+      try {
+        if ((await realpath(cwd)) !== selected.project.root)
+          return failure(
+            "codex_session_scope",
+            "Session working directory does not match the selected Project.",
+          );
+      } catch {
+        return failure("codex_session_scope", "Session Project directory is unavailable.");
+      }
+    }
     const prompt = buildPrompt(input, this.#env);
     if (Buffer.byteLength(prompt) > 256 * 1024)
       return failure(
@@ -192,21 +250,36 @@ export class CodexAdapter implements AgentAdapter {
       let streamed = false;
       processResult = await this.#runProcess({
         executable: this.#options.executable ?? "codex",
-        args: [
-          "exec",
-          "--json",
-          "--ephemeral",
-          "--color",
-          "never",
-          "--sandbox",
-          "workspace-write",
-          "--output-schema",
-          schemaPath,
-          ...(this.#options.model ? ["--model", this.#options.model] : []),
-          "-",
-        ],
+        args: selected?.resume
+          ? [
+              "exec",
+              "--sandbox",
+              "workspace-write",
+              "--color",
+              "never",
+              "resume",
+              "--json",
+              "--output-schema",
+              schemaPath,
+              ...(this.#options.model ? ["--model", this.#options.model] : []),
+              selected.resume.id,
+              "-",
+            ]
+          : [
+              "exec",
+              "--json",
+              ...(!selected ? ["--ephemeral"] : []),
+              "--color",
+              "never",
+              "--sandbox",
+              "workspace-write",
+              "--output-schema",
+              schemaPath,
+              ...(this.#options.model ? ["--model", this.#options.model] : []),
+              "-",
+            ],
         stdin: prompt,
-        cwd: options.cwd ?? this.#options.workingDirectory ?? process.cwd(),
+        cwd: cwd ?? process.cwd(),
         signal: options.signal,
         timeoutMs: options.timeoutMs ?? this.#options.timeoutMs ?? 15 * 60_000,
         maxOutputBytes: this.#options.maxOutputBytes ?? 64 * 1024,
@@ -226,8 +299,15 @@ export class CodexAdapter implements AgentAdapter {
         );
       if (processResult.exitCode !== 0 || processResult.signal)
         return failure(
-          "codex_process_failed",
-          "Codex process exited unsuccessfully; inspect bounded process diagnostics.",
+          selected?.resume ? "codex_session_resume_failed" : "codex_process_failed",
+          selected?.resume
+            ? "Native session resume failed. Inspect Project evidence; explicitly start fresh from Shared State if native history is unavailable. Veyra will not replay automatically."
+            : "Codex process exited unsuccessfully; inspect bounded process diagnostics.",
+        );
+      if (selected && !sessionReference())
+        return failure(
+          "codex_session_unavailable",
+          "Native session identity is missing or changed. Preserve Project Shared State and inspect before explicitly starting fresh; no automatic replay was attempted.",
         );
       if ((!streamed && processResult.stdoutTruncated) || !result)
         return failure(

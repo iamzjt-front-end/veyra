@@ -7,7 +7,12 @@ import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 import { describe, expect, it, vi } from "vitest";
 import { LocalRunStore } from "@veyraoss/core";
-import { initializeProject, ProjectStateStore, projectPaths } from "@veyraoss/project";
+import {
+  initializeProject,
+  ProjectStateStore,
+  ProjectHandoffStore,
+  projectPaths,
+} from "@veyraoss/project";
 import type { ProjectDescriptor, ProjectId } from "@veyraoss/protocol";
 import { fixtureProjectState } from "../../../test/helpers/project-state.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
@@ -104,7 +109,7 @@ describe("local daemon tool API", { timeout: 30000 }, () => {
           agents:{executor:{id:'fixture',provider:'fake',async run(input,options){
             if(options.cwd!==project.root || !input.goal.includes(project.id))throw new Error('Missing Project context');
             await writeFile(join(options.cwd,'answer.txt'),'42');
-            return {status:'success',summary:'Wrote answer.txt',data:{changedFiles:['answer.txt']}};
+            return {status:'success',summary:'Wrote answer.txt',data:{changedFiles:['answer.txt']},session:{version:1,kind:'session',provider:'fake',id:'81f7c8ab-8725-46bb-8f48-a420c3870a79',projectId:project.id,runId:input.runId,createdAt:new Date().toISOString()}};
           }}}
         })});
         process.on('SIGTERM',()=>void daemon.stop());
@@ -184,6 +189,9 @@ describe("local daemon tool API", { timeout: 30000 }, () => {
           results: [{ exitCode: 0 }],
         });
         expect((await new ProjectStateStore({ project }).read())?.result).toEqual(response.result);
+        expect(await new ProjectHandoffStore({ project }).getSession(requested.runId)).toEqual(
+          response.result.session,
+        );
         const api = new DaemonClient({ registryRoot });
         await expect(
           api.call("runs.dispatch", { projectId: project.id, handoff: requested }),

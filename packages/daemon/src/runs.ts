@@ -9,6 +9,7 @@ import {
 } from "@veyraoss/project";
 import {
   isProjectExecutionResult,
+  isNativeSessionReference,
   type DaemonRunView,
   type ProjectDescriptor,
   type ProjectExecutionResult,
@@ -215,6 +216,15 @@ export class RunCoordinator {
         throw error;
     }
     const report = this.report(handoff, completed, events);
+    if (report.session) {
+      const current = await stores.archive.getSession(handoff.runId);
+      if (current && current.id !== report.session.id)
+        throw new DaemonError(
+          "session_conflict",
+          "Recorded native session identity changed; inspect Project evidence.",
+        );
+      if (!current) await stores.archive.createSession(report.session);
+    }
     const saved = await stores.archive.createResult(report);
     job.view = completed;
     // Preserve context/decisions that another authorized surface updated during execution.
@@ -310,6 +320,14 @@ export class RunCoordinator {
       last?.type === "agent.completed" && Array.isArray(last.result.data?.changedFiles)
         ? last.result.data.changedFiles
         : [];
+    const session = [...reports].reverse().find((event) => event.result.session !== undefined)
+      ?.result.session;
+    if (
+      isNativeSessionReference(session) &&
+      session.projectId === handoff.projectId &&
+      session.runId === handoff.runId
+    )
+      result.session = session;
     for (const file of files.slice(0, 256))
       if (typeof file === "string") {
         const next = { ...result, changedFiles: [...result.changedFiles, file] };
