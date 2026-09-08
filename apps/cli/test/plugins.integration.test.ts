@@ -65,17 +65,20 @@ async function fixture(path: string) {
 const invoke = async (path: string, args: string[], services: CliServices = {}) => {
   let stdout = "";
   let stderr = "";
-  const code = await runCli([...args, "--json"], {
-    cwd: path,
-    env: {},
-    ...services,
-    stdout: (text) => {
-      stdout += text;
+  const code = await runCli(
+    [...args, ...(args[0] === "doctor" ? ["--config", "veyra.yaml"] : []), "--json"],
+    {
+      cwd: path,
+      env: {},
+      ...services,
+      stdout: (text) => {
+        stdout += text;
+      },
+      stderr: (text) => {
+        stderr += text;
+      },
     },
-    stderr: (text) => {
-      stderr += text;
-    },
-  });
+  );
   return {
     code,
     stdout,

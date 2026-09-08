@@ -285,6 +285,46 @@ describe("Codex CLI adapter", () => {
 });
 
 describe("Codex readiness", () => {
+  it("preserves installed/version evidence when the auth subprocess fails and never exposes diagnostics", async () => {
+    const runner = vi.fn<ProcessRunner>(async (request) => {
+      if (request.args?.[0] === "--version") return completed({ stdout: "codex-cli 0.153.4" });
+      throw new ProcessExecutionError("executable_not_found", "fixture-private-credential");
+    });
+    const result = await new CodexAdapter(
+      { executable: "/Applications/Native Codex/codex" },
+      { runProcess: runner },
+    ).doctor();
+    expect(result).toMatchObject({
+      available: true,
+      version: "0.153.4",
+      authentication: "unknown",
+      ready: false,
+    });
+    expect(JSON.stringify(result)).not.toContain("fixture-private-credential");
+    expect(
+      runner.mock.calls.every(
+        ([request]) =>
+          request.executable === "/Applications/Native Codex/codex" &&
+          request.maxOutputBytes === 4096 &&
+          request.timeoutMs === 5000,
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    { signal: "SIGTERM" as const },
+    { stdoutTruncated: true },
+    { stdout: "codex-cli fixture-private-credential" },
+  ])("fails an interrupted/truncated/invalid version probe closed %#", async (override) => {
+    const runner = vi.fn<ProcessRunner>(async () =>
+      completed({ stdout: "codex-cli 0.153.4", ...override }),
+    );
+    const result = await new CodexAdapter({}, { runProcess: runner }).doctor();
+    expect(result).toMatchObject({ available: null, authentication: "unknown", ready: false });
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result)).not.toContain("fixture-private-credential");
+  });
+
   it.each([
     [0, "ready", true],
     [1, "not_authenticated", false],

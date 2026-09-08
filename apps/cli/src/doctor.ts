@@ -1,6 +1,7 @@
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import { loadConfig, type VeyraConfig } from "@veyraoss/config";
+import { CodexAdapter } from "@veyraoss/codex";
 import { discoverAgents, selectAgentRoute, type AgentCandidate } from "@veyraoss/core";
 import type { AgentDescriptor, AgentReadiness, AgentRoutingDecision } from "@veyraoss/protocol";
 import type { ProcessRunner } from "@veyraoss/runtime";
@@ -37,6 +38,7 @@ export async function inspectEnvironment(
   requireConfig = false,
   allowedPlugins: readonly string[] = [],
   signal?: AbortSignal,
+  nativeExecutable?: string,
 ) {
   let config: VeyraConfig | undefined;
   let configuration: { path: string; status: "valid" | "missing" | "invalid"; message?: string } = {
@@ -114,16 +116,17 @@ export async function inspectEnvironment(
     }
   };
   const checkProvider = async (name: string, provider: string): Promise<ProviderReadiness> => {
-    const agent = config?.agents[name];
+    const selectedConfig = requireConfig ? config : undefined;
+    const agent = selectedConfig?.agents[name];
     const base: Pick<ProviderReadiness, "agent" | "provider" | "required" | "routingCandidate"> = {
       agent: name,
       provider,
-      required: pinned.has(name),
+      required: requireConfig && pinned.has(name),
       ...(routed.has(name) ? { routingCandidate: true } : {}),
     };
     try {
       const registry = await registryForProviders(
-        config ?? {
+        selectedConfig ?? {
           version: 1,
           agents: {},
           workflow: { use: "dev" },
@@ -203,16 +206,29 @@ export async function inspectEnvironment(
       };
     }
   };
-  const configured = config
-    ? Object.entries(config.agents).map(([name, agent]) => [name, agent.provider] as const)
-    : builtinPlugins().map(({ provider }) => [provider, provider] as const);
-  const [packageManager, readable, writable, providers] = await Promise.all([
+  const configured =
+    requireConfig && config
+      ? Object.entries(config.agents).map(([name, agent]) => [name, agent.provider] as const)
+      : builtinPlugins()
+          .filter(
+            ({ provider }) =>
+              requireConfig ||
+              ["openai", "claude", "gemini", "openai-compatible"].includes(provider),
+          )
+          .map(({ provider }) => [provider, provider] as const);
+  const [packageManager, readable, writable, providers, executor] = await Promise.all([
     pnpm(),
     permission(constants.R_OK),
     permission(constants.W_OK),
     Promise.all(configured.map(([name, provider]) => checkProvider(name, provider))),
+    requireConfig
+      ? undefined
+      : new CodexAdapter({ executable: nativeExecutable }, { runProcess: runner, env }).doctor({
+          cwd: root,
+          signal,
+        }),
   ]);
-  for (const name of required)
+  for (const name of requireConfig ? required : [])
     if (!Object.hasOwn(config?.agents ?? {}, name))
       providers.push({
         agent: name,
@@ -229,7 +245,7 @@ export async function inspectEnvironment(
     decision?: AgentRoutingDecision;
     message?: string;
   }[] = [];
-  if (workflow && routed.size) {
+  if (requireConfig && workflow && routed.size) {
     const candidates: Record<string, AgentCandidate> = Object.fromEntries(
       providers.map((provider) => [
         provider.agent,
@@ -305,14 +321,27 @@ export async function inspectEnvironment(
     ready: Number(process.versions.node.split(".")[0]) >= 20,
   };
   return {
+    mode: requireConfig ? ("workflow" as const) : ("native" as const),
+    ...(executor
+      ? {
+          executor: {
+            provider: "codex" as const,
+            authenticationOwner: "native-client" as const,
+            executable: nativeExecutable ?? "codex",
+            ...executor,
+          },
+        }
+      : {}),
     ready:
       node.ready &&
       packageManager.ready &&
       readable &&
       writable &&
-      configuration.status !== "invalid" &&
-      providers.every((provider) => !provider.required || provider.ready) &&
-      routing.every((route) => route.ready),
+      (requireConfig
+        ? configuration.status !== "invalid" &&
+          providers.every((provider) => !provider.required || provider.ready) &&
+          routing.every((route) => route.ready)
+        : executor?.ready === true),
     node,
     pnpm: packageManager,
     platform: `${process.platform}/${process.arch}`,

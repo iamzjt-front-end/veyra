@@ -516,15 +516,22 @@ await new VeyraEngine({emit:event=>{if(event.type==='run.paused'){writeFileSync(
         runProcess: runner,
       });
       const optional = await ve(["doctor", "--json"]);
-      expect(optional.code).toBe(0);
+      expect(optional.code).toBe(1);
+      expect(optional.records()[0].executor).toMatchObject({
+        available: true,
+        ready: false,
+        authentication: "not_authenticated",
+      });
       const selectedMissing = await ve(["doctor", "--config", "missing.yaml", "--json"]);
       expect(selectedMissing.code).toBe(1);
       expect(selectedMissing.records()[0].config.status).toBe("invalid");
-      expect(optional.records()[0].providers).toContainEqual(
-        expect.objectContaining({ provider: "codex", required: false, ready: false }),
-      );
+      expect(
+        optional
+          .records()[0]
+          .providers.every((provider: { required: boolean }) => !provider.required),
+      ).toBe(true);
       expect((await ve(["init"])).code).toBe(0);
-      const required = await ve(["doctor", "--json"]);
+      const required = await ve(["doctor", "--config", "veyra.yaml", "--json"]);
       expect(required.code).toBe(1);
       expect(required.records()[0].providers).toContainEqual(
         expect.objectContaining({

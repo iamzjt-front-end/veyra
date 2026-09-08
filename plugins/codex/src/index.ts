@@ -261,16 +261,26 @@ export class CodexAdapter implements AgentAdapter {
       signal: options.signal,
       maxOutputBytes: 4096,
     };
+    let installedVersion: string | undefined;
     try {
       const version = await this.#runProcess({ ...request, args: ["--version"] });
-      const match = /^codex(?:-cli)?\s+([\w.+-]+)/.exec(version.stdout.trim());
-      if (version.exitCode !== 0 || version.terminationReason || !match)
+      const match = /^codex(?:-cli)?\s+(\d+\.\d+\.\d+(?:[-+][\w.-]{1,80})?)$/.exec(
+        version.stdout.trim(),
+      );
+      if (
+        version.exitCode !== 0 ||
+        version.signal ||
+        version.terminationReason ||
+        version.stdoutTruncated ||
+        !match
+      )
         return {
           available: null,
           authentication: "unknown",
           ready: false,
           message: "Codex version check did not complete successfully.",
         };
+      installedVersion = createSecretRedactor({ env: this.#env }).text(match[1] ?? "");
       const auth = await this.#runProcess({ ...request, args: ["login", "status"] });
       const authentication =
         auth.terminationReason || auth.signal
@@ -282,24 +292,31 @@ export class CodexAdapter implements AgentAdapter {
               : "unknown";
       return {
         available: true,
-        version: match[1] ? createSecretRedactor({ env: this.#env }).text(match[1]) : undefined,
+        version: installedVersion,
         authentication,
         ready: authentication === "ready",
         message:
           authentication === "ready"
-            ? "Codex is installed and reports authenticated CLI access."
-            : "Run codex login and retry the readiness check.",
+            ? "Native Codex is installed and authenticated. Its own client manages login; no OPENAI_API_KEY is required by Veyra. Model/network access is not tested."
+            : authentication === "not_authenticated"
+              ? "Codex is installed but not authenticated. Log in through the native Codex client (codex login), then retry."
+              : "Codex is installed, but its login-status probe was inconclusive. Check the native client and retry.",
       };
     } catch (error) {
       return {
-        available:
-          error instanceof ProcessExecutionError && error.code === "executable_not_found"
+        available: installedVersion
+          ? true
+          : error instanceof ProcessExecutionError && error.code === "executable_not_found"
             ? false
             : null,
+        ...(installedVersion ? { version: installedVersion } : {}),
         authentication: "unknown",
         ready: false,
-        message:
-          "Codex readiness could not be checked; verify its executable and working directory.",
+        message: installedVersion
+          ? "Codex is installed, but its login-status probe failed. Check the native client and retry."
+          : error instanceof ProcessExecutionError && error.code === "executable_not_found"
+            ? "Codex executable was not found. Install the native CLI or select its existing executable path."
+            : "Codex readiness could not be checked; verify its executable and working directory.",
       };
     }
   }

@@ -113,8 +113,21 @@ async function main() {
     assert.match(await run(ve, ["doctor"], consumer, isolated, 1), /Install pnpm/);
 
     await run("npm", ["install", ...flags, "pnpm@10.15.1"], consumer, env);
-    const ready = JSON.parse(await run(ve, ["doctor", "--json"], consumer, isolated));
+    const nativeMissing = JSON.parse(await run(ve, ["doctor", "--json"], consumer, isolated, 1));
+    assert.equal(nativeMissing.pnpm.ready, true);
+    assert.equal(nativeMissing.executor.available, false);
+    // This proves installed CLI wiring only. Real native-login acceptance is a separate check.
+    const fixtureCodex = join(nodeBin, "fixture-codex");
+    await writeFile(
+      fixtureCodex,
+      '#!/usr/bin/env node\nconsole.log(process.argv[2] === "--version" ? "codex-cli 1.2.3" : "Logged in using ChatGPT");\n',
+      { mode: 0o700 },
+    );
+    const ready = JSON.parse(
+      await run(ve, ["doctor", "--codex-executable", fixtureCodex, "--json"], consumer, isolated),
+    );
     assert.equal(ready.ready, true);
+    assert.equal(ready.executor.authenticationOwner, "native-client");
     assert.equal(ready.pnpm.version, "10.15.1");
     assert.equal(ready.config.status, "missing");
     // Removal is confined to this disposable npm prefix and leaves the project alone.
@@ -133,7 +146,7 @@ async function main() {
     await assert.rejects(lstat(join(consumer, "veyra.yaml")), { code: "ENOENT" });
     await assert.rejects(lstat(join(consumer, ".veyra")), { code: "ENOENT" });
     console.log(
-      `Global npm installation passed: ve ${manifest.version}, four presets, fresh-machine doctor guidance, pnpm readiness and uninstall. No package was published.`,
+      `Global npm installation passed: ve ${manifest.version}, four presets, fresh-machine doctor guidance, pnpm/native fixture readiness and uninstall. No package was published.`,
     );
   } finally {
     await rm(temporary, { recursive: true, force: true });

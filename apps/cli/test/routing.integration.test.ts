@@ -69,6 +69,7 @@ async function invoke(path: string, args: string[], json = true, trusted = true)
   const code = await runCli(
     [
       ...args,
+      ...(args[0] === "doctor" ? ["--config", "veyra.yaml"] : []),
       ...(json ? ["--json"] : []),
       ...(trusted ? ["--allow-plugin", "fixture-routing"] : []),
     ],

@@ -3,6 +3,7 @@ import { parseArgs } from "node:util";
 const options = {
   config: { type: "string" },
   registry: { type: "string" },
+  "codex-executable": { type: "string" },
   workflow: { type: "string" },
   "allow-plugin": { type: "string", multiple: true },
   model: { type: "string" },
@@ -40,7 +41,7 @@ const allowed: Record<string, string[]> = {
     "non-interactive",
     "allow-plugin",
   ],
-  doctor: ["config", "workflow", "allow-plugin"],
+  doctor: ["config", "workflow", "allow-plugin", "codex-executable"],
   workflow: ["config"],
   workspace: ["config", "recover-interrupted"],
   prune: ["config", "apply", "older-than-days", "keep-last"],
@@ -70,6 +71,16 @@ export function argumentsFor(argv: string[]) {
     throw new CliError("unknown_command", `Unknown command: ${command}`, 1);
   if (parsed.values.registry !== undefined && !parsed.values.registry.trim())
     throw new CliError("invalid_registry", "--registry must name a directory.");
+  if (
+    parsed.values["codex-executable"] !== undefined &&
+    (!parsed.values["codex-executable"].trim() || parsed.values["codex-executable"].includes("\0"))
+  )
+    throw new CliError("invalid_executable", "--codex-executable must name an executable.");
+  if (parsed.values["codex-executable"] && (parsed.values.config || parsed.values.workflow))
+    throw new CliError(
+      "invalid_option",
+      "Use --codex-executable for native doctor; selected workflows use their configured adapter executable.",
+    );
   for (const key of Object.keys(parsed.values)) {
     if (!["json", "help", "version", ...(allowed[command] ?? [])].includes(key))
       throw new CliError("invalid_option", `--${key} is not valid for ve ${command}.`);
@@ -172,7 +183,7 @@ Commands:
   status [id] inspect active/latest run state
   review [id] inspect saved review and verification evidence
   resume [id] continue a paused run
-  doctor      inspect environment and required provider readiness
+  doctor      inspect native Codex readiness; --config/--workflow checks an optional workflow
   workflow list          list built-in workflows and required agents
   workflow validate <name/path>  validate a workflow without executing it
   workspace remove <id>  remove a clean, unchanged worktree after a terminal run
@@ -182,6 +193,7 @@ Commands:
 
 Options:
   --registry <directory> select registry root (default: ~/.veyra)
+  --codex-executable <path> select the native Codex executable for doctor
   --config <file>       select configuration (default: ./veyra.yaml)
   --workflow <name/path> override workflow for run/doctor, or select it during init
   --allow-plugin <name> trust a configured local plugin for run/resume/doctor; repeat per provider

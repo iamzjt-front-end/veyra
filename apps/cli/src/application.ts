@@ -216,7 +216,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       const result = await initialize(configPath, values);
       write(
         { type: "initialized", ...result },
-        `Created ${result.configPath}\nLocal state is ignored in ${result.ignorePath}\nSet OPENAI_API_KEY, run codex login, then ve doctor.\nReview the workflow's verification commands, then run: ve run "your goal"`,
+        `Created ${result.configPath}\nLocal state is ignored in ${result.ignorePath}\nNative Codex uses its existing login; ve doctor checks native readiness without an API key.\nThis optional workflow may use API agents; inspect its requirements with ve doctor --config ${result.configPath}.\nReview the workflow's verification commands, then run: ve run "your goal"`,
       );
       return 0;
     }
@@ -230,18 +230,26 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         Boolean(values.config || values.workflow),
         values["allow-plugin"],
         services.signal,
+        values["codex-executable"],
       );
       write(
         result,
         [
           "Veyra Doctor",
+          `Mode:     ${result.mode === "native" ? "Native Codex (API providers optional)" : "Selected optional workflow"}`,
           `Node:     ${result.node.version}`,
           `pnpm:     ${result.pnpm.version}`,
           ...(result.pnpm.message ? [result.pnpm.message] : []),
           `Platform: ${result.platform}`,
           `CWD:      ${result.cwd}`,
           `Directory: read=${result.workingDirectory.readable} write=${result.workingDirectory.writable}`,
-          `Config:   ${result.config.status}${result.config.message ? ` — ${result.config.message}` : ""}`,
+          ...(result.executor
+            ? [
+                `Executor: ${result.executor.ready ? "ready" : "not ready"} — ${result.executor.message}`,
+                `Codex:    ${result.executor.executable}${result.executor.version ? ` ${result.executor.version}` : ""}`,
+              ]
+            : []),
+          `Config${result.mode === "native" ? " (optional workflow)" : ""}:   ${result.config.status}${result.config.message ? ` — ${result.config.message}` : ""}`,
           ...result.providers.map(
             (provider) =>
               `${provider.required ? "Required" : provider.routingCandidate ? "Routing candidate" : "Optional"} ${provider.agent} (${provider.provider}${provider.version ? ` ${provider.version}` : ""}): ${provider.ready ? "ready" : "not ready"} — ${provider.message}${provider.descriptor?.permissions ? `\n  ${permissionText(provider.descriptor.permissions)}` : ""}`,

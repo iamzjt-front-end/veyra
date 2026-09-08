@@ -1,6 +1,10 @@
 # Authentication and secret handling
 
-Veyra uses environment credentials for API adapters and the installed provider's native authentication for CLI adapters. It does not copy browser sessions, inspect native credential files, create a credential database, or save keys in `veyra.yaml` or `.veyra/`. Configure authentication before running a workflow. Missing credentials are reported as setup failures; Veyra never substitutes another account or provider silently.
+Veyra's default executor path uses the installed native Codex client's existing login. `OPENAI_API_KEY` is optional infrastructure, never a prerequisite for this native path. API adapters continue to use their explicitly selected environment credentials. Veyra does not copy browser sessions, inspect native credential files, create a credential database, or save keys in `veyra.yaml` or `.veyra/`. A deliberately selected API workflow still needs its own credentials; Veyra never substitutes another account or provider silently.
+
+Run `ve doctor` for native executor readiness, or `ve doctor --codex-executable /path/to/codex` to select an installed binary explicitly. It runs bounded native version/login-status probes and reports installed, unauthenticated and inconclusive states separately. Login remains owned by Codex: if needed, use the native client's normal ChatGPT sign-in or `codex login` yourself. Veyra neither initiates login nor reads token files. Existing ChatGPT sign-in is not permission to read unrelated ChatGPT conversation history.
+
+`ve doctor --config veyra.yaml` or `ve doctor --workflow <name/path>` explicitly checks an optional configured workflow and its required providers/routing. Its failure does not imply that the separate native path needs an API key. Default doctor lists API integrations as optional and does not probe unrelated native clients or load third-party workflow plugins. Local login success proves credential presence only, not model/network access; the native E2E task supplies that separate evidence. See the official [Codex login command](https://learn.chatgpt.com/docs/developer-commands#codex-login).
 
 ## Credential selection
 

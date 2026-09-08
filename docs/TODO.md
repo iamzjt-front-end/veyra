@@ -393,7 +393,7 @@ Verification: a separate daemon and external client registered/opened a Project,
 
 ## P0.6 — Make native Codex readiness/auth the default executor path
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.5
 
@@ -405,19 +405,21 @@ Use the user's already-installed/already-authenticated Codex instead of requirin
 
 ### Requirements
 
-- [ ] detect Codex executable/version;
-- [ ] detect readiness/authentication using supported native behavior without reading credentials;
-- [ ] distinguish installed-but-not-authenticated from executable-missing;
-- [ ] `ve doctor` should treat native Codex readiness as sufficient for executor readiness;
-- [ ] OpenAI API key absence must be shown as optional, not a core failure, for the native golden path;
-- [ ] do not copy Codex auth/session token files;
-- [ ] do not log credential material;
-- [ ] document existing ChatGPT/Codex login ownership clearly;
-- [ ] support explicit executable path override for tests/advanced users.
+- [x] detect Codex executable/version;
+- [x] detect readiness/authentication using supported native behavior without reading credentials;
+- [x] distinguish installed-but-not-authenticated from executable-missing;
+- [x] `ve doctor` should treat native Codex readiness as sufficient for executor readiness;
+- [x] OpenAI API key absence must be shown as optional, not a core failure, for the native golden path;
+- [x] do not copy Codex auth/session token files;
+- [x] do not log credential material;
+- [x] document existing ChatGPT/Codex login ownership clearly;
+- [x] support explicit executable path override for tests/advanced users.
 
 ### Acceptance criteria
 
 On a machine with Codex already logged in through its normal user flow, Veyra reports the native Codex executor ready without `OPENAI_API_KEY`.
+
+Verification: with `OPENAI_API_KEY` unset, default `ve doctor --json` and explicit `/Applications/ChatGPT.app/Contents/Resources/codex` override both reported native executor ready on `codex-cli 0.153.4`; the supported native status command reports ChatGPT login. No credential files were inspected/copied, and raw login diagnostics are excluded from doctor output. Default doctor treats API integrations as optional; `--config`/`--workflow` retains explicit optional-workflow readiness checks. Missing/unauthenticated/unknown states, probe failures, output bounds and redaction tests passed. All five baseline commands passed (1,820 tests), along with isolated `pnpm installation:check`. Login readiness does not claim live model invocation; that proof belongs to the native dispatch E2E.
 
 ---
 
@@ -823,6 +825,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.6 — Make native Codex readiness/auth the default executor path.**
+**P0.7 — Add project-bound Codex session continuity.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.
