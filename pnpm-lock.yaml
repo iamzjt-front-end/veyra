@@ -53,6 +53,9 @@ importers:
       '@veyraoss/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@veyraoss/daemon':
+        specifier: workspace:*
+        version: link:../../packages/daemon
       '@veyraoss/gemini':
         specifier: workspace:*
         version: link:../../plugins/gemini
@@ -106,6 +109,18 @@ importers:
       '@veyraoss/workflow':
         specifier: workspace:*
         version: link:../workflow
+
+  packages/daemon:
+    dependencies:
+      '@veyraoss/project':
+        specifier: workspace:*
+        version: link:../project
+      '@veyraoss/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@veyraoss/runtime':
+        specifier: workspace:*
+        version: link:../runtime
 
   packages/project:
     dependencies:

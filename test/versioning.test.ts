@@ -87,7 +87,7 @@ async function withVersioningFixture(
     }
     const config = await readJson(join(cwd, ".changeset/config.json"));
     expect([...packages.keys()].sort()).toEqual(config.fixed[0].toSorted());
-    expect(packages.size).toBe(15);
+    expect(packages.size).toBe(16);
     const head = await initializeGit(cwd);
     await action(cwd, packages, head);
   } finally {

@@ -314,7 +314,7 @@ Verification: 25 new contract/store tests pass, including separate fake planner/
 
 ## P0.4 — Implement the local Veyra Daemon
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.2, P0.3
 
@@ -326,22 +326,24 @@ Provide one local coordinator that multiple Veyra surfaces can talk to while pro
 
 ### Requirements
 
-- [ ] add `ve daemon start` / `ve daemon stop` / `ve daemon status` or a similarly clear lifecycle;
-- [ ] daemon must bind locally by default;
-- [ ] no cloud dependency;
-- [ ] persist only non-secret daemon metadata required for discovery;
-- [ ] single-instance or well-defined multi-instance behavior;
-- [ ] stale PID/socket recovery;
-- [ ] clean shutdown/cancellation;
-- [ ] project registry integration;
-- [ ] structured logging with existing redaction rules;
-- [ ] bounded resource use;
-- [ ] no provider login copying;
-- [ ] daemon must not become the owner of project business state; Project remains source of truth.
+- [x] add `ve daemon start` / `ve daemon stop` / `ve daemon status` or a similarly clear lifecycle;
+- [x] daemon must bind locally by default;
+- [x] no cloud dependency;
+- [x] persist only non-secret daemon metadata required for discovery;
+- [x] single-instance or well-defined multi-instance behavior;
+- [x] stale PID/socket recovery;
+- [x] clean shutdown/cancellation;
+- [x] project registry integration;
+- [x] structured logging with existing redaction rules;
+- [x] bounded resource use;
+- [x] no provider login copying;
+- [x] daemon must not become the owner of project business state; Project remains source of truth.
 
 ### Acceptance criteria
 
 A second process can discover a running daemon, query health and list registered projects, then the daemon can be restarted without losing project state.
+
+Verification: independent daemon/client/CLI processes, normal restart, killed-owner socket recovery, cancellation, private permissions, bounded redacted logging and malformed discovery tests passed. All five baseline commands passed (1,795 tests); frozen offline installation passed. `ve daemon start` is an explicit foreground service. See `packages/daemon/README.md` for lifecycle and the local-user trust boundary.
 
 ---
 
@@ -819,6 +821,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.4 — Implement the local Veyra Daemon.**
+**P0.5 — Define Daemon IPC / Tool API.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

@@ -1,0 +1,43 @@
+{
+  "name": "@veyraoss/daemon",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Local Veyra daemon lifecycle and project coordination.",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@veyraoss/project": "workspace:*",
+    "@veyraoss/protocol": "workspace:*",
+    "@veyraoss/runtime": "workspace:*"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamzjt-front-end/veyra.git",
+    "directory": "packages/daemon"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
+}

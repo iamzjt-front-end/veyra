@@ -68,13 +68,17 @@ export class ProjectRegistry {
     return removed;
   }
 
-  async list(): Promise<RegisteredProject[]> {
+  async list(options: { signal?: AbortSignal } = {}): Promise<RegisteredProject[]> {
+    options.signal?.throwIfAborted();
     const root = await this.directory(false);
     if (!root) return [];
     const projects = await this.read(root);
     // Bounded sequential probes avoid thousands of concurrent file handles.
     const entries: RegisteredProject[] = [];
-    for (const project of projects) entries.push(await this.inspect(project));
+    for (const project of projects) {
+      options.signal?.throwIfAborted();
+      entries.push(await this.inspect(project));
+    }
     return entries;
   }
 

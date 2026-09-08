@@ -25,6 +25,7 @@ const allowed: Record<string, string[]> = {
   init: ["config", "workflow", "model", "force"],
   projects: ["registry"],
   project: ["registry"],
+  daemon: ["registry"],
   run: ["config", "workflow", "non-interactive", "allow-plugin"],
   status: ["config", "run-id"],
   review: ["config", "run-id"],
@@ -82,6 +83,7 @@ export function argumentsFor(argv: string[]) {
     command !== "workflow" &&
     command !== "workspace" &&
     command !== "project" &&
+    command !== "daemon" &&
     positionals.length > (["status", "review", "resume"].includes(command) ? 1 : 0)
   )
     throw new CliError("unexpected_argument", `Unexpected argument for ve ${command}.`);
@@ -94,6 +96,15 @@ export function argumentsFor(argv: string[]) {
     throw new CliError(
       "invalid_project_command",
       "Use ve project add <path>, remove <project-id>, or show <project-id>.",
+    );
+  if (
+    command === "daemon" &&
+    (positionals.length !== 1 ||
+      !["start", "stop", "status", "projects"].includes(positionals[0] ?? ""))
+  )
+    throw new CliError(
+      "invalid_daemon_command",
+      "Use ve daemon start, stop, status or projects [--registry <directory>].",
     );
   if (
     command === "workspace" &&
@@ -148,6 +159,10 @@ export const help = `Veyra — one goal, many agents, verified execution.
 Usage: ve <command>
 
 Commands:
+  daemon start           run the local daemon in the foreground (Ctrl-C to stop)
+  daemon stop            stop the daemon for this registry root
+  daemon status          inspect local daemon health
+  daemon projects        list Projects through the running daemon
   projects    list registered Projects and stale locations
   project add <path>     initialize/open and register a local Project
   project remove <id>    unregister a Project (preserves project files)

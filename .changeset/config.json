@@ -18,7 +18,8 @@
       "@veyraoss/openai",
       "@veyraoss/opencode",
       "@veyraoss/cli",
-      "@veyraoss/project"
+      "@veyraoss/project",
+      "@veyraoss/daemon"
     ]
   ],
   "linked": [],

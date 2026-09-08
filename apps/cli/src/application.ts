@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { loadConfig } from "@veyraoss/config";
+import { startDaemon, stopDaemon, daemonStatus, daemonProjects } from "@veyraoss/daemon";
 import {
   initializeProject,
   openProject,
@@ -61,6 +62,46 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     if (command === "version") {
       write({ version: CLI_VERSION, executable: "ve" }, `ve ${CLI_VERSION}`);
       return 0;
+    }
+    if (command === "daemon") {
+      const options = values.registry ? { registryRoot: resolve(cwd, values.registry) } : {};
+      if (positionals[0] === "start") {
+        const daemon = await startDaemon({ ...options, signal: services.signal, env });
+        write(
+          { type: "daemon.started", ...daemon.metadata },
+          `Veyra daemon running (PID ${daemon.metadata.owner.pid}).\nRegistry: ${daemon.metadata.registryRoot}\nForeground service; Ctrl-C or ve daemon stop to shut down.`,
+        );
+        await daemon.closed;
+        return 0;
+      }
+      if (positionals[0] === "stop") {
+        await stopDaemon(options);
+        write({ type: "daemon.stopped" }, "Veyra daemon stopped.");
+        return 0;
+      }
+      if (positionals[0] === "projects") {
+        const projects = await daemonProjects(options);
+        write(
+          { projects },
+          projects
+            .map(
+              ({ project, status }) =>
+                `${project.id} ${project.name} — ${project.root} (${status})`,
+            )
+            .join("\n") || "No registered Projects.",
+        );
+        return 0;
+      }
+      const result = await daemonStatus(options);
+      write(
+        result,
+        result.status === "running"
+          ? `Veyra daemon running (PID ${result.metadata.owner.pid}).`
+          : result.status === "stopped"
+            ? "Veyra daemon stopped."
+            : result.message,
+      );
+      return result.status === "running" ? 0 : 1;
     }
     if (command === "projects" || command === "project") {
       const registry = new ProjectRegistry(
