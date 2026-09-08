@@ -40,6 +40,8 @@ Prompt provenance tests inspect separate captured project/workflow/role/group so
 
 ## End-to-end CLI scenarios
 
+`test/gallery.test.ts` loads every [gallery configuration](../examples/gallery/README.md) through the real CLI and runs its commands in a disposable fixture with injected test-only providers. It verifies gate/resume, a retained negative consensus review and headless command failure before build. These tests validate executable examples without claiming live provider behavior.
+
 `pnpm installation:check` is an explicit network-dependent check, excluded from the default suite. It installs real candidate tarballs and pnpm into a temporary global npm prefix, verifies the `ve` command, bundled presets, missing-tool setup guidance and readiness, and then verifies uninstall. Temporary npm configs exclude user credentials; all test files are removed in `finally`. See [installation verification](INSTALLATION.md#verify-installation-without-publishing).
 
 `test/packaging.test.ts` packs all fourteen candidate packages, rejects unexpected source/test/cache files, checks licenses and resolved production dependencies, and uses an isolated consumer to import public modules, compile SDK types, load the bundled schema/presets and invoke the built `ve` entry point. Third-party dependencies reuse the frozen local install; no registry or provider is contacted. `pnpm packages:check` builds and runs just this package verification. Temporary tarballs and extracted contents are removed even on failure. See the [package strategy](PACKAGES.md).

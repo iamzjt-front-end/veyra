@@ -1,0 +1,4 @@
+version: 1
+workflow:
+  use: ./workflow.yaml
+agents: {}

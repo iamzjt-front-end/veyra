@@ -1,0 +1,13 @@
+name: headless-project-checks
+version: 1
+start: check
+policy:
+  retry: { max: 0 }
+steps:
+  check:
+    type: command
+    run: [pnpm check, pnpm test, pnpm build]
+    timeoutMs: 300000
+    next: done
+  done:
+    type: end

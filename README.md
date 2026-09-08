@@ -159,6 +159,8 @@ The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node val
 
 The [preset reference](docs/PRESETS.md) explains the development, bugfix, read-only review and research flows, their required adapters/commands, bounded repairs and human reports.
 
+The [example gallery](examples/gallery/README.md) provides nine complete configurations covering provider combinations, independent reviews, human approval, bugfix, supplied-source research and headless CI checks.
+
 The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event contracts and the boundary between persisted data and execution controls.
 
 The [capability reference](docs/CAPABILITIES.md) covers configured adapter metadata, opt-in readiness discovery and explicit workflow role/capability requirements.

@@ -1,0 +1,15 @@
+# Replace model placeholders and review project scripts/native permissions before running.
+version: 1
+project:
+  name: bugfix
+workflow:
+  use: bugfix
+agents:
+  planner:
+    provider: openai
+    model: your-openai-model
+  executor:
+    provider: codex
+  reviewer:
+    provider: openai
+    model: your-openai-model

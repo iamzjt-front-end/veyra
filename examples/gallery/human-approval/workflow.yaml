@@ -1,0 +1,16 @@
+name: explicit-command-approval
+version: 1
+start: approve
+steps:
+  approve:
+    type: human
+    message: Approve running the read-only Node version check?
+    on:
+      approved: inspect
+  inspect:
+    type: command
+    run: [node --version]
+    timeoutMs: 5000
+    next: done
+  done:
+    type: end

@@ -1,0 +1,19 @@
+# Replace model placeholders and review project scripts/native permissions before running.
+version: 1
+project:
+  name: gpt-claude-code
+workflow:
+  use: dev
+agents:
+  planner:
+    provider: openai
+    model: your-openai-model
+  executor:
+    provider: claude-code
+    options:
+      maxTurns: 20
+      timeoutMs: 900000
+      allowedTools: [Read, Edit, Write, "Bash(pnpm check)", "Bash(pnpm test)", "Bash(pnpm build)"]
+  reviewer:
+    provider: openai
+    model: your-openai-model

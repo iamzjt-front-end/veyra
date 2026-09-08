@@ -1,0 +1,10 @@
+version: 1
+workflow:
+  use: ./workflow.yaml
+agents:
+  correctness:
+    provider: openai
+    model: your-openai-model
+  maintainability:
+    provider: claude
+    model: your-claude-model

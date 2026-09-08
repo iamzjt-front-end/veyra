@@ -1,0 +1,38 @@
+name: parallel-independent-reviewers
+version: 1
+start: verify
+policy:
+  retry: { max: 0 }
+  maxSteps: 12
+steps:
+  verify:
+    type: command
+    run: [pnpm check, pnpm test]
+    on:
+      success: reviews
+  reviews:
+    type: consensus
+    reviewers: [correctness, maintainability]
+    mode: all-pass
+    concurrency: 2
+    verification: [verify]
+    on:
+      pass: report
+      fail: report
+  correctness:
+    type: agent
+    agent: correctness
+    instructions: Review correctness against the goal and supplied verification evidence. Return pass or fail with concrete findings. Do not modify files.
+  maintainability:
+    type: agent
+    agent: maintainability
+    instructions: Review maintainability and missing coverage using the supplied evidence. Return pass or fail with concrete findings. Do not modify files.
+  report:
+    type: human
+    message: Inspect both independent reviews and the aggregate verdict. Approval acknowledges this report, not permission to change code or override failed checks.
+    inputs:
+      decision: { from: reviews, path: "" }
+    on:
+      approved: done
+  done:
+    type: end

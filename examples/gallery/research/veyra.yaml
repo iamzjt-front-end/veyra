@@ -1,0 +1,14 @@
+# Supply sources in the goal; this configuration enables no browsing tool.
+version: 1
+workflow:
+  use: research
+agents:
+  planner:
+    provider: openai
+    model: your-openai-model
+  researcher:
+    provider: claude
+    model: your-claude-model
+  judge:
+    provider: openai
+    model: your-openai-model

@@ -1,0 +1,15 @@
+# Replace model placeholders and review project scripts/native permissions before running.
+version: 1
+project:
+  name: claude-codex
+workflow:
+  use: dev
+agents:
+  planner:
+    provider: claude
+    model: your-claude-model
+  executor:
+    provider: codex
+  reviewer:
+    provider: claude
+    model: your-claude-model

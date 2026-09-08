@@ -112,5 +112,6 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] isolated npm global installation, fresh-install doctor guidance and upgrade/removal documentation (registry release and optional Homebrew distribution remain deferred)
 - [x] contributor guides, runnable plugin/workflow tutorials and architecture decision process
 - [x] security/community policies, private vulnerability channel, issue/PR templates and dependency review policy
-- [ ] example gallery and docs polish
+- [x] complete example gallery with deterministic CLI execution and explicit provider prerequisites
+- [ ] documentation polish and stable TUI demo
 - [ ] evaluation/benchmark harness

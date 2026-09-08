@@ -1626,15 +1626,19 @@ Added security/community policies, three issue templates, a PR verification chec
 
 ## M7.7 — Example gallery
 
-- [ ] GPT Planner + Codex Executor
-- [ ] Claude Planner + Codex Executor
-- [ ] GPT Planner + Claude Code Executor
-- [ ] cross-model reviewer example
-- [ ] parallel reviewers
-- [ ] human approval gate
-- [ ] bugfix workflow
-- [ ] research workflow
-- [ ] CI/non-interactive workflow
+**Status:** [x] Complete and verified.
+
+- [x] GPT Planner + Codex Executor
+- [x] Claude Planner + Codex Executor
+- [x] GPT Planner + Claude Code Executor
+- [x] cross-model reviewer example
+- [x] parallel reviewers
+- [x] human approval gate
+- [x] bugfix workflow
+- [x] research workflow
+- [x] CI/non-interactive workflow
+
+The [gallery](../examples/gallery/README.md) contains nine complete configurations with prerequisites, model placeholders, validation/run/inspection commands and explicit live-provider limits. Eleven new tests load every config through the CLI, use test-only injected providers with real fixture commands, resume all three gated flows, preserve a negative parallel verdict and stop headless checks before build on failure. Verified the targeted gallery suite, 16 local links and the full five-command baseline (1,708 tests). No live provider or publication was invoked.
 
 ---
 
@@ -1729,4 +1733,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.7 — Example gallery.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
+**Next eligible: M7.8 — Documentation site / polished README.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
