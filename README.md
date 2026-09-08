@@ -96,6 +96,8 @@ There is no stable TUI demo yet: bare `ve` prints CLI help. The TUI milestone wa
 
 ## Safety and limits
 
+Veyra sends no external product telemetry. Run evidence and metrics remain local; configured providers and native tools follow their own execution and data policies. See the [telemetry policy](docs/TELEMETRY.md).
+
 Workflows, project scripts and trusted plugins can execute code with local privileges. Worktrees and approval prompts are not an OS sandbox. Review commands, plugin dependencies and native permissions; explicitly gate publishing, deployment, destructive operations and credential access. Agent text is not a source of verifier commands.
 
 Veyra redacts known secrets at managed boundaries, but cannot guarantee that arbitrary third-party code or native tools never write sensitive data. Do not attach raw histories or credentials to public issues. Recovery refuses uncertain partial effects; retries do not make arbitrary external actions idempotent. Read the [command safety model](docs/COMMAND-SAFETY.md), [authentication limits](docs/AUTHENTICATION.md), [recovery contract](docs/CRASH-RECOVERY.md) and [private security reporting policy](SECURITY.md).

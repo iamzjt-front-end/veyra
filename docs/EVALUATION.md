@@ -54,4 +54,4 @@ Do not rank models using the scripted calibration, compare different fixture/con
 
 ## Verification
 
-`pnpm exec vitest run --config vitest.config.ts test/evaluation/evaluation.test.ts` checks real calibration results, initial failing fixtures, repair limits, tampered tests, symlink refusal, cleanup after errors, unknown/mixed-currency usage, trial validation, opt-in guards and the configured local-plugin path. These cases also run in `pnpm test`. See [Testing](TESTING.md) and [Telemetry policy](TODO.md#m710--telemetry-policy) for the separate local/remote data policy task.
+`pnpm exec vitest run --config vitest.config.ts test/evaluation/evaluation.test.ts` checks real calibration results, initial failing fixtures, repair limits, tampered tests, symlink refusal, cleanup after errors, unknown/mixed-currency usage, trial validation, opt-in guards and the configured local-plugin path. These cases also run in `pnpm test`. See [Testing](TESTING.md) and the [telemetry policy](TELEMETRY.md) for local/remote data boundaries.

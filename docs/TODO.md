@@ -1678,9 +1678,13 @@ Added a [versioned local evaluation harness](EVALUATION.md) with three real Node
 
 ## M7.10 — Telemetry policy
 
-- [ ] default to no external telemetry unless explicitly designed otherwise
-- [ ] if telemetry is ever added, make collection transparent, minimal, opt-in/clearly controllable, and documented
-- [ ] local metrics remain useful without cloud dependency
+**Status:** [x] Complete and verified.
+
+- [x] default to no external telemetry unless explicitly designed otherwise
+- [x] if telemetry is ever added, make collection transparent, minimal, opt-in/clearly controllable, and documented
+- [x] local metrics remain useful without cloud dependency
+
+The [telemetry policy](TELEMETRY.md) records no Veyra product reporting, useful local evidence/metrics, provider/native-tool boundaries and the explicit default-off design requirements for any future collection. Root Turbo commands opt out per invocation without changing global preferences. Two regression tests passed: fresh built CLI commands and a local workflow/status/review with outbound Node hooks blocked, and the real Turbo opt-out overriding an enabled environment setting. This does not claim a packet-level audit of native tools. Frozen installation, `pnpm telemetry:check`, all five baseline commands (1,727 tests) and 127 documentation links passed. No collector, analytics dependency or upload was added.
 
 ---
 
@@ -1743,4 +1747,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.10 — Telemetry policy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm ownership, scope migration, version/changelog tooling, release CI validation and isolated global installation are verified. Public publication remains gated; independent productization work can proceed.
+**No independent eligible TODO remains.** Resume at M1.14 when the live OpenAI prerequisite is available; M1.15 and M2 depend on that verified v0.1 exit. M4.3 and M4.5 also need API credentials; M4.4's live Claude Code smoke is blocked by native provider request timeouts, and M4.7's OpenCode smoke by rejected native provider credentials. Dashboard implementation waits for TUI stability, M6.3 awaits those log renderers, and M7.8 awaits a real stable TUI demo. npm ownership, the `@veyraoss` scope migration and independent M7.1–M7.7/M7.9–M7.10 productization work are verified. No package or public release has been published; publication still requires explicit human approval. Deferred ideas remain outside the current implementation scope.

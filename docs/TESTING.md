@@ -40,6 +40,8 @@ Prompt provenance tests inspect separate captured project/workflow/role/group so
 
 ## End-to-end CLI scenarios
 
+`test/telemetry.test.ts` blocks outbound Node network entry points before cold CLI imports, then verifies local version/init/workflow/run/status/review behavior and saved command timing. It also checks the real repository Turbo telemetry override. See [telemetry verification scope](TELEMETRY.md#verification-scope); native provider tools and explicitly configured network commands have separate policies.
+
 The [evaluation harness](EVALUATION.md) has three versioned, initially failing code tasks. Its default tests measure real fixture grading and repair counts with scripted adapters, reject test tampering/symlinks, check cleanup and unknown usage, and exercise explicit provider consent through a trusted local plugin. `pnpm evaluate` runs the separate scripted calibration; actual model evaluation requires both `VEYRA_LIVE_EVAL=1` and `--live --config` and is never part of normal tests.
 
 `test/gallery.test.ts` loads every [gallery configuration](../examples/gallery/README.md) through the real CLI and runs its commands in a disposable fixture with injected test-only providers. It verifies gate/resume, a retained negative consensus review and headless command failure before build. These tests validate executable examples without claiming live provider behavior.

@@ -42,3 +42,5 @@ The config directory determines project paths and execution. Review shell comman
 `pnpm packages:check` verifies isolated packed imports without registry access. `pnpm installation:check` separately performs a real disposable global npm installation and needs the public registry. See [Testing](TESTING.md), [Installation](INSTALLATION.md), and the explicit opt-in [live smoke](LIVE_SMOKE.md). Live API tests may spend provider credits and are never part of ordinary PR tests.
 
 See [Contributing](../CONTRIBUTING.md) for scope/review rules, [architecture decisions](decisions/README.md) for design changes, and [Release CI](RELEASING.md) for release preparation and approval.
+
+Root Turbo commands opt out of anonymous telemetry for each invocation. `pnpm telemetry:check` verifies the effective setting; direct Turbo invocations need the same environment override. See the [telemetry policy](TELEMETRY.md).
