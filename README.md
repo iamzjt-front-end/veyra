@@ -104,7 +104,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Claude      | ✓        | API adapter; live smoke blocked   |
 | Claude Code | ✓        | CLI adapter; live smoke blocked   |
 | Gemini      | ✓        | API/CLI adapters; live unverified |
-| OpenCode    | ✓        | planned                           |
+| OpenCode    | ✓        | CLI adapter; live smoke blocked   |
 
 ## Implementation plan
 
@@ -178,6 +178,8 @@ The [Claude Code reference](docs/CLAUDE-CODE.md) covers native CLI execution, pe
 The [Gemini reference](docs/GEMINI.md) covers structured reasoning, explicit inline image input, bounded requests and the guarded API smoke test.
 
 The [Gemini CLI reference](docs/GEMINI-CLI.md) covers native execution, strict result validation, permissions and offline readiness limitations.
+
+The [OpenCode reference](docs/OPENCODE.md) covers the native contract, disabled sharing, event normalization and guarded fixture smoke.
 
 ## Current milestone
 

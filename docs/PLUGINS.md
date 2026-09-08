@@ -37,7 +37,7 @@ const adapter = registry.createAgent("example", {
 
 Registration does not invoke factories or probes. Each registry owns its registrations; there is no global registry. `list()` returns independent provider/API/version metadata. Duplicate names cannot override built-ins or previous registrations. Incompatible APIs, exact-version mismatches, missing plugins, invalid adapters and thrown factories produce stable `PluginError.code` values and safe diagnostics without raw plugin exceptions.
 
-The CLI explicitly registers OpenAI, Codex, Claude, Claude Code, Gemini API and Gemini CLI through the same contract in `apps/cli/src/plugins.ts`. Those registrations compose the existing adapter implementations in `plugins/*`; the SDK itself has no vendor imports. Built-in adapter defaults are overridden by namespace options, then agent options, then the explicit agent `model`; the binding always supplies `id`. Third-party plugins own and document their option interpretation.
+The CLI explicitly registers OpenAI, Codex, Claude, Claude Code, Gemini API, Gemini CLI and OpenCode through the same contract in `apps/cli/src/plugins.ts`. Those registrations compose the existing adapter implementations in `plugins/*`; the SDK itself has no vendor imports. Built-in adapter defaults are overridden by namespace options, then agent options, then the explicit agent `model`; the binding always supplies `id`. Third-party plugins own and document their option interpretation.
 
 ## Local modules and trust
 
@@ -81,6 +81,8 @@ Programmatic callers can use `loadLocalPlugin(registry, { provider, module, vers
 `registry.checkReadiness(provider, agent, controls?)` calls the optional plugin hook. Without it, the registry constructs the adapter and calls its optional `checkReadiness`; if neither has a probe it reports `unknown`. A plugin-level hook can diagnose setup even when the adapter cannot yet be constructed. Probes receive ephemeral `cwd`, `signal`, and `timeoutMs`; they must honor controls, bound output and clean up work. A pre-aborted signal skips probing. Arbitrary trusted JavaScript that ignores cancellation cannot be forcibly stopped by an in-process registry.
 
 Return the same scoped `AgentReadiness` contract as adapter discovery. CLI doctor includes scope, optional version and validated adapter descriptors when construction succeeds. OpenAI, Claude and Gemini hooks check credential-variable presence only; Codex and Claude Code use bounded native CLI support/authentication checks. Gemini CLI checks executable flags and credential presence while reporting native login/ADC validity as unknown. Plugin loading and ordinary workflow execution do not automatically probe services.
+
+OpenCode readiness checks the supported native version and headless flags without probing credentials. Execution repeats its version check before creating a session to enforce the supported contract and sharing-disable switch.
 
 Keep credentials in environment variables or native login. Config/namespace options may name an `apiKeyEnv`, never contain a key. CLI redaction includes credential variables named by agent or plugin namespace options and recognized secret environment names. Providers must normalize/redact all other credentials themselves, return safe readiness messages and avoid writing to CLI stdout. Third-party hooks are responsible for their external effects and secret handling; returning a typed object does not sanitize arbitrary content.
 

@@ -18,6 +18,7 @@
     "@veyra/claude-code": "workspace:*",
     "@veyra/gemini": "workspace:*",
     "@veyra/openai": "workspace:*",
+    "@veyra/opencode": "workspace:*",
     "yaml": "2.9.0"
   },
   "scripts": {

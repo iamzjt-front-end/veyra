@@ -1,5 +1,5 @@
 # @veyra/opencode
 
-Status: **planned**.
+Status: **implemented with deterministic tests; live smoke blocked by rejected native provider credentials**.
 
-Coding-agent adapter for OpenCode. Veyra treats it as one executor option among interchangeable agent providers.
+`OpenCodeAdapter` executes the installed CLI through Runtime and normalizes native events into protocol results. See the [adapter reference](../../docs/OPENCODE.md), [development example](../../examples/providers/opencode.yaml) and [M4.7 verification record](../../docs/TODO.md#m47--opencode-executor).

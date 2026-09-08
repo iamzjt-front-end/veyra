@@ -35,6 +35,8 @@ The Claude API adapter also advertises planner/reviewer/judge roles and reasonin
 
 [Gemini CLI](GEMINI-CLI.md) uses the separate provider `gemini-cli` with executor and code-execution/tool-use/local-cli/structured-output capabilities. It validates prompt-requested JSON locally; native permissions and model access remain external requirements. Readiness checks CLI flags and environment credential presence without claiming an offline native login check.
 
+[OpenCode](OPENCODE.md) advertises the same executor capabilities through its own Runtime adapter and strict final-result parser. Local readiness establishes supported version/flags, with authentication and model access explicitly untested.
+
 ## Explicit workflow requirements
 
 ```yaml

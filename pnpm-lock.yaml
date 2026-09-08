@@ -56,6 +56,9 @@ importers:
       '@veyra/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
+      '@veyra/opencode':
+        specifier: workspace:*
+        version: link:../../plugins/opencode
       '@veyra/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -184,6 +187,15 @@ importers:
       openai:
         specifier: 6.49.0
         version: 6.49.0
+
+  plugins/opencode:
+    dependencies:
+      '@veyra/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
 
 packages:
 

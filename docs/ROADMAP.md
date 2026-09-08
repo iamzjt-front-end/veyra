@@ -72,7 +72,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [ ] Claude Code (adapter and deterministic tests implemented; live smoke blocked by native provider request timeouts)
 - [ ] Gemini API (adapter, opt-in vision and deterministic tests implemented; live smoke blocked by missing API credential)
 - [x] Gemini CLI (Runtime adapter and deterministic tests; native executable unavailable for live verification)
-- [ ] OpenCode
+- [ ] OpenCode (adapter and deterministic tests implemented; live smoke blocked by native HTTP 401)
 - [ ] Local/OpenAI-compatible models
 - [ ] Authentication/secret-handling policy
 - [ ] Agent role profiles

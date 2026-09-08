@@ -3,7 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseConfig } from "@veyra/config";
-import { runProcess, type ProcessRunner } from "@veyra/runtime";
+import { ProcessExecutionError, runProcess, type ProcessRunner } from "@veyra/runtime";
 import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { runCli, type CliServices } from "../src/application.js";
@@ -87,6 +87,24 @@ const invoke = async (path: string, args: string[], services: CliServices = {}) 
 };
 
 describe("CLI plugin composition", () => {
+  it("reports an absent OpenCode executable without requiring an unconfigured model", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const result = await invoke(path, ["doctor"], {
+        runProcess: async () => {
+          throw new ProcessExecutionError("executable_not_found", "private detail");
+        },
+      });
+      expect(
+        result.records[0].providers.find(
+          (provider: { provider: string }) => provider.provider === "opencode",
+        ),
+      ).toMatchObject({
+        ready: false,
+        scope: "local",
+        message: "OpenCode executable was not found; install it or configure its executable path.",
+      });
+    });
+  });
   it("discovers Gemini bindings with opt-in vision and credential-presence readiness", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       await fixture(path);
@@ -138,7 +156,7 @@ describe("CLI plugin composition", () => {
       expect(run.stdout).toContain("gemini_missing_api_key");
     });
   });
-  it.each(["claude-code", "gemini-cli"])(
+  it.each(["claude-code", "gemini-cli", "opencode"])(
     "validates, discovers and executes %s through injected runtime",
     async (provider) => {
       await withFixtureWorkspace(async ({ path }) => {
@@ -174,31 +192,63 @@ describe("CLI plugin composition", () => {
               : request.args?.[0] === "--version"
                 ? provider === "claude-code"
                   ? "2.1.159 (Claude Code)"
-                  : "0.58.0"
-                : request.args?.[0] === "--help"
-                  ? "--print --output-format --json-schema --no-session-persistence --permission-mode --prompt --approval-mode"
+                  : provider === "opencode"
+                    ? "1.18.29"
+                    : "0.58.0"
+                : request.args?.includes("--help")
+                  ? "--print --output-format --json-schema --no-session-persistence --permission-mode --prompt --approval-mode --format --dir --title --auto --thinking"
                   : request.args?.[0] === "auth"
                     ? '{"loggedIn":true}'
-                    : provider === "gemini-cli"
-                      ? JSON.stringify({
-                          response: JSON.stringify({
-                            status: "success",
-                            summary: "Fixture executor completed",
-                            changedFiles: [],
-                            commandsRun: [],
-                          }),
-                        })
-                      : JSON.stringify({
-                          type: "result",
-                          subtype: "success",
-                          is_error: false,
-                          structured_output: {
-                            status: "success",
-                            summary: "Fixture executor completed",
-                            changedFiles: [],
-                            commandsRun: [],
+                    : provider === "opencode"
+                      ? [
+                          { type: "step_start", part: { type: "step-start", id: "start" } },
+                          {
+                            type: "text",
+                            part: {
+                              type: "text",
+                              id: "text",
+                              time: { end: 2 },
+                              text: JSON.stringify({
+                                status: "success",
+                                summary: "Fixture executor completed",
+                                changedFiles: [],
+                                commandsRun: [],
+                              }),
+                            },
                           },
-                        });
+                          {
+                            type: "step_finish",
+                            part: { type: "step-finish", id: "finish", reason: "stop" },
+                          },
+                        ]
+                          .map((event) =>
+                            JSON.stringify({
+                              ...event,
+                              sessionID: "fixture",
+                              part: { ...event.part, sessionID: "fixture", messageID: "message" },
+                            }),
+                          )
+                          .join("\n")
+                      : provider === "gemini-cli"
+                        ? JSON.stringify({
+                            response: JSON.stringify({
+                              status: "success",
+                              summary: "Fixture executor completed",
+                              changedFiles: [],
+                              commandsRun: [],
+                            }),
+                          })
+                        : JSON.stringify({
+                            type: "result",
+                            subtype: "success",
+                            is_error: false,
+                            structured_output: {
+                              status: "success",
+                              summary: "Fixture executor completed",
+                              changedFiles: [],
+                              commandsRun: [],
+                            },
+                          });
           return {
             exitCode: 0,
             signal: null,
@@ -229,14 +279,22 @@ describe("CLI plugin composition", () => {
         expect(doctor.records[0].providers[0]).toMatchObject({
           provider,
           ready: true,
-          scope: provider === "claude-code" ? "local" : "configuration",
+          scope: provider === "gemini-cli" ? "configuration" : "local",
           descriptor: { roles: ["executor"] },
         });
         const run = await invoke(path, ["run", "Repair fixture"], { runProcess: runner });
         expect(run.code, run.stdout).toBe(0);
         expect(run.stdout).toContain("Fixture executor completed");
         expect(
-          calls.filter((call) => call[1] === (provider === "claude-code" ? "--print" : "--prompt")),
+          calls.filter(
+            (call) =>
+              call[1] ===
+                (provider === "claude-code"
+                  ? "--print"
+                  : provider === "opencode"
+                    ? "run"
+                    : "--prompt") && !call.includes("--help"),
+          ),
         ).toHaveLength(1);
         const state = await invoke(path, ["status"]);
         expect(state.stdout).toContain("completed");

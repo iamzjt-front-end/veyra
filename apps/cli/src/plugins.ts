@@ -9,6 +9,7 @@ import {
   type GeminiCliAdapterOptions,
 } from "@veyra/gemini";
 import { OpenAIAdapter, type OpenAIAdapterOptions } from "@veyra/openai";
+import { OpenCodeAdapter, type OpenCodeAdapterOptions } from "@veyra/opencode";
 import type { JsonObject } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
 import {
@@ -53,6 +54,22 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
       runProcess: services.runProcess,
     });
   return [
+    {
+      apiVersion: 1,
+      provider: "opencode",
+      version: "0.1.0",
+      createAgent: (agent, context) =>
+        new OpenCodeAdapter(adapterOptions(agent, context) as OpenCodeAdapterOptions, services),
+      checkReadiness: (agent, context, controls) => {
+        // Offline CLI support does not depend on a model. Doctor also checks the
+        // configured adapter's descriptor, which validates an actual model binding.
+        const options = adapterOptions(agent, context);
+        delete options.model;
+        return new OpenCodeAdapter(options as OpenCodeAdapterOptions, services).checkReadiness(
+          controls,
+        );
+      },
+    },
     {
       apiVersion: 1,
       provider: "gemini-cli",

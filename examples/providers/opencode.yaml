@@ -1,0 +1,17 @@
+version: 1
+project:
+  name: opencode-development
+workflow:
+  use: dev
+agents:
+  planner:
+    provider: openai
+    model: replace-with-an-accessible-structured-output-model
+  executor:
+    provider: opencode
+    # model: provider/model
+    options:
+      timeoutMs: 900000
+  reviewer:
+    provider: openai
+    model: replace-with-an-accessible-structured-output-model

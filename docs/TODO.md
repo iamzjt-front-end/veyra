@@ -1177,13 +1177,19 @@ Verified all five baseline commands (1171 tests), example workflow validation an
 
 ## M4.7 — OpenCode executor
 
+**Status:** [!] Implementation and deterministic verification passed; live smoke blocked by rejected native provider credentials.
+
 **Primary area:** `plugins/opencode`
 
-- [ ] runtime-based invocation
-- [ ] readiness detection
-- [ ] normalize result
-- [ ] cancellation/timeouts
-- [ ] tests/smoke test
+- [x] runtime-based invocation
+- [x] readiness detection
+- [x] normalize result
+- [x] cancellation/timeouts
+- [!] tests/smoke test (84 adapter tests, CLI integration and guarded tooling pass; live success remains blocked)
+
+Verified frozen install, all five baseline commands (1257 tests), example workflow validation and root doctor. The native adapter uses version preflight, literal stdin, fixed cwd, headless JSONL, sharing disabled, native permissions, one deadline and bounded diagnostics. Tests cover final-step/session correlation, malformed output, replay accounting, credential/access pauses, tool/process errors, cancellation and real Runtime stdin/output. CLI coverage includes execution plus the unconfigured-model doctor regression. `docs/OPENCODE.md` documents the supported 1.18.29 contract, native defaults and limitations.
+
+Live blocker: the initial system-path smoke returned `OpenCode executable was not found; install it or configure its executable path.` A pinned temporary install through `pnpm dlx opencode-ai@1.18.29 --version` succeeded. Native help is on stderr; readiness was corrected and verified against that binary. Attempted `VEYRA_LIVE_SMOKE=1 pnpm --package=opencode-ai@1.18.29 dlx node --import tsx plugins/opencode/test/manual-smoke.ts`; the configured native provider returned HTTP 401 with `Invalid API Key` after 8486 ms and the command exited 1. Runtime exited and the disposable workspace was removed. The captured API error shape now maps to `needs_input` in deterministic tests. Configure valid native provider credentials/access, then rerun the guarded smoke with an accessible `provider/model` if needed. No native credentials/settings were changed and no alternate provider was selected to hide the failure. M4.8 is independent and can proceed.
 
 ---
 
@@ -1612,4 +1618,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.7 — OpenCode executor.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M4.8 — OpenAI-compatible/local-model adapter.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
