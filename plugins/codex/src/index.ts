@@ -1,3 +1,4 @@
+import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -311,6 +312,7 @@ export function buildPrompt(
   return [
     "You are Veyra's executor for the supplied task. Preserve and follow user/project AGENTS.md instructions and existing execution policies. Make only the changes needed for the goal and current task, using prior planner/reviewer/verification context as evidence. Do not commit, push, publish, or deploy. If explicit human approval or unavailable access is required, stop and report needs_input. Never copy authentication files or expose credentials in output.",
     "Return the requested structured result: status, concise summary, changedFiles, and commandsRun. List only changes and commands actually performed. These are execution claims; separate deterministic verification will follow.",
+    PROMPT_SAFETY_GUIDANCE,
     "Task envelope:",
     JSON.stringify(createSecretRedactor({ env }).json(input), null, 2),
   ].join("\n\n");

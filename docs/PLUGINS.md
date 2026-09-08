@@ -2,6 +2,8 @@
 
 M4.2 adds an explicit provider plugin registry to `@veyra/sdk` in this `0.1.0` development checkout. A plugin constructs protocol adapters; Core continues to receive injected `AgentAdapter` instances and never imports provider code or plugin modules. This initial contract covers providers. Custom workflow node/tool registration remains separate work.
 
+Current Core inputs carry labeled `instructionSources` alongside general `instructions`, plus `context.provenance` for supplied evidence. Deliver the complete envelope or preserve these fields explicitly in the provider prompt; forwarding only the former flattened `instructions` string loses project/workflow guidance. SDK exports the source contracts, guards and shared safety guidance. See [prompt source integration](PROMPT-SAFETY.md).
+
 ## Contract and registration
 
 ```ts

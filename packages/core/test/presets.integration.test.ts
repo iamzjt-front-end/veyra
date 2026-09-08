@@ -91,8 +91,16 @@ describe("hardened built-in presets", () => {
         "review",
         "done",
       ]);
-      expect(executor.calls[0]?.instructions).toContain(workflow.steps.execute?.instructions);
-      expect(executor.calls[1]?.instructions).toContain(workflow.steps.fix?.instructions);
+      expect(executor.calls[0]?.instructionSources).toContainEqual({
+        kind: "workflow",
+        reference: "execute",
+        text: workflow.steps.execute?.instructions,
+      });
+      expect(executor.calls[1]?.instructionSources).toContainEqual({
+        kind: "workflow",
+        reference: "fix",
+        text: workflow.steps.fix?.instructions,
+      });
       expect(executor.calls[1]?.context?.steps).toMatchObject({ verify: { outcome: "failure" } });
       expect(reviewer.calls[0]?.context?.steps).toMatchObject({ verify: { outcome: "success" } });
       const inputs = (await store.readEvents(result.runId)).filter(

@@ -1,5 +1,6 @@
 import type { AgentAdapter, AgentInput, AgentResult, AgentRunOptions } from "@veyra/protocol";
 export { createDeadline } from "./deadline.js";
+export { readProjectInstructions } from "./project-instructions.js";
 export { acquireLocalLock, LocalLockError, type LocalLockOptions, type LocalLock } from "./lock.js";
 export {
   currentProcessOwner,

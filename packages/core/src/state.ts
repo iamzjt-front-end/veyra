@@ -22,6 +22,7 @@ import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@vey
 import { isStoredEvent, isSerializedError } from "./state-events.js";
 import { digest, eventArtifact, eventView, MAX_INLINE_EVENT_BYTES } from "./artifacts.js";
 import type { PruneRunsOptions, PruneRunsResult } from "./retention.js";
+import { isProjectInstructions, type ProjectInstruction } from "@veyra/protocol";
 
 export type RunStatus = "running" | "paused" | "completed" | "failed";
 
@@ -32,6 +33,7 @@ export interface StoredRunInput {
   workflow: WorkflowDefinition;
   cwd: string;
   workspace?: WorkspaceInfo;
+  projectInstructions?: ProjectInstruction[];
   createdAt: string;
 }
 
@@ -63,6 +65,7 @@ export interface CreateRunInput {
   workflow: WorkflowDefinition;
   cwd?: string;
   workspace?: WorkspaceInfo;
+  projectInstructions?: ProjectInstruction[];
 }
 
 export interface RunStateUpdate {
@@ -148,7 +151,11 @@ export class LocalRunStore {
       if (
         typeof input.goal !== "string" ||
         !input.goal.trim() ||
-        Object.keys(input).some((key) => !["goal", "workflow", "cwd", "workspace"].includes(key))
+        Object.keys(input).some(
+          (key) => !["goal", "workflow", "cwd", "workspace", "projectInstructions"].includes(key),
+        ) ||
+        (input.projectInstructions !== undefined &&
+          !isProjectInstructions(input.projectInstructions))
       ) {
         throw new StateStoreError(
           "invalid_input",
@@ -192,6 +199,9 @@ export class LocalRunStore {
         workflow,
         cwd: resolve(input.cwd ?? process.cwd()),
         ...(input.workspace ? { workspace: structuredClone(input.workspace) } : {}),
+        ...(input.projectInstructions !== undefined
+          ? { projectInstructions: structuredClone(input.projectInstructions) }
+          : {}),
         createdAt: at,
       };
       const state: StoredRunState = {
@@ -771,7 +781,16 @@ function parseInput(
     !object(value) ||
     Object.keys(value).some(
       (key) =>
-        !["version", "runId", "goal", "workflow", "cwd", "workspace", "createdAt"].includes(key),
+        ![
+          "version",
+          "runId",
+          "goal",
+          "workflow",
+          "cwd",
+          "workspace",
+          "projectInstructions",
+          "createdAt",
+        ].includes(key),
     ) ||
     value.version !== 1 ||
     value.runId !== runId ||
@@ -779,6 +798,8 @@ function parseInput(
     !value.goal.trim() ||
     typeof value.cwd !== "string" ||
     !value.cwd.trim() ||
+    (value.projectInstructions !== undefined &&
+      !isProjectInstructions(value.projectInstructions)) ||
     (value.workspace !== undefined &&
       (!isWorkspaceInfo(value.workspace) || value.workspace.cwd !== value.cwd)) ||
     !timestamp(value.createdAt)
@@ -805,6 +826,9 @@ function parseInput(
     goal: value.goal,
     cwd: value.cwd,
     ...(isWorkspaceInfo(value.workspace) ? { workspace: value.workspace } : {}),
+    ...(isProjectInstructions(value.projectInstructions)
+      ? { projectInstructions: value.projectInstructions }
+      : {}),
     createdAt: value.createdAt,
     workflow,
   };

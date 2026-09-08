@@ -21,6 +21,10 @@ export type {
   ApprovalDecision,
   ArtifactRef,
   ArtifactProducer,
+  ProjectInstruction,
+  InstructionSource,
+  EvidenceReference,
+  ContextProvenance,
   EventMetadata,
   RecoveryBoundary,
   EventSink,
@@ -45,6 +49,11 @@ export type {
 } from "@veyra/workflow";
 export {
   isJsonValue,
+  PROMPT_SAFETY_GUIDANCE,
+  isProjectInstructions,
+  isInstructionSources,
+  isEvidenceReference,
+  isContextProvenance,
   isAgentDescriptor,
   isAgentReadiness,
   isAgentRequirements,

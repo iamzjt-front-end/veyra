@@ -10,11 +10,20 @@ export async function executeRouter(options: LeafOptions): Promise<LeafResult> {
     ? (context.input({ route: reference }).context.inputs as JsonObject)
     : undefined;
   const decision = resolveRoute(step, inputs?.route);
+  const origin = reference ? context.source(reference.from, reference.path) : undefined;
   const saved = await record({
     type: "router.selected",
     ...execution,
     ...decision,
-    ...(reference ? { source: { stepId: reference.from, path: reference.path } } : {}),
+    ...(reference
+      ? {
+          source: {
+            stepId: reference.from,
+            path: reference.path,
+            ...(origin ? { outputEventId: origin.eventId, sequence: origin.sequence } : {}),
+          },
+        }
+      : {}),
     at: new Date().toISOString(),
   });
   if (saved.type !== "router.selected")

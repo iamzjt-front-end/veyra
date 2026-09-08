@@ -58,8 +58,15 @@ describe("role profile delivery and audit", () => {
                 input: { profile: getAgentRoleProfile(role) },
               });
               expect(input.profile?.role).toBe(role);
-              expect(input.instructions).toContain(input.profile?.instructions);
-              expect(input.instructions).toContain(`Scoped ${role} guidance`);
+              expect(input.instructionSources).toEqual(
+                expect.arrayContaining([
+                  expect.objectContaining({
+                    kind: "role-profile",
+                    text: input.profile?.instructions,
+                  }),
+                  expect.objectContaining({ kind: "workflow", text: `Scoped ${role} guidance` }),
+                ]),
+              );
               expect(input.context?.steps).toBeDefined();
               calls.push(structuredClone(input));
               if (input.profile) input.profile.instructions = "untrusted mutation";

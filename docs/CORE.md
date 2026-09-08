@@ -2,6 +2,8 @@
 
 Named workflow `inputs` select typed values from previous persisted outputs for agents and human gates. Core resolves and redacts each agent envelope, saves `agent.input`, then invokes the adapter with that saved input. See [workflow input semantics](WORKFLOWS.md#named-inputs-and-step-outputs) for limits, artifact references and resume behavior.
 
+New runs snapshot the execution root's bounded `AGENTS.md` through Runtime. Agent envelopes distinguish project/role/workflow/group instruction sources from untrusted evidence. Context provenance identifies original event/attempt references, and agent outcomes link their saved input. Routers, approval contexts, subworkflow boundaries and consensus preserve decision evidence references. See [prompt safety and provenance](PROMPT-SAFETY.md) for source rules, legacy behavior, bounds and model-trust limits.
+
 `VeyraEngine` coordinates a validated workflow, injected adapters, the agent runtime, deterministic verifier, and local run store. It does not load YAML, construct vendor clients, or spawn provider processes.
 
 ```ts

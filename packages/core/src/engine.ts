@@ -13,6 +13,7 @@ import {
   currentProcessOwner,
   LocalAgentRuntime,
   LocalWorkspaceManager,
+  readProjectInstructions,
 } from "@veyra/runtime";
 import { ShellVerifier, type Verifier } from "@veyra/verifier";
 import {
@@ -97,7 +98,13 @@ export class VeyraEngine {
       );
       try {
         const run = await store.createRun(
-          { goal: request.goal, workflow, cwd: workspace.info.cwd, workspace: workspace.info },
+          {
+            goal: request.goal,
+            workflow,
+            cwd: workspace.info.cwd,
+            workspace: workspace.info,
+            projectInstructions: await readProjectInstructions(workspace.info.cwd),
+          },
           runId,
         );
         return await this.#execute(request, store, run, []);

@@ -34,6 +34,8 @@ Cancellation suites cover adapters/verifiers that throw on abort, first-cause de
 
 Artifact/retention suites verify bounded inline and CLI records, complete redacted payload restoration in a fresh process, preserved named inputs across pause/resume, producer/digest metadata, corrupt/missing/symlinked payload refusal, and a real crash between payload publication and log append. Cleanup uses disposable histories and Git worktrees: preview/default protection, explicit deletion, concurrent control/selection, external-path preservation and failure after moving history to trash are covered. No cleanup test targets developer run history.
 
+Prompt provenance tests inspect separate captured project/workflow/role/group sources, forged trust claims inside agent/research output, actual failed command evidence, mapping/retry/eviction references, human gate/resume snapshots, router source events and judge inputs. Runtime fixtures cover missing, oversized, invalid UTF-8 and linked project rules. Root tests exercise source-boundary guidance in every official API/native prompt builder without live model calls.
+
 ## End-to-end CLI scenarios
 
 `test/e2e/vertical-slice.test.ts` exercises the complete built-in dev workflow through the CLI application in real, separate Node.js processes. `cli-harness.ts` supplies deterministic adapters through the existing service interface; it is test code and adds no production fake-provider switch. The fixture executor edits actual source files, while the real shell verifier runs `pnpm check`, `pnpm test`, and `pnpm build`. The disposable copy adds a dependency-free build script and expects the new greeting; the committed fixture stays unchanged.

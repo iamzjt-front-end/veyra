@@ -9,6 +9,7 @@ import {
   type SerializedError,
 } from "@veyra/protocol";
 import { EVENT_PREVIEW_BYTES, isEventArtifact } from "./artifacts.js";
+import { isInstructionSources, isContextProvenance } from "@veyra/protocol";
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): value is RecordValue =>
@@ -127,7 +128,12 @@ function agentInput(value: unknown, event: RecordValue): boolean {
     string(value.role) &&
     string(value.goal) &&
     optional(value.instructions, string) &&
+    optional(value.instructionSources, isInstructionSources) &&
+    optional(value.projectInstructionState, (state) =>
+      ["captured", "absent", "legacy-unavailable"].includes(String(state)),
+    ) &&
     optional(value.context, record) &&
+    (!record(value.context) || optional(value.context.provenance, isContextProvenance)) &&
     optional(value.artifacts, (items) => array(items, artifact)) &&
     optional(
       value.profile,
@@ -143,6 +149,8 @@ function agentInput(value: unknown, event: RecordValue): boolean {
         "role",
         "goal",
         "instructions",
+        "instructionSources",
+        "projectInstructionState",
         "context",
         "artifacts",
         "profile",
@@ -336,7 +344,12 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
       );
     }
     case "subworkflow.started":
-      return string(value.workflowName) && string(value.childStepId) && record(value.inputs);
+      return (
+        string(value.workflowName) &&
+        string(value.childStepId) &&
+        record(value.inputs) &&
+        optional(value.provenance, isContextProvenance)
+      );
     case "subworkflow.completed":
       return (
         boolean(value.success) &&
@@ -358,7 +371,11 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
         ["static", "input"].includes(value.selection as string) &&
         (value.selection === "static"
           ? value.source === undefined
-          : record(value.source) && string(value.source.stepId) && string(value.source.path))
+          : record(value.source) &&
+            string(value.source.stepId) &&
+            string(value.source.path) &&
+            optional(value.source.outputEventId, string) &&
+            optional(value.source.sequence, integer))
       );
     case "parallel.started":
       return (
@@ -428,6 +445,7 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
         string(value.agentId) &&
         optional(value.provider, string) &&
         optional(value.role, string) &&
+        optional(value.inputEventId, string) &&
         (value.type === "agent.started" ||
           (value.type === "agent.input"
             ? agentInput(value.input, value)

@@ -1498,10 +1498,14 @@ Verified all five baseline commands and 1,649 tests. Large events are redacted b
 
 ## M6.8 — Prompt/context safety and provenance
 
-- [ ] clearly separate project instructions, workflow instructions, previous-agent outputs, tool evidence
-- [ ] mark untrusted external/research content where possible
-- [ ] Reviewer should rely on verifier evidence rather than blindly trusting Executor claims
-- [ ] persist evidence references used for important decisions
+**Status:** [x] Complete and verified.
+
+- [x] clearly separate project instructions, workflow instructions, previous-agent outputs, tool evidence
+- [x] mark untrusted external/research content where possible
+- [x] Reviewer should rely on verifier evidence rather than blindly trusting Executor claims
+- [x] persist evidence references used for important decisions
+
+Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,670 tests), and `pnpm build`. New runs capture a bounded, redacted execution-root `AGENTS.md`; agent envelopes label project/role/workflow/group sources separately from untrusted context and artifacts. Core-derived event/attempt references survive mapping, eviction, retries, forks, nested calls and resume; agent outcomes reference their saved input, router decisions reference their exact source, and approvals/consensus preserve supplied evidence provenance. Tests include forged trust claims, actual failed verifier evidence despite executor success claims, missing/invalid/linked rule files, captured/absent/legacy snapshots, nested parameter chains and all official prompt builders. Existing consensus checks still prevent a judge from overriding required failed verification. [Prompt safety](PROMPT-SAFETY.md) documents the full-envelope adapter integration, native-rule scope, metadata bounds and the distinction between supplied evidence and model truthfulness. Local documentation link targets were verified.
 
 ---
 
@@ -1685,4 +1689,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.8 — Prompt/context safety and provenance.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.
+**Next eligible: M6.9 — Cross-platform support.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.

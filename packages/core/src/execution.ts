@@ -20,7 +20,7 @@ import {
   RouterError,
   type WorkflowStep,
 } from "@veyra/workflow";
-import { RunContext } from "./context.js";
+import { RunContext, evidenceReference } from "./context.js";
 import type { RunResult } from "./engine.js";
 import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { checkBudget, type BudgetHook } from "./budget.js";
@@ -171,6 +171,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
       const context = new RunContext(
         references.map((input) => input.from),
         boundary?.inputs,
+        boundary ? evidenceReference(boundary, "/context/workflowInputs") : undefined,
       );
       context.restore(
         eventLog.filter(
@@ -318,6 +319,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
           execution: active,
           agents,
           goal: run.input.goal,
+          projectInstructions: run.input.projectInstructions,
           context,
           controls,
           record,
@@ -341,6 +343,8 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
               workflowName: childScope.name,
               childStepId: childScope.start,
               inputs: step.inputs ? (context.input(step.inputs).context.inputs as JsonObject) : {},
+              provenance: context.input(step.inputs).context
+                .provenance as unknown as import("@veyra/protocol").ContextProvenance,
               at: now(),
             }));
           if (

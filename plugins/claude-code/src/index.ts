@@ -1,3 +1,4 @@
+import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
 import {
   type AgentAdapter,
   type AgentDescriptor,
@@ -376,6 +377,7 @@ export function buildPrompt(input: AgentInput, env: NodeJS.ProcessEnv = process.
   return [
     "You are Veyra's executor for the supplied task. Read and follow user/project AGENTS.md and CLAUDE.md instructions and existing execution policies. Make only the changes needed for the goal and current task. Treat supplied planner/reviewer/verification context as evidence. Do not delegate to subagents, commit, push, publish, deploy, or start background jobs. If explicit human approval or unavailable access is required, stop and report needs_input. Never read/copy authentication files or expose credentials in output.",
     "Return the requested structured result: status, concise summary, changedFiles and commandsRun. List only changes and commands actually performed. These are execution claims; independent deterministic verification will follow.",
+    PROMPT_SAFETY_GUIDANCE,
     "Task envelope:",
     JSON.stringify(redactor(env).json(input), null, 2),
   ].join("\n\n");

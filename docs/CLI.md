@@ -103,3 +103,5 @@ Large run/resume events and JSON review results use bounded `event.stored` recor
 ## Command safety visibility
 
 Doctor/run output displays declared native permission controls when an adapter supplies them, including explicit unknown/native configuration modes. Verification startup identifies its trusted command source and host shell permissions. `status` shows the protected operation preview for policy-generated approval gates. See [command safety](COMMAND-SAFETY.md) for the enforced gate behavior, intentional shell syntax and native-provider boundaries.
+
+New runs capture the execution root's regular UTF-8 `AGENTS.md` (maximum 32 KiB) before invocation; invalid or linked files are refused. Resume retains its saved capture. Agent inputs label instruction sources separately from untrusted prior outputs and include references to the supplied evidence; this does not replace a native coding CLI's additional project rules. See [prompt sources and provenance](PROMPT-SAFETY.md).

@@ -1,5 +1,7 @@
 # Local process runtime
 
+`readProjectInstructions(cwd)` reads only the selected execution root's regular UTF-8 `AGENTS.md` (32 KiB maximum), refuses symlinks/special files and oversized content, and closes its bounded read handle. It does not expand includes or discover ancestor/native rule files. Core snapshots and redacts the returned data before invocation. See [prompt source capture](PROMPT-SAFETY.md).
+
 `createDeadline(timeoutMs?, signal?)` creates an abort signal for a bounded operation and exposes `timedOut()` plus `dispose()`. Core uses it for workflow agent/command deadlines spanning an entire invocation, including multi-command verification. Cancellation signals active work; the caller must await its cleanup and dispose the timer/listener. The first cause wins: parent cancellation clears the timer, and a later parent abort does not replace an already-fired deadline. Parent reasons propagate only through the ephemeral signal. It does not forcibly interrupt arbitrary JavaScript or replace provider process cancellation. See [cancellation semantics](CANCELLATION.md).
 
 `@veyra/runtime` owns generic local execution. Adapters and verifiers use `runProcess`; Core does not spawn provider executables.

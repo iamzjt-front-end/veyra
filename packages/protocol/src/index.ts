@@ -1,4 +1,16 @@
 import type { WorkspaceInfo } from "./workspace.js";
+import type { InstructionSource, ContextProvenance } from "./provenance.js";
+export {
+  PROMPT_SAFETY_GUIDANCE,
+  isProjectInstructions,
+  isInstructionSources,
+  isEvidenceReference,
+  isContextProvenance,
+  type ProjectInstruction,
+  type InstructionSource,
+  type EvidenceReference,
+  type ContextProvenance,
+} from "./provenance.js";
 export type AgentRole =
   "planner" | "researcher" | "executor" | "reviewer" | "judge" | (string & {});
 
@@ -74,6 +86,8 @@ export interface AgentInput extends ExecutionMetadata {
   role: AgentRole;
   goal: string;
   instructions?: string;
+  instructionSources?: InstructionSource[];
+  projectInstructionState?: "captured" | "absent" | "legacy-unavailable";
   context?: JsonObject;
   artifacts?: ArtifactRef[];
   /** Exact provider-neutral role guidance used for this invocation; optional for legacy/custom roles. */
@@ -322,13 +336,14 @@ export type VeyraEvent = EventMetadata &
         route: string;
         target: string;
         selection: "static" | "input";
-        source?: { stepId: string; path: string };
+        source?: { stepId: string; path: string; outputEventId?: string; sequence?: number };
       })
     | (StepEventMetadata & {
         type: "subworkflow.started";
         workflowName: string;
         childStepId: string;
         inputs: JsonObject;
+        provenance?: ContextProvenance;
       })
     | (StepEventMetadata & {
         type: "subworkflow.completed";
@@ -382,8 +397,8 @@ export type VeyraEvent = EventMetadata &
       })
     | (AgentEventMetadata & { type: "agent.started" })
     | (AgentEventMetadata & { type: "agent.input"; input: AgentInput })
-    | (AgentEventMetadata & { type: "agent.completed"; result: AgentResult })
-    | (AgentEventMetadata & { type: "agent.failed"; error: SerializedError })
+    | (AgentEventMetadata & { type: "agent.completed"; result: AgentResult; inputEventId?: string })
+    | (AgentEventMetadata & { type: "agent.failed"; error: SerializedError; inputEventId?: string })
     | (StepEventMetadata & {
         type: "verification.started";
         commands: string[];

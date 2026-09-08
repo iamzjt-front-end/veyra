@@ -6,6 +6,8 @@ import type {
   ExecutionMetadata,
   JsonObject,
   VeyraEvent,
+  ProjectInstruction,
+  EvidenceReference,
 } from "@veyra/protocol";
 import { getAgentRoleProfile, isJsonValue } from "@veyra/protocol";
 import { createDeadline, ProcessExecutionError, type AgentRuntime } from "@veyra/runtime";
@@ -17,6 +19,7 @@ import { StateStoreError } from "./state.js";
 import { isStoredEvent } from "./state-events.js";
 import { selectAgent } from "./agents.js";
 import { selectAgentRoute } from "./agent-routing.js";
+import { promptInstructions } from "./prompt.js";
 
 export type RecordEvent = (
   event: VeyraEvent,
@@ -42,6 +45,8 @@ export interface LeafOptions {
   role?: AgentRole;
   instructions?: string;
   extraContext?: JsonObject;
+  projectInstructions?: ProjectInstruction[];
+  evidence?: EvidenceReference[];
 }
 
 /** Shared agent/command invocation for sequential and parallel scheduling. */
@@ -147,20 +152,19 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
         ...(selection.descriptor ? { descriptor: selection.descriptor } : {}),
         at: now(),
       });
-    const resolved = context.input(step.inputs);
+    const resolved = context.input(step.inputs, options.evidence);
     const input = {
       ...active,
       role: selection.role,
       goal,
       ...(profile ? { profile } : {}),
-      instructions: [
-        `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, explicitly selected values in context.inputs, and any subworkflow parameters in context.workflowInputs. Preserve project instructions.`,
-        profile?.instructions,
-        step.instructions,
-        options.instructions,
-      ]
-        .filter((value) => value !== undefined)
-        .join("\n\n"),
+      ...promptInstructions({
+        stepId,
+        project: options.projectInstructions,
+        profile,
+        workflow: step.instructions,
+        group: options.instructions,
+      }),
       ...resolved,
       context: { ...resolved.context, ...options.extraContext },
     };
@@ -197,10 +201,22 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
                 code: "agent_execution_failed",
                 message: `Agent '${key}' at step '${stepId}' threw: ${detail}`,
               };
-      await record({ type: "agent.failed", ...metadata, error: failure, at: now() });
+      await record({
+        type: "agent.failed",
+        ...metadata,
+        error: failure,
+        inputEventId: savedInput.eventId,
+        at: now(),
+      });
       throw new ExecutionError(failure.code, failure.message);
     }
-    const event = { type: "agent.completed" as const, ...metadata, result, at: now() };
+    const event = {
+      type: "agent.completed" as const,
+      ...metadata,
+      result,
+      inputEventId: savedInput.eventId,
+      at: now(),
+    };
     if (!isStoredEvent(event) || Buffer.byteLength(JSON.stringify(event)) > 1024 * 1024)
       throw new ExecutionError(
         "invalid_agent_result",
