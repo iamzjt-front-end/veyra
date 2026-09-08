@@ -52,7 +52,8 @@ describe.skipIf(process.platform === "win32")(
           );
           await writeFile(
             join(path, "pid.mjs"),
-            "import {writeFileSync} from 'node:fs';writeFileSync('cli.pid',String(process.pid));",
+            // Keep the exit/drain window open so repeated signals exercise it on every host.
+            "import {writeFileSync} from 'node:fs';writeFileSync('cli.pid',String(process.pid));process.once('beforeExit',()=>{writeFileSync('cli-draining','ready');setTimeout(()=>{},1000);});",
           );
           const descendant =
             "const fs=require('node:fs');process.on('SIGTERM',()=>{});fs.writeFileSync('tree.json',JSON.stringify([process.ppid,process.pid]));setInterval(()=>{},1000);";
@@ -100,10 +101,18 @@ describe.skipIf(process.platform === "win32")(
                 expect((error as NodeJS.ErrnoException).code, "Fixture interrupt").toBe("ESRCH");
               }
             }, 20);
+            await vi.waitFor(
+              async () => expect(await readFile(join(path, "cli-draining"), "utf8")).toBe("ready"),
+              { interval: 10, timeout: 10_000 },
+            );
+            // Exercise post-result draining, then stop before Node tears down its native handlers.
+            clearInterval(repeats);
+            process.kill(cliPid, repeated);
+            sent++;
             const result = await running;
             clearInterval(repeats);
             expect(sent).toBeGreaterThan(1);
-            expect(result.exitCode, result.stderr + result.stdout).toBe(exitCode);
+            expect(result.exitCode, JSON.stringify(result)).toBe(exitCode);
             expect(result.signal).toBeNull();
             expect(result.terminationReason).toBeUndefined();
             expect(pids.every(stopped)).toBe(true);

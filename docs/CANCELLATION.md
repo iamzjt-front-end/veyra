@@ -4,7 +4,7 @@ Cancellation stops the current coordinator's scheduling, signals active work, wa
 
 ## User controls and deadlines
 
-The CLI handles Ctrl-C (`SIGINT`) and `SIGTERM` during live execution. It keeps both handlers installed while cleanup and persistence finish, including repeated signals. The first signal determines its exit code: 130 for SIGINT, 143 for SIGTERM. There is no second-interrupt shortcut that abandons cleanup.
+The CLI handles Ctrl-C (`SIGINT`) and `SIGTERM` during live execution. Its handlers remain installed for the process lifetime, including cleanup, persistence, output draining and repeated signals. The first handled signal sets its exit code: 130 for SIGINT, 143 for SIGTERM. There is no second-interrupt shortcut that abandons cleanup. Signals arriving after Node disposes its native handlers during final teardown are outside the JavaScript handler boundary.
 
 Embedded callers pass an `AbortSignal` to `engine.run()` or `engine.resume()` and abort its controller. Signals are also accepted directly by Runtime and Verifier. An already-aborted process request never spawns a child; an already-aborted Core run records a failed run without invoking a provider. Arbitrary caller `signal.reason` values remain ephemeral and are not copied into state or errors.
 
