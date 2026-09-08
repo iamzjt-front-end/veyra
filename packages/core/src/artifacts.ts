@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { StringDecoder } from "node:string_decoder";
-import type { ArtifactRef, VeyraEvent } from "@veyra/protocol";
+import type { ArtifactRef, VeyraEvent } from "@veyraoss/protocol";
 
 export const MAX_INLINE_EVENT_BYTES = 64 * 1024;
 export const EVENT_PREVIEW_BYTES = 4096;

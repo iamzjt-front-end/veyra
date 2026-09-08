@@ -6,8 +6,8 @@ import type {
   AgentRole,
   AgentRunOptions,
   SerializedError,
-} from "@veyra/protocol";
-import { isAgentDescriptor, isAgentReadiness } from "@veyra/protocol";
+} from "@veyraoss/protocol";
+import { isAgentDescriptor, isAgentReadiness } from "@veyraoss/protocol";
 import { ExecutionError } from "./execution-error.js";
 
 /** Read-only adapter surface, also usable with previously collected diagnostic metadata. */

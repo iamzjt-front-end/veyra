@@ -1,7 +1,6 @@
 {
-  "name": "@veyra/protocol",
+  "name": "@veyraoss/protocol",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -30,5 +29,9 @@
     "dist",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

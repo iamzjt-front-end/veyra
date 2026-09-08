@@ -1,5 +1,5 @@
-import { type AgentInput, type JsonObject, isJsonValue } from "@veyra/protocol";
-import type { SecretRedactor } from "@veyra/runtime";
+import { type AgentInput, type JsonObject, isJsonValue } from "@veyraoss/protocol";
+import type { SecretRedactor } from "@veyraoss/runtime";
 import { object } from "./output.js";
 
 /** Exact models whose image input + structured text output are documented in GEMINI.md. */

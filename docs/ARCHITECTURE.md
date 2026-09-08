@@ -44,6 +44,8 @@ The directory layout represents the target architecture, not the percentage of i
 
 The project name is **Veyra** while its public terminal command is **`ve`**. Brand-owned configuration/state names (`veyra.yaml`, `.veyra/`) are intentionally independent from the short executable name.
 
+Official npm packages use the **`@veyraoss`** organization scope, including `@veyraoss/cli` for the `ve` executable. Package naming does not change the product name, configuration files, state paths or provider identifiers.
+
 ## Dependency direction
 
 ```text

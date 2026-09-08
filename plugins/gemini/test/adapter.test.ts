@@ -1,4 +1,4 @@
-import { type AgentInput, type JsonObject, isJsonValue } from "@veyra/protocol";
+import { type AgentInput, type JsonObject, isJsonValue } from "@veyraoss/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GeminiAdapter, type GeminiAdapterOptions } from "../src/index.js";
 import { env, envelope, input, options, plan, png, review } from "./fixtures.js";

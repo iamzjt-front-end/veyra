@@ -1,7 +1,7 @@
-import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
-import { type AgentInput, isJsonValue } from "@veyra/protocol";
+import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
+import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
 
-import { createSecretRedactor } from "@veyra/runtime";
+import { createSecretRedactor } from "@veyraoss/runtime";
 
 export function redactor(env: NodeJS.ProcessEnv) {
   return createSecretRedactor({ env });

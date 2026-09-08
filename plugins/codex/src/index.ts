@@ -1,4 +1,4 @@
-import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
+import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,7 +11,7 @@ import {
   type AgentRunOptions,
   isJsonValue,
   type JsonObject,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   createSecretRedactor,
   type SecretRedactor,
@@ -19,7 +19,7 @@ import {
   type ProcessResult,
   type ProcessRunner,
   runProcess,
-} from "@veyra/runtime";
+} from "@veyraoss/runtime";
 import { CodexOutput, resultSchema } from "./output.js";
 
 export interface CodexAdapterOptions {

@@ -4,14 +4,14 @@ import type {
   SerializedError,
   VerificationResult,
   VerificationCommandSource,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   ProcessExecutionError,
   type ProcessResult,
   type ProcessRunner,
   runProcess,
   createSecretRedactor,
-} from "@veyra/runtime";
+} from "@veyraoss/runtime";
 
 export const DEFAULT_VERIFICATION_TIMEOUT_MS = 300_000;
 

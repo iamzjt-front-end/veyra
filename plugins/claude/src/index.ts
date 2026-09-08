@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createDeadline, createSecretRedactor } from "@veyra/runtime";
+import { createDeadline, createSecretRedactor } from "@veyraoss/runtime";
 import type {
   Message,
   MessageCreateParamsNonStreaming,
@@ -14,7 +14,7 @@ import {
   type AgentRunOptions,
   type ExecutionMetadata,
   type UsageMetadata,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import { outputFormat, parseOutput, roleInstructions, type ClaudeRole } from "./output.js";
 
 export interface ClaudeMessagesClient {

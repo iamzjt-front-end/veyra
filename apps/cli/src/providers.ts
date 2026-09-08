@@ -1,8 +1,8 @@
-import type { AgentConfig, VeyraConfig } from "@veyra/config";
-import type { AgentAdapter, JsonValue } from "@veyra/protocol";
-import { collectSecretValues, createSecretRedactor } from "@veyra/runtime";
-import { PluginRegistry } from "@veyra/sdk";
-import { analyzeWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
+import type { AgentConfig, VeyraConfig } from "@veyraoss/config";
+import type { AgentAdapter, JsonValue } from "@veyraoss/protocol";
+import { collectSecretValues, createSecretRedactor } from "@veyraoss/runtime";
+import { PluginRegistry } from "@veyraoss/sdk";
+import { analyzeWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyraoss/workflow";
 import { CliError } from "./arguments.js";
 import {
   builtinPlugins,

@@ -1,8 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import { runProcess } from "@veyra/runtime";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import { runProcess } from "@veyraoss/runtime";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { VeyraEngine } from "../src/index.js";

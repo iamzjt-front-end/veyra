@@ -1,10 +1,10 @@
-import { type AgentInput, isJsonValue } from "@veyra/protocol";
+import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
 import {
   ProcessExecutionError,
   type ProcessResult,
   type ProcessRunner,
   runProcess,
-} from "@veyra/runtime";
+} from "@veyraoss/runtime";
 import { describe, expect, it, vi } from "vitest";
 import { OpenCodeAdapter, type OpenCodeAdapterOptions } from "../src/index.js";
 import { buildPrompt } from "../src/input.js";

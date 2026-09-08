@@ -26,7 +26,7 @@ The repository uses a complete architecture scaffold even when some modules are 
 
 1. `packages/core` must not depend on a specific model vendor.
 2. Provider-specific logic lives under `plugins/*`.
-3. All agent input/output crosses `@veyra/protocol` contracts.
+3. All agent input/output crosses `@veyraoss/protocol` contracts.
 4. `packages/core` must not directly spawn Codex, Claude Code, or other provider CLIs; process lifecycle belongs in `packages/runtime`.
 5. Deterministic verification belongs in `packages/verifier` and is distinct from LLM review.
 6. Workflows must be declarative and resumable.

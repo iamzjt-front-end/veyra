@@ -1,5 +1,5 @@
-import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
-import type { AgentResult, ArtifactRef } from "@veyra/protocol";
+import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
+import type { AgentResult, ArtifactRef } from "@veyraoss/protocol";
 import type { ResponseFormatTextJSONSchemaConfig } from "openai/resources/responses/responses";
 
 type Role = "planner" | "reviewer" | "judge";

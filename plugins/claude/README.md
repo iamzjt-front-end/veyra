@@ -1,4 +1,4 @@
-# @veyra/claude
+# @veyraoss/claude
 
 Status: **implemented; live smoke awaiting an Anthropic API credential**.
 

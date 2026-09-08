@@ -1,5 +1,5 @@
-import type { AgentInput } from "@veyra/protocol";
-import type { ProcessResult, ProcessRunner } from "@veyra/runtime";
+import type { AgentInput } from "@veyraoss/protocol";
+import type { ProcessResult, ProcessRunner } from "@veyraoss/runtime";
 
 export const input: AgentInput = {
   runId: "run",

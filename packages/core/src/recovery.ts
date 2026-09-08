@@ -1,6 +1,6 @@
-import type { RecoveryBoundary, VeyraEvent } from "@veyra/protocol";
-import { inspectProcessOwner, type ProcessLiveness } from "@veyra/runtime";
-import { buildWorkflowGraph, resolveNextStep } from "@veyra/workflow";
+import type { RecoveryBoundary, VeyraEvent } from "@veyraoss/protocol";
+import { inspectProcessOwner, type ProcessLiveness } from "@veyraoss/runtime";
+import { buildWorkflowGraph, resolveNextStep } from "@veyraoss/workflow";
 import { pendingApproval } from "./approval.js";
 import { RunControlError } from "./control-error.js";
 import type { RunStatus, StoredRun } from "./state.js";

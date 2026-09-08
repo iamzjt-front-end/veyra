@@ -1,11 +1,11 @@
 # Claude API reasoning adapter
 
-`@veyra/claude` implements planner, reviewer and judge roles through Anthropic's Messages API. The CLI registers it as built-in provider `claude`. Implementation and mocked transport tests are available; live smoke verification is blocked by the absent `ANTHROPIC_API_KEY`.
+`@veyraoss/claude` implements planner, reviewer and judge roles through Anthropic's Messages API. The CLI registers it as built-in provider `claude`. Implementation and mocked transport tests are available; live smoke verification is blocked by the absent `ANTHROPIC_API_KEY`.
 
 The adapter pins the official [`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-typescript) at `0.124.0`. It requests JSON Schema through `output_config.format`, following the [structured-output API](https://platform.claude.com/docs/en/build-with-claude/structured-outputs). Configure a model supporting this feature; unsupported requests fail explicitly without fallback to unconstrained text.
 
 ```ts
-import { ClaudeAdapter } from "@veyra/claude";
+import { ClaudeAdapter } from "@veyraoss/claude";
 
 const planner = new ClaudeAdapter({ model: "your-claude-model", role: "planner" });
 const result = await planner.run({
@@ -45,7 +45,7 @@ Default tests use injected clients and real SDK transports with mocked fetch, wi
 With a valid key and available structured-output model, explicitly run:
 
 ```bash
-VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/claude smoke -- <model>
+VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/claude smoke -- <model>
 ```
 
 The smoke makes two billable requests: a supplied-text planning task and a review that must pass. It prints normalized statuses and optional usage only. Missing opt-in/key/model exits 2; failed planning/review exits 1. It is excluded from default tests and CI. Mocked success does not satisfy live verification.

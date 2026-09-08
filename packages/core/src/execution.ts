@@ -8,9 +8,9 @@ import type {
   JsonObject,
   SerializedError,
   VeyraEvent,
-} from "@veyra/protocol";
-import type { AgentRuntime } from "@veyra/runtime";
-import type { Verifier } from "@veyra/verifier";
+} from "@veyraoss/protocol";
+import type { AgentRuntime } from "@veyraoss/runtime";
+import type { Verifier } from "@veyraoss/verifier";
 import {
   buildWorkflowGraph,
   InputResolutionError,
@@ -19,7 +19,7 @@ import {
   resolveNextStep,
   RouterError,
   type WorkflowStep,
-} from "@veyra/workflow";
+} from "@veyraoss/workflow";
 import { RunContext, evidenceReference } from "./context.js";
 import type { RunResult } from "./engine.js";
 import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
@@ -344,7 +344,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
               childStepId: childScope.start,
               inputs: step.inputs ? (context.input(step.inputs).context.inputs as JsonObject) : {},
               provenance: context.input(step.inputs).context
-                .provenance as unknown as import("@veyra/protocol").ContextProvenance,
+                .provenance as unknown as import("@veyraoss/protocol").ContextProvenance,
               at: now(),
             }));
           if (

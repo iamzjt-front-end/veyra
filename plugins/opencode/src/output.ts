@@ -1,5 +1,5 @@
 import { stripVTControlCharacters } from "node:util";
-import type { AgentResult, UsageMetadata } from "@veyra/protocol";
+import type { AgentResult, UsageMetadata } from "@veyraoss/protocol";
 
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);

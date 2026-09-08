@@ -1,9 +1,9 @@
 # Codex CLI executor
 
-`@veyra/codex` implements the provider-neutral `AgentAdapter` contract using the installed Codex CLI. Process spawning, working directories, stream capture, timeout, and cancellation belong to `@veyra/runtime`. SDK mode remains planned.
+`@veyraoss/codex` implements the provider-neutral `AgentAdapter` contract using the installed Codex CLI. Process spawning, working directories, stream capture, timeout, and cancellation belong to `@veyraoss/runtime`. SDK mode remains planned.
 
 ```ts
-import { CodexAdapter } from "@veyra/codex";
+import { CodexAdapter } from "@veyraoss/codex";
 
 const executor = new CodexAdapter({ mode: "cli", workingDirectory: process.cwd() });
 const readiness = await executor.doctor();
@@ -53,7 +53,7 @@ The default adapter tests mock the runtime and require no provider account or ne
 For an installed, logged-in CLI, explicitly run:
 
 ```bash
-pnpm --filter @veyra/codex smoke
+pnpm --filter @veyraoss/codex smoke
 ```
 
 This optional live command consumes the existing Codex account's usage. It copies the deterministic fixture into a temporary directory, initializes a disposable Git repository, adds restrictive `AGENTS.md`, and starts with a failing test. It asks Codex to modify only `src/message.js`, then independently checks the changed-file list, instruction preservation, syntax, and tests. The temporary repository is removed even on failure. This script is excluded from the default test suite.

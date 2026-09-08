@@ -1,22 +1,22 @@
-import type { AgentConfig, VeyraConfig } from "@veyra/config";
-import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
-import { ClaudeAdapter, type ClaudeAdapterOptions } from "@veyra/claude";
-import { ClaudeCodeAdapter, type ClaudeCodeAdapterOptions } from "@veyra/claude-code";
+import type { AgentConfig, VeyraConfig } from "@veyraoss/config";
+import { CodexAdapter, type CodexAdapterOptions } from "@veyraoss/codex";
+import { ClaudeAdapter, type ClaudeAdapterOptions } from "@veyraoss/claude";
+import { ClaudeCodeAdapter, type ClaudeCodeAdapterOptions } from "@veyraoss/claude-code";
 import {
   GeminiAdapter,
   type GeminiAdapterOptions,
   GeminiCliAdapter,
   type GeminiCliAdapterOptions,
-} from "@veyra/gemini";
+} from "@veyraoss/gemini";
 import {
   OpenAIAdapter,
   type OpenAIAdapterOptions,
   OpenAICompatibleAdapter,
   type OpenAICompatibleAdapterOptions,
-} from "@veyra/openai";
-import { OpenCodeAdapter, type OpenCodeAdapterOptions } from "@veyra/opencode";
-import type { JsonObject } from "@veyra/protocol";
-import type { ProcessRunner } from "@veyra/runtime";
+} from "@veyraoss/openai";
+import { OpenCodeAdapter, type OpenCodeAdapterOptions } from "@veyraoss/opencode";
+import type { JsonObject } from "@veyraoss/protocol";
+import type { ProcessRunner } from "@veyraoss/runtime";
 import {
   PluginError,
   PluginRegistry,
@@ -24,7 +24,7 @@ import {
   type PluginAgentConfig,
   type PluginContext,
   type VeyraPlugin,
-} from "@veyra/sdk";
+} from "@veyraoss/sdk";
 
 export interface PluginServices {
   env?: NodeJS.ProcessEnv;

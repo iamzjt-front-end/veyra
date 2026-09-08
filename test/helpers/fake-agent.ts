@@ -1,4 +1,4 @@
-import type { AgentAdapter, AgentInput, AgentResult } from "@veyra/protocol";
+import type { AgentAdapter, AgentInput, AgentResult } from "@veyraoss/protocol";
 
 /** Test-only adapter: records inputs and returns a fresh copy of a fixed response. */
 export class FakeAgent implements AgentAdapter {

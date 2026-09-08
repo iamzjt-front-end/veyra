@@ -1,6 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { runProcess } from "@veyra/runtime";
+import { runProcess } from "@veyraoss/runtime";
 import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { LocalRunStore } from "../src/index.js";

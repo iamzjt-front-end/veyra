@@ -1,4 +1,4 @@
-# @veyra/core
+# @veyraoss/core
 
 Provider-neutral orchestration and persisted run coordination.
 

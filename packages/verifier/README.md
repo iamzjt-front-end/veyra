@@ -1,4 +1,4 @@
-# @veyra/verifier
+# @veyraoss/verifier
 
 Deterministic shell verification and command evidence.
 

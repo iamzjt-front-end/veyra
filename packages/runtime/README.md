@@ -1,4 +1,4 @@
-# @veyra/runtime
+# @veyraoss/runtime
 
 Local process, agent and workspace lifecycle.
 

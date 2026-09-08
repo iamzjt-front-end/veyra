@@ -1,4 +1,4 @@
-import type { VeyraEvent } from "@veyra/protocol";
+import type { VeyraEvent } from "@veyraoss/protocol";
 import { describe, expect, it } from "vitest";
 import { isStoredEvent } from "../src/state-events.js";
 

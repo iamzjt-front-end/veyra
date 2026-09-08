@@ -1,4 +1,4 @@
-import { type AgentInput, isJsonValue } from "@veyra/protocol";
+import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
 import OpenAI from "openai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { OpenAIAdapter, type OpenAIResponsesClient } from "../src/index.js";

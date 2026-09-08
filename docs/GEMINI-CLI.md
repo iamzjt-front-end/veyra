@@ -1,6 +1,6 @@
 # Gemini CLI executor
 
-`GeminiCliAdapter` is exported by `@veyra/gemini` and registered as `gemini-cli`. It shares the existing Gemini package with the [API adapter](GEMINI.md), with separate implementation modules, provider names and authentication paths. Process lifecycle belongs entirely to Runtime; Core has no provider import.
+`GeminiCliAdapter` is exported by `@veyraoss/gemini` and registered as `gemini-cli`. It shares the existing Gemini package with the [API adapter](GEMINI.md), with separate implementation modules, provider names and authentication paths. Process lifecycle belongs entirely to Runtime; Core has no provider import.
 
 ```yaml
 agents:

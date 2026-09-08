@@ -1,4 +1,4 @@
-import type { JsonValue } from "@veyra/protocol";
+import type { JsonValue } from "@veyraoss/protocol";
 
 const marker = "[REDACTED]";
 /** Credential values only; plural usage fields such as inputTokens are not secrets. */

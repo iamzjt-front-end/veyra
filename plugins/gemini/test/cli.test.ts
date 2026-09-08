@@ -1,10 +1,10 @@
-import { type AgentInput, isJsonValue } from "@veyra/protocol";
+import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
 import {
   ProcessExecutionError,
   type ProcessResult,
   type ProcessRunner,
   runProcess,
-} from "@veyra/runtime";
+} from "@veyraoss/runtime";
 import { describe, expect, it, vi } from "vitest";
 import { GeminiCliAdapter, type GeminiCliAdapterOptions } from "../src/cli.js";
 import { cliPrompt } from "../src/cli-input.js";

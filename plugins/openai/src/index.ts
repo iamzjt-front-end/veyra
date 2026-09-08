@@ -8,9 +8,9 @@ import {
   type ExecutionMetadata,
   isJsonValue,
   type UsageMetadata,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import OpenAI from "openai";
-import { createSecretRedactor } from "@veyra/runtime";
+import { createSecretRedactor } from "@veyraoss/runtime";
 import type {
   Response,
   ResponseCreateParamsNonStreaming,

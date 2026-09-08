@@ -1,5 +1,5 @@
-import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
-import type { AgentResult, ArtifactRef, JsonObject, UsageMetadata } from "@veyra/protocol";
+import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
+import type { AgentResult, ArtifactRef, JsonObject, UsageMetadata } from "@veyraoss/protocol";
 
 export type GeminiRole = "planner" | "reviewer";
 

@@ -1,6 +1,6 @@
 # Provider-neutral protocol
 
-`@veyra/protocol` defines the contracts shared by adapters, runtime, verifier, Core, and interfaces. `@veyra/sdk` re-exports these public contracts and runtime guards. No provider SDK types appear in them.
+`@veyraoss/protocol` defines the contracts shared by adapters, runtime, verifier, Core, and interfaces. `@veyraoss/sdk` re-exports these public contracts and runtime guards. No provider SDK types appear in them.
 
 `AgentAdapter.describe()` optionally exposes versioned `AgentDescriptor` metadata, roles and capabilities. `checkReadiness()` is an optional, explicitly requested probe with a scoped `AgentReadiness` result. `AgentRequirements` expresses exact role/capability constraints. The `isAgentDescriptor`, `isAgentReadiness`, and `isAgentRequirements` guards reject malformed/non-JSON data. See [capability discovery](CAPABILITIES.md) for bounds, compatibility and readiness semantics.
 

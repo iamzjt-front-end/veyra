@@ -1,11 +1,11 @@
 import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
-import { loadConfig } from "@veyra/config";
-import { eventView, LocalRunStore, type RunResult, VeyraEngine } from "@veyra/core";
-import type { AgentPermissions, VeyraEvent } from "@veyra/protocol";
-import { type ProcessRunner, runProcess } from "@veyra/runtime";
-import { loadWorkflow } from "@veyra/workflow";
+import { loadConfig } from "@veyraoss/config";
+import { eventView, LocalRunStore, type RunResult, VeyraEngine } from "@veyraoss/core";
+import type { AgentPermissions, VeyraEvent } from "@veyraoss/protocol";
+import { type ProcessRunner, runProcess } from "@veyraoss/runtime";
+import { loadWorkflow } from "@veyraoss/workflow";
 import { argumentsFor, CliError, help } from "./arguments.js";
 import { inspectEnvironment } from "./doctor.js";
 import { initialize } from "./init.js";

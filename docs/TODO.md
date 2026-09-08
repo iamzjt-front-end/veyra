@@ -500,7 +500,7 @@ Verified 41 Core persistence/event tests: complete layout, atomic snapshot visib
 
 With a mocked OpenAI client, planner and reviewer inputs produce validated, normalized `AgentResult` objects. A real integration smoke test can be run manually when credentials are present.
 
-Verified 36 adapter tests, including the official SDK with mocked HTTP, planner/reviewer schemas and artifact references, refusal/incomplete handling, cancellation/timeout, usage, options validation, and redacted diagnostics. Frozen install and all five baseline commands passed (250 tests). SDK 6.49.0 preserves Node 20 compatibility while using the documented Responses API. The opt-in command `pnpm --filter @veyra/openai smoke -- <model>` is implemented and excluded from CI; its missing-key preflight returned exit 2 with setup guidance. `OPENAI_API_KEY` is unavailable in this environment, so no live API success is claimed; the task's required mocked acceptance passes. See `docs/OPENAI.md`.
+Verified 36 adapter tests, including the official SDK with mocked HTTP, planner/reviewer schemas and artifact references, refusal/incomplete handling, cancellation/timeout, usage, options validation, and redacted diagnostics. Frozen install and all five baseline commands passed (250 tests). SDK 6.49.0 preserves Node 20 compatibility while using the documented Responses API. The opt-in command `pnpm --filter @veyraoss/openai smoke -- <model>` is implemented and excluded from CI; its missing-key preflight returned exit 2 with setup guidance. `OPENAI_API_KEY` is unavailable in this environment, so no live API success is claimed; the task's required mocked acceptance passes. See `docs/OPENAI.md`.
 
 ---
 
@@ -539,7 +539,7 @@ Verified 36 adapter tests, including the official SDK with mocked HTTP, planner/
 
 Given a deterministic mocked Codex process result, the adapter returns a valid `AgentResult`; when a real logged-in Codex CLI is available, a manual smoke test can modify a disposable fixture repository.
 
-Verified 40 mocked adapter/JSONL tests plus three supporting runtime stdin tests. Installed `codex-cli 0.153.4` help/version and read-only login status were inspected before finalizing invocation. `pnpm --filter @veyra/codex smoke` passed with the real logged-in CLI: only `src/message.js` changed, project instructions remained unchanged, syntax/tests passed, and the disposable Git repository was removed. The runtime stdin primitive is necessary to pass prompts without shell interpolation or argument-length limits. Frozen install and all five baseline commands passed (293 tests). See `docs/CODEX.md`.
+Verified 40 mocked adapter/JSONL tests plus three supporting runtime stdin tests. Installed `codex-cli 0.153.4` help/version and read-only login status were inspected before finalizing invocation. `pnpm --filter @veyraoss/codex smoke` passed with the real logged-in CLI: only `src/message.js` changed, project instructions remained unchanged, syntax/tests passed, and the disposable Git repository was removed. The runtime stdin primitive is necessary to pass prompts without shell interpolation or argument-length limits. Frozen install and all five baseline commands passed (293 tests). See `docs/CODEX.md`.
 
 ---
 
@@ -1093,7 +1093,7 @@ Verified all five baseline commands (811 tests) and the capability example throu
 
 **Status:** [x] Complete and verified.
 
-- [x] define official plugin contract in `@veyra/sdk`
+- [x] define official plugin contract in `@veyraoss/sdk`
 - [x] explicit registration for built-ins
 - [x] safe third-party plugin loading strategy
 - [x] plugin config namespace
@@ -1120,7 +1120,7 @@ Verified frozen install, all five baseline commands (856 tests), and `pnpm ve --
 
 Verified frozen installation, all five baseline commands (920 tests), and `pnpm ve -- workflow validate dev --config examples/providers/claude.yaml --json`. Sixty-three adapter tests cover planner/reviewer/judge normalization, evidence and verdict guards, missing/invalid usage, safe errors, credential redaction, configured endpoint/auth isolation, cancellation and real SDK transports with mocked fetch, including a stalled response body. CLI coverage confirms built-in registration, read-only validation, scoped credential-presence readiness and actionable missing-key execution. The official SDK is pinned at 0.124.0; protocol/Core stay provider-neutral. Runtime's cooperative deadline covers the complete SDK call, since the SDK's own transport timer ends after headers. No live API call is required by default tests. See `docs/CLAUDE.md` and the provider example.
 
-Live blocker: `ANTHROPIC_API_KEY` is absent (presence only was inspected). Attempted `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/claude smoke -- claude-opus-4-6`; it exited 2 with `Set VEYRA_LIVE_SMOKE=1 and ANTHROPIC_API_KEY, then run: pnpm --filter @veyra/claude smoke -- <model>`. Supply the key in the environment and an accessible structured-output model, then rerun the two-request planner/reviewer smoke. Mocked success is not live verification. M4.4 is independent and can proceed.
+Live blocker: `ANTHROPIC_API_KEY` is absent (presence only was inspected). Attempted `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/claude smoke -- claude-opus-4-6`; it exited 2 with `Set VEYRA_LIVE_SMOKE=1 and ANTHROPIC_API_KEY, then run: pnpm --filter @veyraoss/claude smoke -- <model>`. Supply the key in the environment and an accessible structured-output model, then rerun the two-request planner/reviewer smoke. Mocked success is not live verification. M4.4 is independent and can proceed.
 
 ---
 
@@ -1138,7 +1138,7 @@ Live blocker: `ANTHROPIC_API_KEY` is absent (presence only was inspected). Attem
 
 Implemented the `claude-code` built-in with literal stdin, native JSON/schema print mode, bounded turns/results/logs, explicit native permission rules, permission-denial pause handling, normalized process/provider errors, execution identity, usage/cost and redaction. Readiness checks version, required flags and native authentication under one deadline. The public CLI and example config use the same registry/runtime boundaries. Frozen install, example workflow validation, `pnpm ve -- doctor --json` and all five baseline commands passed (1002 tests, including 81 adapter tests and CLI composition coverage). The smoke guard exits 2 before provider work unless explicitly enabled.
 
-Live blocker: Claude Code 2.1.159 reports authenticated access, but `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/claude-code smoke` exited 1 with `claude_code_timeout` after 180513 ms. Native stdout/stderr were empty; Runtime terminated the process group and the disposable fixture was removed. A separate native print request without tools, hooks, MCP or the structured schema, preserving configured authentication/model settings, also timed out after 60 seconds with empty stdout/stderr. A diagnostic with user/project setting sources omitted returned an error envelope immediately, so it does not verify the configured provider. Settings metadata confirms a configured provider URL/token/model and hooks; credential values were not printed or changed. Restore working native provider/model access, confirm a minimal `claude --print` request completes, then rerun the guarded fixture smoke (optionally with an accessible model). M4.5 is independent and can proceed.
+Live blocker: Claude Code 2.1.159 reports authenticated access, but `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/claude-code smoke` exited 1 with `claude_code_timeout` after 180513 ms. Native stdout/stderr were empty; Runtime terminated the process group and the disposable fixture was removed. A separate native print request without tools, hooks, MCP or the structured schema, preserving configured authentication/model settings, also timed out after 60 seconds with empty stdout/stderr. A diagnostic with user/project setting sources omitted returned an error envelope immediately, so it does not verify the configured provider. Settings metadata confirms a configured provider URL/token/model and hooks; credential values were not printed or changed. Restore working native provider/model access, confirm a minimal `claude --print` request completes, then rerun the guarded fixture smoke (optionally with an accessible model). M4.5 is independent and can proceed.
 
 ---
 
@@ -1155,7 +1155,7 @@ Live blocker: Claude Code 2.1.159 reports authenticated access, but `VEYRA_LIVE_
 
 Implemented the Gemini Developer API adapter using built-in HTTP transport, role-specific constrained JSON and local evidence validation, bounded streamed bodies, complete request/body deadlines, explicit refusal/error normalization, redaction and provider-reported token accounting. Vision requires explicit opt-in and a documented exact model ID; bounded PNG/JPEG/WebP base64 images become separate request parts without file/URL access. CLI registration, readiness and examples use the existing provider-neutral interfaces. Frozen install, example workflow validation, root doctor and all five baseline commands passed (1090 tests including 87 adapter tests and CLI integration). The white-pixel smoke fixture's dimensions, decoded pixel and PNG checksums were verified locally.
 
-Live blocker: neither `GEMINI_API_KEY` nor `GOOGLE_API_KEY` is present (presence only was inspected). Attempted `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/gemini smoke -- gemini-2.5-flash`; it exited 2 with `Set VEYRA_LIVE_SMOKE=1 and GEMINI_API_KEY, then run: pnpm --filter @veyra/gemini smoke -- <model>`. Supply a valid key in the environment and accessible model, then rerun the planner/reviewer smoke; an allowlisted vision model additionally runs the image check. No native CLI credential was extracted or substituted. M4.6 is independent and can proceed.
+Live blocker: neither `GEMINI_API_KEY` nor `GOOGLE_API_KEY` is present (presence only was inspected). Attempted `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/gemini smoke -- gemini-2.5-flash`; it exited 2 with `Set VEYRA_LIVE_SMOKE=1 and GEMINI_API_KEY, then run: pnpm --filter @veyraoss/gemini smoke -- <model>`. Supply a valid key in the environment and accessible model, then rerun the planner/reviewer smoke; an allowlisted vision model additionally runs the image check. No native CLI credential was extracted or substituted. M4.6 is independent and can proceed.
 
 ---
 
@@ -1530,17 +1530,19 @@ Goal: turn a working internal tool into a credible public developer project.
 
 ## M7.1 — Public package strategy
 
-**Status:** [!] Package candidates prepared and verified; npm ownership is blocked.
+**Status:** [x] Complete and verified.
 
-- [x] decide which packages are published (`@veyra/core`, `@veyra/sdk`, official plugins, CLI package)
+- [x] decide which packages are published (`@veyraoss/core`, `@veyraoss/sdk`, official plugins, CLI package)
 - [x] executable remains `ve`
-- [!] verify npm package/scope ownership and naming before first release
-- [!] remove `private: true` only from packages intentionally published
+- [x] verify npm package/scope ownership and naming before first release
+- [x] remove `private: true` only from packages intentionally published
 - [x] exports/types/files fields are correct
 
 Prepared the fourteen candidates in the [package strategy](PACKAGES.md), with explicit ESM/type exports, runtime-only file allowlists, MIT licenses and repository metadata. Workflow builds and includes its own preset assets instead of resolving outside the installed package. `pnpm packages:check` packed and inspected every candidate, then imported modules, compiled SDK consumer types, loaded presets/schema and invoked `ve` from an isolated consumer. A frozen install and all five baseline checks passed (1,681 tests). Third-party dependencies reuse the frozen install; no registry install or public publication is claimed.
 
-**Blocker:** on 2026-09-08, `npm whoami --registry=https://registry.npmjs.org` returned `E401 Unauthorized`; `npm org ls veyra --json --registry=https://registry.npmjs.org` returned `E401` with an invalid-authentication-token diagnostic. The `@veyra/core` metadata command and anonymous metadata requests for all fourteen names returned 404, which does not establish scope ownership. An authenticated maintainer must verify the `@veyra` account/organization and publish permissions, or explicitly choose a different scope. All candidates keep `private: true` until then; root/TUI/Dashboard remain private. Public publishing still requires explicit approval. Independent versioning, documentation and local tooling may proceed.
+The original ownership check for the previous scope returned `E401 Unauthorized`; anonymous package lookups were insufficient. The maintainer created the official `@veyraoss` organization and authorized repository-wide migration. On 2026-09-08, `npm whoami --registry=https://registry.npmjs.org` returned `zjex`, and `npm org ls veyraoss --json --registry=https://registry.npmjs.org` returned `{"zjex":"owner"}`. All fourteen new package metadata requests returned HTTP 404. Public publishing remains an explicit human-approval boundary. Historical provider smoke commands in this document use the new scope so they remain runnable; their previously recorded live results are unchanged.
+
+Verified the completed scope migration with `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,681 tests), `pnpm build`, `pnpm packages:check` and `pnpm ve -- doctor --json`. All sixteen workspace projects are detected, no previous scope references remain in tracked files, and 184 relative documentation links resolve. Packed-manifest tests enforce public metadata on exactly the fourteen candidates while root/TUI remain private. The product name Veyra, executable `ve`, provider identifiers, `veyra.yaml` and `.veyra/` are preserved. No package was published.
 
 ---
 
@@ -1701,4 +1703,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.2 — Versioning and changelog.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. M7.1's npm ownership check is blocked by invalid authentication. Independent productization work can proceed.
+**Next eligible: M7.2 — Versioning and changelog.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. npm organization ownership and the official scope migration are verified. Public publication remains gated; independent productization work can proceed.

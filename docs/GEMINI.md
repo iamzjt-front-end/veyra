@@ -1,6 +1,6 @@
 # Gemini API adapter
 
-`@veyra/gemini` implements planner and reviewer roles using the Gemini Developer API's `models.generateContent` endpoint and Node.js's built-in `fetch`. It adds no third-party runtime dependency. Core remains provider-neutral; the CLI registers `gemini` through the [SDK plugin contract](PLUGINS.md). The separate [Gemini CLI executor](GEMINI-CLI.md) shares this package under provider `gemini-cli`.
+`@veyraoss/gemini` implements planner and reviewer roles using the Gemini Developer API's `models.generateContent` endpoint and Node.js's built-in `fetch`. It adds no third-party runtime dependency. Core remains provider-neutral; the CLI registers `gemini` through the [SDK plugin contract](PLUGINS.md). The separate [Gemini CLI executor](GEMINI-CLI.md) shares this package under provider `gemini-cli`.
 
 ```yaml
 agents:
@@ -64,8 +64,8 @@ Usage preserves reported fields: effective prompt count (already including cache
 Default tests use injected HTTP transport and real streamed `Response` bodies. They cover request headers/schema/service selection, role and evidence validation, capability gating/images, cancellation before headers and during a stalled body, response limits, refusals, accounting and safe errors. They require no network or live credentials. The guarded smoke command is excluded from normal tests:
 
 ```bash
-pnpm --filter @veyra/gemini... build
-VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/gemini smoke -- gemini-2.5-flash
+pnpm --filter @veyraoss/gemini... build
+VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/gemini smoke -- gemini-2.5-flash
 ```
 
 Both `VEYRA_LIVE_SMOKE=1` and `GEMINI_API_KEY` are required before any request. The smoke makes a text planner request and a reviewer request that must pass. With an allowlisted vision model it also requests a plan based on a checksum-verified white pixel PNG and checks the observed color. It consumes the configured API account's usage. Current live verification is blocked by the unavailable key; see [M4.5](TODO.md#m45--gemini-api-provider).

@@ -1,7 +1,7 @@
 import { access, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
-import { type AgentInput, isJsonValue } from "@veyra/protocol";
-import { ProcessExecutionError, type ProcessResult, type ProcessRunner } from "@veyra/runtime";
+import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
+import { ProcessExecutionError, type ProcessResult, type ProcessRunner } from "@veyraoss/runtime";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildPrompt, CodexAdapter, type CodexAdapterOptions } from "../src/index.js";
 

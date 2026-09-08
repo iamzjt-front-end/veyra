@@ -12,7 +12,7 @@ async function main() {
     !model
   ) {
     console.error(
-      "Set VEYRA_LIVE_SMOKE=1 and GEMINI_API_KEY, then run: pnpm --filter @veyra/gemini smoke -- <model>",
+      "Set VEYRA_LIVE_SMOKE=1 and GEMINI_API_KEY, then run: pnpm --filter @veyraoss/gemini smoke -- <model>",
     );
     return 2;
   }

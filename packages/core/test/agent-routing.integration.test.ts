@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
+import { parseConfig } from "@veyraoss/config";
 import type {
   AgentAdapter,
   AgentDescriptor,
@@ -7,9 +7,9 @@ import type {
   AgentResult,
   AgentRoutingPolicy,
   VeyraEvent,
-} from "@veyra/protocol";
-import { isAgentRoutingDecision } from "@veyra/protocol";
-import type { WorkflowDefinition, WorkflowStep } from "@veyra/workflow";
+} from "@veyraoss/protocol";
+import { isAgentRoutingDecision } from "@veyraoss/protocol";
+import type { WorkflowDefinition, WorkflowStep } from "@veyraoss/workflow";
 import { describe, expect, it, vi } from "vitest";
 import { FakeAgent } from "../../../test/helpers/fake-agent.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

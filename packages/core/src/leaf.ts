@@ -8,11 +8,11 @@ import type {
   VeyraEvent,
   ProjectInstruction,
   EvidenceReference,
-} from "@veyra/protocol";
-import { getAgentRoleProfile, isJsonValue } from "@veyra/protocol";
-import { createDeadline, ProcessExecutionError, type AgentRuntime } from "@veyra/runtime";
-import type { VerificationReport, Verifier } from "@veyra/verifier";
-import type { WorkflowStep } from "@veyra/workflow";
+} from "@veyraoss/protocol";
+import { getAgentRoleProfile, isJsonValue } from "@veyraoss/protocol";
+import { createDeadline, ProcessExecutionError, type AgentRuntime } from "@veyraoss/runtime";
+import type { VerificationReport, Verifier } from "@veyraoss/verifier";
+import type { WorkflowStep } from "@veyraoss/workflow";
 import type { RunContext } from "./context.js";
 import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { StateStoreError } from "./state.js";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { runProcess } from "@veyra/runtime";
+import { runProcess } from "@veyraoss/runtime";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { OpenCodeAdapter } from "../src/index.js";
 
@@ -14,7 +14,7 @@ async function main() {
   }
   const args = process.argv.slice(2).filter((arg) => arg !== "--");
   if (args.length > 1) {
-    console.error("Usage: pnpm --filter @veyra/opencode smoke -- [model]");
+    console.error("Usage: pnpm --filter @veyraoss/opencode smoke -- [model]");
     return 2;
   }
   const adapter = new OpenCodeAdapter({

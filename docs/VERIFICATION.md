@@ -1,9 +1,9 @@
 # Deterministic verification
 
-`@veyra/verifier` implements `ShellVerifier` using the local process runner. It checks command exit status; LLM review is a separate agent step.
+`@veyraoss/verifier` implements `ShellVerifier` using the local process runner. It checks command exit status; LLM review is a separate agent step.
 
 ```ts
-import { ShellVerifier } from "@veyra/verifier";
+import { ShellVerifier } from "@veyraoss/verifier";
 
 const verifier = new ShellVerifier({ emit: (event) => console.log(event) });
 const report = await verifier.verify({

@@ -1,8 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import type { AgentAdapter } from "@veyra/protocol";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import type { AgentAdapter } from "@veyraoss/protocol";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { git, initializeGit } from "../../../test/helpers/git.js";

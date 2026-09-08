@@ -1,6 +1,6 @@
 # Execution workspaces
 
-Core selects a workspace through `LocalWorkspaceManager` in `@veyra/runtime`, saves its location in the run's immutable `input.json`, then invokes agents and verifiers with that same `cwd`. The `run.started.workspace` event exposes the selection to every surface. A run has one workspace; parallel children share it and must coordinate their own writes.
+Core selects a workspace through `LocalWorkspaceManager` in `@veyraoss/runtime`, saves its location in the run's immutable `input.json`, then invokes agents and verifiers with that same `cwd`. The `run.started.workspace` event exposes the selection to every surface. A run has one workspace; parallel children share it and must coordinate their own writes.
 
 ## Shared directory default
 

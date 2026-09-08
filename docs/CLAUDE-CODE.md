@@ -1,6 +1,6 @@
 # Claude Code executor
 
-`@veyra/claude-code` runs the installed `claude` executable through `@veyra/runtime` and implements the provider-neutral executor contract. It is registered as the CLI built-in provider `claude-code`. The separate [Claude API adapter](CLAUDE.md) supplies reasoning roles and uses its own API credential.
+`@veyraoss/claude-code` runs the installed `claude` executable through `@veyraoss/runtime` and implements the provider-neutral executor contract. It is registered as the CLI built-in provider `claude-code`. The separate [Claude API adapter](CLAUDE.md) supplies reasoning roles and uses its own API credential.
 
 ```yaml
 agents:
@@ -43,10 +43,10 @@ Execution identity includes parent/attempt metadata and timing. Token usage sums
 Default tests mock CLI results, verify actual runtime transport with a disposable Node child, and exercise malformed output, permission requests, accounting, cancellation/timeouts, limits, redaction and readiness. They do not invoke Claude or use network credentials. For a trusted, installed and authenticated CLI, explicitly opt in:
 
 ```bash
-pnpm --filter @veyra/claude-code... build
-VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/claude-code smoke
+pnpm --filter @veyraoss/claude-code... build
+VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/claude-code smoke
 # Optional accessible model/native alias:
-VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/claude-code smoke -- <model>
+VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/claude-code smoke -- <model>
 ```
 
 The smoke consumes the installed account's usage. It creates a disposable Git fixture with a failing greeting test and matching `AGENTS.md`/`CLAUDE.md`. Only Read and Edit of `src/message.js` are granted. Independent Node syntax/tests and Git checks verify the exact file change, preserved instructions/tests, and absence of untracked files. The directory is removed on success or failure. Without `VEYRA_LIVE_SMOKE=1`, it exits 2 before any fixture/provider work.

@@ -1,4 +1,4 @@
-import type { AgentInput, AgentResult } from "@veyra/protocol";
+import type { AgentInput, AgentResult } from "@veyraoss/protocol";
 import { describe, expect, it } from "vitest";
 import { FakeAgent } from "./fake-agent.js";
 

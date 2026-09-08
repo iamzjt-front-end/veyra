@@ -1,5 +1,5 @@
-import type { JsonObject, ReviewVote, VerificationEvidence, VeyraEvent } from "@veyra/protocol";
-import { aggregateReviews, InputResolutionError, type WorkflowStep } from "@veyra/workflow";
+import type { JsonObject, ReviewVote, VerificationEvidence, VeyraEvent } from "@veyraoss/protocol";
+import { aggregateReviews, InputResolutionError, type WorkflowStep } from "@veyraoss/workflow";
 import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { executeLeaf, type LeafResult } from "./leaf.js";
 import { executeParallel, pendingParallel, type ParallelOptions } from "./parallel.js";

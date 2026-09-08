@@ -1,4 +1,4 @@
-# @veyra/protocol
+# @veyraoss/protocol
 
 Provider-neutral agent, workflow evidence and event contracts.
 

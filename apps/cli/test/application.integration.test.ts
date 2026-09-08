@@ -1,11 +1,11 @@
 import { readFile, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentConfig } from "@veyra/config";
-import { parseConfig } from "@veyra/config";
-import { LocalRunStore } from "@veyra/core";
-import type { AgentAdapter } from "@veyra/protocol";
-import { runProcess, type ProcessRunner } from "@veyra/runtime";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import type { AgentConfig } from "@veyraoss/config";
+import { parseConfig } from "@veyraoss/config";
+import { LocalRunStore } from "@veyraoss/core";
+import type { AgentAdapter } from "@veyraoss/protocol";
+import { runProcess, type ProcessRunner } from "@veyraoss/runtime";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { FakeAgent } from "../../../test/helpers/fake-agent.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

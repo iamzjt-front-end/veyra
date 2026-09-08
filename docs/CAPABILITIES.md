@@ -1,6 +1,6 @@
 # Agent capabilities and readiness
 
-M4.1 adds optional discovery to `AgentAdapter` and explicit capability requirements to version 1 workflows in this `0.1.0` development checkout. The contracts and runtime guards are exported by `@veyra/protocol` and `@veyra/sdk`. Core accepts adapters from any provider through these contracts.
+M4.1 adds optional discovery to `AgentAdapter` and explicit capability requirements to version 1 workflows in this `0.1.0` development checkout. The contracts and runtime guards are exported by `@veyraoss/protocol` and `@veyraoss/sdk`. Core accepts adapters from any provider through these contracts.
 
 `describe()` is synchronous and must have no side effects. It returns an `AgentDescriptor` containing `schemaVersion: 1`, the adapter's matching `id` and `provider`, `adapterVersion`, optional configured `model`, supported `roles`, and `capabilities`. Advertise only behavior the adapter implements for its configuration. Missing capabilities mean unadvertised support; Core does not infer capabilities from model names or call remote model catalogs.
 
@@ -9,7 +9,7 @@ Standard capability identifiers are `reasoning`, `code-execution`, `vision`, `we
 ## Discovery
 
 ```ts
-import { discoverAgents } from "@veyra/core";
+import { discoverAgents } from "@veyraoss/core";
 
 // The caller constructs and injects adapters; discovery never invokes run().
 const metadata = await discoverAgents({ analysis: planner, coding: executor });

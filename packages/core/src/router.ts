@@ -1,5 +1,5 @@
-import type { JsonObject } from "@veyra/protocol";
-import { resolveRoute } from "@veyra/workflow";
+import type { JsonObject } from "@veyraoss/protocol";
+import { resolveRoute } from "@veyraoss/workflow";
 import { ExecutionError } from "./execution-error.js";
 import type { LeafOptions, LeafResult } from "./leaf.js";
 

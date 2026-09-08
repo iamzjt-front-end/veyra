@@ -38,7 +38,7 @@ export type {
   UsageMetadata,
   VerificationResult,
   VeyraEvent,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 
 export type {
   StepInputReference,
@@ -46,7 +46,7 @@ export type {
   StepType,
   WorkflowDefinition,
   WorkflowStep,
-} from "@veyra/workflow";
+} from "@veyraoss/workflow";
 export {
   isJsonValue,
   PROMPT_SAFETY_GUIDANCE,
@@ -62,7 +62,7 @@ export {
   getAgentRoleProfile,
   listAgentRoleProfiles,
   isAgentRoleProfile,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 
 export {
   PLUGIN_API_VERSION,

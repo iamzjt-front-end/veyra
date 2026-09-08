@@ -1,7 +1,6 @@
 {
-  "name": "@veyra/runtime",
+  "name": "@veyraoss/runtime",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -11,7 +10,7 @@
   },
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@veyra/protocol": "workspace:*"
+    "@veyraoss/protocol": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -33,5 +32,9 @@
     "dist",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

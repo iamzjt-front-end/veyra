@@ -1,4 +1,4 @@
-import type { AgentInput } from "@veyra/protocol";
+import type { AgentInput } from "@veyraoss/protocol";
 
 export const input: AgentInput = {
   runId: "run",

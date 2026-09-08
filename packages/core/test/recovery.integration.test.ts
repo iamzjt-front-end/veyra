@@ -1,9 +1,9 @@
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import type { AgentAdapter, VeyraEvent } from "@veyra/protocol";
-import { currentProcessOwner, runProcess } from "@veyra/runtime";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import type { AgentAdapter, VeyraEvent } from "@veyraoss/protocol";
+import { currentProcessOwner, runProcess } from "@veyraoss/runtime";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { LocalRunStore, VeyraEngine } from "../src/index.js";

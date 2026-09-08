@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Usage } from "@anthropic-ai/sdk/resources/messages";
-import { isJsonValue, type AgentInput } from "@veyra/protocol";
+import { isJsonValue, type AgentInput } from "@veyraoss/protocol";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ClaudeAdapter,

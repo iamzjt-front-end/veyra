@@ -7,7 +7,7 @@ New runs snapshot the execution root's bounded `AGENTS.md` through Runtime. Agen
 `VeyraEngine` coordinates a validated workflow, injected adapters, the agent runtime, deterministic verifier, and local run store. It does not load YAML, construct vendor clients, or spawn provider processes.
 
 ```ts
-import { VeyraEngine, LocalRunStore } from "@veyra/core";
+import { VeyraEngine, LocalRunStore } from "@veyraoss/core";
 
 // config/workflow are already loaded, and adapters are already constructed by the caller.
 const store = new LocalRunStore({ stateDir: "/project/.veyra" });
@@ -39,7 +39,7 @@ Core saves the goal, working directory, and workflow snapshot before starting. E
 - `consensus`: invoke independent reviewer leaves, then apply all-pass, quorum, or an explicitly configured judge. Required command evidence is checked separately and cannot be overridden by votes. See [consensus semantics](WORKFLOWS.md#consensus-and-judge).
 - `end`: complete the step, save terminal state, and emit `run.completed`.
 
-Transitions are resolved by `@veyra/workflow`. Failures require an explicit matching `on.failure` or `on.fail` recovery transition; they cannot silently fall through `next` to completion. A branch with no matching outcome and no fallback fails with an actionable error. A successful leaf with no transitions completes the run. Results report `completed`, `failed`, or `paused` plus the run ID and last step.
+Transitions are resolved by `@veyraoss/workflow`. Failures require an explicit matching `on.failure` or `on.fail` recovery transition; they cannot silently fall through `next` to completion. A branch with no matching outcome and no fallback fails with an actionable error. A successful leaf with no transitions completes the run. Results report `completed`, `failed`, or `paused` plus the run ID and last step.
 
 Provider/runtime/verifier exceptions become persisted step/run failures with bounded diagnostic messages. Missing adapters identify the workflow key that needs registration. Invalid, non-JSON, or oversized provider results and inconsistent verifier reports fail instead of masquerading as success. Raw native errors are not serialized. A broken store throws to the caller because persistence cannot be claimed. Subscriber events are independent copies of the already-persisted, redacted record; a throwing subscriber stops active execution and its failure is recorded without repeatedly calling the broken subscriber.
 

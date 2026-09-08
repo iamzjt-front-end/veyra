@@ -145,7 +145,7 @@ CI runs the same five checks on macOS 15 (arm64) and Ubuntu 24.04 (x64) for pull
 
 See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
 
-The [package strategy](docs/PACKAGES.md) identifies release candidates and npm ownership gates. `pnpm packages:check` verifies actual tarballs from an isolated consumer; packages remain private while ownership is unresolved.
+The [package strategy](docs/PACKAGES.md) identifies fourteen release candidates under the verified official npm scope `@veyraoss`. `pnpm packages:check` verifies actual tarballs from an isolated consumer. Public-package metadata is prepared; publication requires explicit human approval. The product remains Veyra, the executable remains `ve`, and configuration/state paths remain `veyra.yaml` and `.veyra/`.
 
 The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The Core loop, first adapters, and headless CLI commands work; live provider runs require the corresponding accounts and credentials.
 

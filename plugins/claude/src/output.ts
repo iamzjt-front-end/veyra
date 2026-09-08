@@ -1,5 +1,5 @@
-import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
-import type { AgentResult, ArtifactRef } from "@veyra/protocol";
+import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
+import type { AgentResult, ArtifactRef } from "@veyraoss/protocol";
 import type { JSONOutputFormat } from "@anthropic-ai/sdk/resources/messages";
 
 export type ClaudeRole = "planner" | "reviewer" | "judge";

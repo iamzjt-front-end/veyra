@@ -1,4 +1,4 @@
-# @veyra/config
+# @veyraoss/config
 
 Configuration parsing, validation and defaults.
 

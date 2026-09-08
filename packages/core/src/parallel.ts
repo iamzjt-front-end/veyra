@@ -3,8 +3,8 @@ import type {
   ParallelChildResult,
   SerializedError,
   VeyraEvent,
-} from "@veyra/protocol";
-import { InputResolutionError, type WorkflowStep } from "@veyra/workflow";
+} from "@veyraoss/protocol";
+import { InputResolutionError, type WorkflowStep } from "@veyraoss/workflow";
 import type { RunContext } from "./context.js";
 import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { executeLeaf, type LeafOptions, type LeafResult } from "./leaf.js";

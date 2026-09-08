@@ -1,8 +1,8 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import { isContextProvenance, type AgentInput, type VeyraEvent } from "@veyra/protocol";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import { isContextProvenance, type AgentInput, type VeyraEvent } from "@veyraoss/protocol";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { FakeAgent } from "../../../test/helpers/fake-agent.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

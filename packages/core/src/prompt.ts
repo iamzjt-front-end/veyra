@@ -4,7 +4,7 @@ import {
   type AgentRoleProfile,
   type ProjectInstruction,
   type InstructionSource,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 
 export function promptInstructions(options: {
   stepId: string;

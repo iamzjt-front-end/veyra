@@ -18,7 +18,7 @@ The [platform matrix](PLATFORMS.md) runs the complete default suite on macOS arm
 
 ## Deterministic agents
 
-`FakeAgent` implements `@veyra/protocol`'s `AgentAdapter`. Construct it with the exact `AgentResult` a scenario needs. Each run returns a copy of that result and records a copy of its input in `calls`, so mutation in one assertion cannot change a later response. No provider SDK or credentials are involved.
+`FakeAgent` implements `@veyraoss/protocol`'s `AgentAdapter`. Construct it with the exact `AgentResult` a scenario needs. Each run returns a copy of that result and records a copy of its input in `calls`, so mutation in one assertion cannot change a later response. No provider SDK or credentials are involved.
 
 ## Disposable workspaces
 

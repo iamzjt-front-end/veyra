@@ -8,14 +8,14 @@ import {
   type AgentRunOptions,
   type JsonObject,
   isJsonValue,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   createDeadline,
   ProcessExecutionError,
   type ProcessResult,
   type ProcessRunner,
   runProcess,
-} from "@veyra/runtime";
+} from "@veyraoss/runtime";
 import { buildPrompt, redactor } from "./input.js";
 import { failure as resultFailure, OpenCodeOutput } from "./output.js";
 

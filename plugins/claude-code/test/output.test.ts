@@ -1,4 +1,4 @@
-import { isJsonValue } from "@veyra/protocol";
+import { isJsonValue } from "@veyraoss/protocol";
 import { describe, expect, it } from "vitest";
 import { ClaudeCodeOutput } from "../src/output.js";
 

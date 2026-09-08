@@ -24,7 +24,7 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.12",
     "@types/node": "^22.10.0",
-    "@veyra/protocol": "workspace:*",
+    "@veyraoss/protocol": "workspace:*",
     "prettier": "3.9.6",
     "tsx": "^4.19.0",
     "turbo": "^2.5.0",

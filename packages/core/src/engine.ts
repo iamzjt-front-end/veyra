@@ -1,26 +1,26 @@
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
-import type { VeyraConfig } from "@veyra/config";
+import type { VeyraConfig } from "@veyraoss/config";
 import type {
   AgentAdapter,
   AgentRunOptions,
   EventSink,
   SerializedError,
   VeyraEvent,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   type AgentRuntime,
   currentProcessOwner,
   LocalAgentRuntime,
   LocalWorkspaceManager,
   readProjectInstructions,
-} from "@veyra/runtime";
-import { ShellVerifier, type Verifier } from "@veyra/verifier";
+} from "@veyraoss/runtime";
+import { ShellVerifier, type Verifier } from "@veyraoss/verifier";
 import {
   buildWorkflowGraph,
   withExecutionDefaults,
   type WorkflowDefinition,
-} from "@veyra/workflow";
+} from "@veyraoss/workflow";
 import {
   pendingApproval,
   resolveApprovalDecision,

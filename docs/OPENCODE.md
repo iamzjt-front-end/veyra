@@ -1,6 +1,6 @@
 # OpenCode executor
 
-`@veyra/opencode` exports `OpenCodeAdapter`, registered as the `opencode` built-in. Runtime owns every process, directory, stream, timeout and cancellation operation. Core remains provider-neutral. Install OpenCode and configure its normal provider access before using the [development example](../examples/providers/opencode.yaml).
+`@veyraoss/opencode` exports `OpenCodeAdapter`, registered as the `opencode` built-in. Runtime owns every process, directory, stream, timeout and cancellation operation. Core remains provider-neutral. Install OpenCode and configure its normal provider access before using the [development example](../examples/providers/opencode.yaml).
 
 ```yaml
 agents:
@@ -42,10 +42,10 @@ Doctor runs `--version` and `run --help` under one five-second deadline. Help is
 Default tests inject native events and use a disposable Node child for real Runtime stdin/output verification. They cover correlation, replay accounting, limits, errors, permissions, redaction and deadlines without OpenCode or a network. The guarded smoke is separate:
 
 ```bash
-pnpm --filter @veyra/opencode... build
-VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/opencode smoke
+pnpm --filter @veyraoss/opencode... build
+VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/opencode smoke
 # Optional native model:
-VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/opencode smoke -- provider/model
+VEYRA_LIVE_SMOKE=1 pnpm --filter @veyraoss/opencode smoke -- provider/model
 ```
 
 The smoke creates a disposable Git fixture with a failing greeting test and native policy allowing instruction/source reads and editing only `src/message.js`. Independent syntax/tests and Git checks require the exact source change, preserved tests/config/instructions and no untracked files. Cleanup runs on success or failure. Global/managed native settings still apply, and native history may remain outside the fixture. A pinned temporary 1.18.29 installation reached the configured provider, which rejected its credentials with HTTP 401 (`Invalid API Key`); live success remains blocked. See [M4.7](TODO.md#m47--opencode-executor) for the exact command and unblock action.

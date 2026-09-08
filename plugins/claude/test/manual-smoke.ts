@@ -9,7 +9,7 @@ if (
   !model
 ) {
   console.error(
-    "Set VEYRA_LIVE_SMOKE=1 and ANTHROPIC_API_KEY, then run: pnpm --filter @veyra/claude smoke -- <model>",
+    "Set VEYRA_LIVE_SMOKE=1 and ANTHROPIC_API_KEY, then run: pnpm --filter @veyraoss/claude smoke -- <model>",
   );
   process.exitCode = 2;
 } else {

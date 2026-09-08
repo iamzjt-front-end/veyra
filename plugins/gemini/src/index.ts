@@ -7,8 +7,8 @@ import {
   type AgentRunOptions,
   type UsageMetadata,
   isJsonValue,
-} from "@veyra/protocol";
-import { createDeadline, createSecretRedactor } from "@veyra/runtime";
+} from "@veyraoss/protocol";
+import { createDeadline, createSecretRedactor } from "@veyraoss/runtime";
 import { requestParts, visionModels } from "./input.js";
 import { readJson } from "./http.js";
 export { GeminiCliAdapter, type GeminiCliAdapterOptions } from "./cli.js";

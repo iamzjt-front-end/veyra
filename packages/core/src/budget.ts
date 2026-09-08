@@ -1,5 +1,10 @@
-import type { BudgetLimits, ExecutionMetadata, UsageMetadata, VeyraEvent } from "@veyra/protocol";
-import type { ExecutionGraph } from "@veyra/workflow";
+import type {
+  BudgetLimits,
+  ExecutionMetadata,
+  UsageMetadata,
+  VeyraEvent,
+} from "@veyraoss/protocol";
+import type { ExecutionGraph } from "@veyraoss/workflow";
 import { ExecutionError } from "./execution-error.js";
 import type { RecordEvent } from "./leaf.js";
 

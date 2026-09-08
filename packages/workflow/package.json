@@ -1,7 +1,6 @@
 {
-  "name": "@veyra/workflow",
+  "name": "@veyraoss/workflow",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -18,7 +17,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@veyra/protocol": "workspace:*",
+    "@veyraoss/protocol": "workspace:*",
     "yaml": "2.9.0"
   },
   "devDependencies": {
@@ -39,5 +38,9 @@
     "LICENSE",
     "README.md",
     "schema/workflow-v1.schema.json"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

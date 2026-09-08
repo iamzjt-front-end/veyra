@@ -1,4 +1,4 @@
-import type { AgentResult, UsageMetadata } from "@veyra/protocol";
+import type { AgentResult, UsageMetadata } from "@veyraoss/protocol";
 
 export const resultSchema = {
   type: "object",

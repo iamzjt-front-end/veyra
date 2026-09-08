@@ -7,15 +7,15 @@ import type {
   AgentRoutingPolicy,
   AgentRoutingReason,
   AgentRunOptions,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   isAgentReadiness,
   isAgentRequirements,
   isAgentRoutingBinding,
   isAgentRoutingPolicy,
   routingFailureCategory,
-} from "@veyra/protocol";
-import { createDeadline } from "@veyra/runtime";
+} from "@veyraoss/protocol";
+import { createDeadline } from "@veyraoss/runtime";
 import { selectAgent, type AgentCandidate } from "./agents.js";
 import { ExecutionError } from "./execution-error.js";
 

@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AgentInput, JsonObject, VeyraEvent } from "@veyra/protocol";
+import type { AgentInput, JsonObject, VeyraEvent } from "@veyraoss/protocol";
 import { describe, expect, it } from "vitest";
 import { runProcess } from "../../packages/runtime/src/index.js";
 import { loadWorkflow } from "../../packages/workflow/src/index.js";

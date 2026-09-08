@@ -1,7 +1,7 @@
 import { constants, type Stats } from "node:fs";
 import { lstat, open } from "node:fs/promises";
 import { join } from "node:path";
-import type { ProjectInstruction } from "@veyra/protocol";
+import type { ProjectInstruction } from "@veyraoss/protocol";
 
 /** Snapshot only the execution root's explicit project rule file; never traverse ancestors/includes. */
 export async function readProjectInstructions(cwd: string): Promise<ProjectInstruction[]> {

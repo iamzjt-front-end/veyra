@@ -1,15 +1,15 @@
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
-import { loadConfig, type VeyraConfig } from "@veyra/config";
-import { discoverAgents, selectAgentRoute, type AgentCandidate } from "@veyra/core";
-import type { AgentDescriptor, AgentReadiness, AgentRoutingDecision } from "@veyra/protocol";
-import type { ProcessRunner } from "@veyra/runtime";
+import { loadConfig, type VeyraConfig } from "@veyraoss/config";
+import { discoverAgents, selectAgentRoute, type AgentCandidate } from "@veyraoss/core";
+import type { AgentDescriptor, AgentReadiness, AgentRoutingDecision } from "@veyraoss/protocol";
+import type { ProcessRunner } from "@veyraoss/runtime";
 import {
   analyzeWorkflow,
   buildWorkflowGraph,
   loadWorkflow,
   type WorkflowDefinition,
-} from "@veyra/workflow";
+} from "@veyraoss/workflow";
 import { redact, requiredAgents, secretValues } from "./providers.js";
 import { builtinPlugins, pluginAgent, registryForProviders } from "./plugins.js";
 

@@ -1,4 +1,4 @@
-import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
+import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
 import {
   type AgentAdapter,
   type AgentDescriptor,
@@ -8,14 +8,14 @@ import {
   type AgentRunOptions,
   type JsonObject,
   isJsonValue,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   createDeadline,
   ProcessExecutionError,
   type ProcessResult,
   type ProcessRunner,
   runProcess,
-} from "@veyra/runtime";
+} from "@veyraoss/runtime";
 import { ClaudeCodeOutput, resultSchema } from "./output.js";
 import { redactor } from "./redact.js";
 

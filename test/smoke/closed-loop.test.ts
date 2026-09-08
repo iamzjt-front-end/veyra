@@ -1,6 +1,6 @@
 import { access, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentAdapter } from "@veyra/protocol";
+import type { AgentAdapter } from "@veyraoss/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { runClosedLoopSmoke, smokeGreeting } from "./closed-loop.js";
 

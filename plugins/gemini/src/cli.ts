@@ -7,14 +7,14 @@ import {
   type AgentRunOptions,
   type JsonObject,
   isJsonValue,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   createDeadline,
   ProcessExecutionError,
   type ProcessResult,
   type ProcessRunner,
   runProcess,
-} from "@veyra/runtime";
+} from "@veyraoss/runtime";
 import { cliPrompt, cliRedactor } from "./cli-input.js";
 import { cliExitError, cliFailure, GeminiCliOutput } from "./cli-output.js";
 

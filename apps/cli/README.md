@@ -1,4 +1,4 @@
-# @veyra/cli
+# @veyraoss/cli
 
 The Veyra command-line application, exposed as ve.
 

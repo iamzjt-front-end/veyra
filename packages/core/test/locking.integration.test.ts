@@ -1,10 +1,10 @@
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { parseConfig } from "@veyra/config";
-import type { AgentAdapter } from "@veyra/protocol";
-import { runProcess } from "@veyra/runtime";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import type { AgentAdapter } from "@veyraoss/protocol";
+import { runProcess } from "@veyraoss/runtime";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { initializeGit } from "../../../test/helpers/git.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

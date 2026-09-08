@@ -1,4 +1,4 @@
-import { isWorkspaceInfo } from "@veyra/protocol";
+import { isWorkspaceInfo } from "@veyraoss/protocol";
 import {
   isAgentDescriptor,
   isAgentRequirements,
@@ -7,9 +7,9 @@ import {
   isJsonValue,
   type VeyraEvent,
   type SerializedError,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import { EVENT_PREVIEW_BYTES, isEventArtifact } from "./artifacts.js";
-import { isInstructionSources, isContextProvenance } from "@veyra/protocol";
+import { isInstructionSources, isContextProvenance } from "@veyraoss/protocol";
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): value is RecordValue =>

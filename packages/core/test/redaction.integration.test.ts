@@ -1,9 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import type { AgentAdapter, VeyraEvent } from "@veyra/protocol";
-import type { Verifier } from "@veyra/verifier";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import type { AgentAdapter, VeyraEvent } from "@veyraoss/protocol";
+import type { Verifier } from "@veyraoss/verifier";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { patternSecrets } from "../../../test/helpers/secret-fixtures.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

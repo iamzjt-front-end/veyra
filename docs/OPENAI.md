@@ -1,9 +1,9 @@
 # OpenAI planner, reviewer, and judge
 
-`@veyra/openai` implements `AgentAdapter` with the official OpenAI SDK and the Responses API. The SDK is pinned to 6.49.0 to retain the repository's Node 20 minimum; SDK 7.x requires Node 22. Models remain caller-configurable. Use a model with Responses and strict JSON Schema output support; unsupported requests fail explicitly.
+`@veyraoss/openai` implements `AgentAdapter` with the official OpenAI SDK and the Responses API. The SDK is pinned to 6.49.0 to retain the repository's Node 20 minimum; SDK 7.x requires Node 22. Models remain caller-configurable. Use a model with Responses and strict JSON Schema output support; unsupported requests fail explicitly.
 
 ```ts
-import { OpenAIAdapter } from "@veyra/openai";
+import { OpenAIAdapter } from "@veyraoss/openai";
 
 const planner = new OpenAIAdapter({ model: "your-model", role: "planner" });
 const result = await planner.run({
@@ -42,7 +42,7 @@ Normal tests inject a client or mock the SDK's HTTP transport and never require 
 
 ```bash
 # Set OPENAI_API_KEY in your shell without putting it in a tracked file.
-pnpm --filter @veyra/openai smoke -- <model>
+pnpm --filter @veyraoss/openai smoke -- <model>
 ```
 
 The command requires an explicit model and key, and exits nonzero on a missing credential or unsuccessful planner/reviewer result. It is excluded from `pnpm test` and CI. Live access depends on the account and selected model; mocked test results do not establish live provider availability.

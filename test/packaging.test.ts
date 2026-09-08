@@ -27,6 +27,7 @@ interface Manifest {
   name: string;
   version: string;
   private?: boolean;
+  publishConfig?: { access: string; registry: string };
   license: string;
   type: string;
   types?: string;
@@ -80,12 +81,17 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
       const manifest = JSON.parse(
         await readFile(join(staging, "package.json"), "utf8"),
       ) as Manifest;
-      expect(manifest.name).toBe(`@veyra/${directory.split("/")[1]}`);
+      expect(manifest.name).toBe(`@veyraoss/${directory.split("/")[1]}`);
+      expect(manifest.private).toBeUndefined();
+      expect(manifest.publishConfig).toEqual({
+        access: "public",
+        registry: "https://registry.npmjs.org",
+      });
       expect(manifest.license).toBe("MIT");
       expect(manifest.type).toBe("module");
       expect(await readFile(join(staging, "LICENSE"), "utf8")).toBe(license);
       expect(await readFile(join(staging, "README.md"), "utf8")).not.toBe("");
-      if (manifest.name === "@veyra/cli") {
+      if (manifest.name === "@veyraoss/cli") {
         expect(manifest.bin).toEqual({ ve: "./dist/index.js" });
         expect(await readFile(join(staging, "dist/index.js"), "utf8")).toMatch(
           /^#!\/usr\/bin\/env node\n/,
@@ -100,12 +106,12 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
       }
       const installed = join(consumer, "node_modules", manifest.name);
       await mkdir(dirname(installed), { recursive: true });
-      // Only extracted tarballs supply @veyra modules. Third-party dependencies reuse the frozen install.
+      // Only extracted tarballs supply @veyraoss modules. Third-party dependencies reuse the frozen install.
       await symlink(staging, installed, "dir");
       // Resolve peers of each tarball through this isolated dependency tree.
       await symlink(join(consumer, "node_modules"), join(staging, "node_modules"), "dir");
       for (const dependency of Object.keys(manifest.dependencies ?? {})) {
-        if (dependency.startsWith("@veyra/") || external.has(dependency)) continue;
+        if (dependency.startsWith("@veyraoss/") || external.has(dependency)) continue;
         const link = join(consumer, "node_modules", dependency);
         await mkdir(dirname(link), { recursive: true });
         await symlink(join(source, "node_modules", dependency), link, "dir");
@@ -117,7 +123,7 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
     for (const manifest of manifests)
       for (const [dependency, version] of Object.entries(manifest.dependencies ?? {})) {
         expect(version).not.toMatch(/^(workspace:|link:|file:)/);
-        if (dependency.startsWith("@veyra/"))
+        if (dependency.startsWith("@veyraoss/"))
           expect(version).toBe(manifests.find((entry) => entry.name === dependency)?.version);
       }
     expect(JSON.parse(await readFile(join(root, "package.json"), "utf8")).private).toBe(true);
@@ -131,19 +137,19 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
       import assert from 'node:assert/strict';
       import { readFile } from 'node:fs/promises';
       import { createRequire } from 'node:module';
-      for (const name of ${JSON.stringify(names.filter((name) => name !== "@veyra/cli"))}) {
+      for (const name of ${JSON.stringify(names.filter((name) => name !== "@veyraoss/cli"))}) {
         assert.ok(Object.keys(await import(name)).length > 0, name);
       }
-      const { loadWorkflow, listBuiltinWorkflows } = await import('@veyra/workflow');
+      const { loadWorkflow, listBuiltinWorkflows } = await import('@veyraoss/workflow');
       assert.deepEqual(listBuiltinWorkflows(), ['dev', 'bugfix', 'review', 'research']);
       for (const preset of listBuiltinWorkflows()) assert.ok((await loadWorkflow(preset)).steps);
-      const schema = createRequire(import.meta.url).resolve('@veyra/workflow/workflow-v1.schema.json');
+      const schema = createRequire(import.meta.url).resolve('@veyraoss/workflow/workflow-v1.schema.json');
       assert.equal(JSON.parse(await readFile(schema, 'utf8')).type, 'object');
       console.log('isolated package imports, presets and schema passed');
     `,
     );
     expect(await command(process.execPath, ["check.mjs"], consumer)).toContain("passed");
-    const cli = join(consumer, "node_modules/@veyra/cli/dist/index.js");
+    const cli = join(consumer, "node_modules/@veyraoss/cli/dist/index.js");
     expect(await command(process.execPath, [cli, "version"], consumer)).toContain("0.1.0");
     const list = JSON.parse(
       await command(process.execPath, [cli, "workflow", "list", "--json"], consumer),
@@ -156,9 +162,9 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
     await writeFile(
       join(consumer, "check.mts"),
       `
-      import type { AgentAdapter, AgentInput } from '@veyra/sdk';
-      import { loadWorkflow, type WorkflowDefinition } from '@veyra/workflow';
-      import { LocalAgentRuntime } from '@veyra/runtime';
+      import type { AgentAdapter, AgentInput } from '@veyraoss/sdk';
+      import { loadWorkflow, type WorkflowDefinition } from '@veyraoss/workflow';
+      import { LocalAgentRuntime } from '@veyraoss/runtime';
       const input: AgentInput = { runId: 'fixture', stepId: 'step', role: 'reviewer', goal: 'verify types' };
       const adapter: AgentAdapter = { id: 'fixture', provider: 'fixture', async run(input) { return { status: 'success', summary: input.goal }; } };
       const workflow: WorkflowDefinition = await loadWorkflow('dev');

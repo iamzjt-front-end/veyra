@@ -1,4 +1,4 @@
-# @veyra/openai
+# @veyraoss/openai
 
 OpenAI Responses and OpenAI-compatible reasoning adapters.
 

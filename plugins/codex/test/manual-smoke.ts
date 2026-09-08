@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { runProcess } from "@veyra/runtime";
+import { runProcess } from "@veyraoss/runtime";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { CodexAdapter } from "../src/index.js";
 

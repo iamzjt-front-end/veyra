@@ -1,6 +1,6 @@
 # Workflow loading and validation
 
-`@veyra/workflow` owns YAML loading and graph validation. Core receives a `WorkflowDefinition` and does not parse YAML or import the config parser.
+`@veyraoss/workflow` owns YAML loading and graph validation. Core receives a `WorkflowDefinition` and does not parse YAML or import the config parser.
 
 - `loadWorkflow(reference, cwd?)` loads `dev`, `bugfix`, `review`, or `research` from the Workflow package's built-in assets, independently of the project working directory. Its build copies the canonical root `workflows/*.yaml` into `dist/presets/`, so presets also work outside the checkout; build before running source-based loader tests. Other references are absolute paths or paths resolved relative to `cwd` (the current directory by default). Pass the config directory when resolving `workflow.use`.
 - `listBuiltinWorkflows()` returns an independent list of the preset names accepted by that loader. The CLI exposes this through `ve workflow list`; `ve workflow validate <name/path>` offers read-only DSL/graph validation and optional configuration binding checks.
@@ -33,7 +33,7 @@ M4.1 adds optional agent-only `requires: { role, capabilities }` in this `0.1.0`
 
 ## JSON Schema and compatibility
 
-The editor/tooling schema is [workflow-v1.schema.json](../packages/workflow/schema/workflow-v1.schema.json), also available as the package export `@veyra/workflow/workflow-v1.schema.json`. It uses [JSON Schema draft-07](https://json-schema.org/draft-07/draft-handrews-json-schema-validation-01). Its `urn:veyra:workflow:1` identifier is an identifier, not a hosted download endpoint. Package publishing is separate roadmap work; the file is available in this checkout.
+The editor/tooling schema is [workflow-v1.schema.json](../packages/workflow/schema/workflow-v1.schema.json), also available as the package export `@veyraoss/workflow/workflow-v1.schema.json`. It uses [JSON Schema draft-07](https://json-schema.org/draft-07/draft-handrews-json-schema-validation-01). Its `urn:veyra:workflow:1` identifier is an identifier, not a hosted download endpoint. Package publishing is separate roadmap work; the file is available in this checkout.
 
 For a YAML language server, select the schema with a comment containing its relative or absolute file path, as in the examples below. A top-level `$schema` data field is not part of the Workflow DSL and is rejected. Comments do not alter workflow data.
 

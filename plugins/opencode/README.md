@@ -1,4 +1,4 @@
-# @veyra/opencode
+# @veyraoss/opencode
 
 Status: **implemented with deterministic tests; live smoke blocked by rejected native provider credentials**.
 

@@ -1,4 +1,4 @@
-# @veyra/workflow
+# @veyraoss/workflow
 
 Declarative workflow loading, graph validation and built-in presets.
 

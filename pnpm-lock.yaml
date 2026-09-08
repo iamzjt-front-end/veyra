@@ -14,7 +14,7 @@ importers:
       '@types/node':
         specifier: ^22.10.0
         version: 22.20.1
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:packages/protocol
       prettier:
@@ -35,40 +35,40 @@ importers:
 
   apps/cli:
     dependencies:
-      '@veyra/claude':
+      '@veyraoss/claude':
         specifier: workspace:*
         version: link:../../plugins/claude
-      '@veyra/claude-code':
+      '@veyraoss/claude-code':
         specifier: workspace:*
         version: link:../../plugins/claude-code
-      '@veyra/codex':
+      '@veyraoss/codex':
         specifier: workspace:*
         version: link:../../plugins/codex
-      '@veyra/config':
+      '@veyraoss/config':
         specifier: workspace:*
         version: link:../../packages/config
-      '@veyra/core':
+      '@veyraoss/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@veyra/gemini':
+      '@veyraoss/gemini':
         specifier: workspace:*
         version: link:../../plugins/gemini
-      '@veyra/openai':
+      '@veyraoss/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
-      '@veyra/opencode':
+      '@veyraoss/opencode':
         specifier: workspace:*
         version: link:../../plugins/opencode
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
-      '@veyra/sdk':
+      '@veyraoss/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
-      '@veyra/workflow':
+      '@veyraoss/workflow':
         specifier: workspace:*
         version: link:../../packages/workflow
       yaml:
@@ -85,19 +85,19 @@ importers:
 
   packages/core:
     dependencies:
-      '@veyra/config':
+      '@veyraoss/config':
         specifier: workspace:*
         version: link:../config
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../runtime
-      '@veyra/verifier':
+      '@veyraoss/verifier':
         specifier: workspace:*
         version: link:../verifier
-      '@veyra/workflow':
+      '@veyraoss/workflow':
         specifier: workspace:*
         version: link:../workflow
 
@@ -105,31 +105,31 @@ importers:
 
   packages/runtime:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../protocol
 
   packages/sdk:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@veyra/workflow':
+      '@veyraoss/workflow':
         specifier: workspace:*
         version: link:../workflow
 
   packages/verifier:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../runtime
 
   packages/workflow:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../protocol
       yaml:
@@ -145,46 +145,46 @@ importers:
       '@anthropic-ai/sdk':
         specifier: 0.124.0
         version: 0.124.0
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
 
   plugins/claude-code:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
 
   plugins/codex:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
 
   plugins/gemini:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
 
   plugins/openai:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
       openai:
@@ -193,10 +193,10 @@ importers:
 
   plugins/opencode:
     dependencies:
-      '@veyra/protocol':
+      '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
-      '@veyra/runtime':
+      '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
 

@@ -9,7 +9,7 @@ import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { loadWorkflow, parseWorkflow } from "../src/index.js";
 
 const schemaPath = createRequire(import.meta.url).resolve(
-  "@veyra/workflow/workflow-v1.schema.json",
+  "@veyraoss/workflow/workflow-v1.schema.json",
 );
 const schema = JSON.parse(await readFile(schemaPath, "utf8"));
 const validate = new Ajv({ strict: true, allErrors: true }).compile(schema);

@@ -1,6 +1,6 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentAdapter } from "@veyra/protocol";
+import type { AgentAdapter } from "@veyraoss/protocol";
 import { expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { runCli } from "../src/application.js";

@@ -8,7 +8,7 @@ import {
   type JsonValue,
   type VeyraEvent,
   type SerializedError,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 import {
   acquireLocalLock,
   LocalLockError,
@@ -17,12 +17,12 @@ import {
   isProcessOwner,
   type ProcessOwner,
   type SecretRedactor,
-} from "@veyra/runtime";
-import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
+} from "@veyraoss/runtime";
+import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyraoss/workflow";
 import { isStoredEvent, isSerializedError } from "./state-events.js";
 import { digest, eventArtifact, eventView, MAX_INLINE_EVENT_BYTES } from "./artifacts.js";
 import type { PruneRunsOptions, PruneRunsResult } from "./retention.js";
-import { isProjectInstructions, type ProjectInstruction } from "@veyra/protocol";
+import { isProjectInstructions, type ProjectInstruction } from "@veyraoss/protocol";
 
 export type RunStatus = "running" | "paused" | "completed" | "failed";
 

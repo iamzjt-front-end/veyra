@@ -1,12 +1,12 @@
-import type { VeyraConfig } from "@veyra/config";
+import type { VeyraConfig } from "@veyraoss/config";
 import type {
   ApprovalDecision,
   EventSink,
   ExecutionMetadata,
   JsonObject,
   VeyraEvent,
-} from "@veyra/protocol";
-import { resolveNextStep, buildWorkflowGraph } from "@veyra/workflow";
+} from "@veyraoss/protocol";
+import { resolveNextStep, buildWorkflowGraph } from "@veyraoss/workflow";
 import { RunControlError } from "./control-error.js";
 import type { RunResult } from "./engine.js";
 import type { LocalRunStore } from "./state.js";

@@ -1,8 +1,8 @@
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { parseConfig } from "@veyra/config";
-import type { AgentAdapter, AgentInput, AgentResult } from "@veyra/protocol";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import type { AgentAdapter, AgentInput, AgentResult } from "@veyraoss/protocol";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { FakeAgent } from "../../../test/helpers/fake-agent.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

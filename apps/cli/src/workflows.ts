@@ -1,10 +1,10 @@
-import type { VeyraConfig } from "@veyra/config";
+import type { VeyraConfig } from "@veyraoss/config";
 import {
   analyzeWorkflow,
   buildWorkflowGraph,
   listBuiltinWorkflows,
   loadWorkflow,
-} from "@veyra/workflow";
+} from "@veyraoss/workflow";
 import { agentDiagnostics, requiredAgents } from "./providers.js";
 
 /** Read-only surface descriptions; the Workflow package owns loading and graph semantics. */

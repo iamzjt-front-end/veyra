@@ -6,8 +6,8 @@ import type {
   VeyraEvent,
   EvidenceReference,
   ContextProvenance,
-} from "@veyra/protocol";
-import { resolveStepInputs, type StepInputReference } from "@veyra/workflow";
+} from "@veyraoss/protocol";
+import { resolveStepInputs, type StepInputReference } from "@veyraoss/workflow";
 
 /** Recent outputs only; complete evidence remains in the persisted event log. */
 export class RunContext {

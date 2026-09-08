@@ -1,5 +1,5 @@
 import { createServer, type RequestListener } from "node:http";
-import { type AgentInput, isJsonValue } from "@veyra/protocol";
+import { type AgentInput, isJsonValue } from "@veyraoss/protocol";
 import { describe, expect, it, vi } from "vitest";
 import { OpenAICompatibleAdapter, type OpenAICompatibleAdapterOptions } from "../src/index.js";
 

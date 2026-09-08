@@ -1,8 +1,8 @@
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import type { AgentAdapter, AgentInput, AgentResult } from "@veyra/protocol";
-import { runProcess } from "@veyra/runtime";
-import { loadWorkflow, type WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import type { AgentAdapter, AgentInput, AgentResult } from "@veyraoss/protocol";
+import { runProcess } from "@veyraoss/runtime";
+import { loadWorkflow, type WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { FakeAgent } from "../../../test/helpers/fake-agent.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

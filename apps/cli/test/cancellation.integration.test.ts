@@ -3,7 +3,7 @@ import { createRequire } from "node:module";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { runProcess } from "@veyra/runtime";
+import { runProcess } from "@veyraoss/runtime";
 import { describe, expect, it, vi } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 

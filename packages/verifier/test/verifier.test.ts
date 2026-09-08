@@ -1,5 +1,5 @@
-import { isJsonValue, type VeyraEvent } from "@veyra/protocol";
-import { ProcessExecutionError, type ProcessResult, type ProcessRunner } from "@veyra/runtime";
+import { isJsonValue, type VeyraEvent } from "@veyraoss/protocol";
+import { ProcessExecutionError, type ProcessResult, type ProcessRunner } from "@veyraoss/runtime";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_VERIFICATION_TIMEOUT_MS, ShellVerifier } from "../src/index.js";
 

@@ -1,4 +1,4 @@
-import type { JsonValue } from "@veyra/protocol";
+import type { JsonValue } from "@veyraoss/protocol";
 import { resolveNextStep, type WorkflowStep } from "./index.js";
 
 export class RouterError extends Error {

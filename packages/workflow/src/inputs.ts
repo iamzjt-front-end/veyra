@@ -1,4 +1,4 @@
-import { isJsonValue, type JsonObject, type JsonValue } from "@veyra/protocol";
+import { isJsonValue, type JsonObject, type JsonValue } from "@veyraoss/protocol";
 import type { StepInputReference } from "./index.js";
 
 export const MAX_RESOLVED_INPUT_BYTES = 32 * 1024;

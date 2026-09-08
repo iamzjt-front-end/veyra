@@ -1,8 +1,8 @@
 import { readFile, readdir, writeFile, symlink, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import { runProcess } from "@veyra/runtime";
-import type { WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import { runProcess } from "@veyraoss/runtime";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { initializeGit } from "../../../test/helpers/git.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

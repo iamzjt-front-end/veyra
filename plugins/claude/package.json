@@ -1,7 +1,6 @@
 {
-  "name": "@veyra/claude",
+  "name": "@veyraoss/claude",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -12,8 +11,8 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@anthropic-ai/sdk": "0.124.0",
-    "@veyra/protocol": "workspace:*",
-    "@veyra/runtime": "workspace:*"
+    "@veyraoss/protocol": "workspace:*",
+    "@veyraoss/runtime": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -36,5 +35,9 @@
     "dist",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

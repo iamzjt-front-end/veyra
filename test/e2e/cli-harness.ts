@@ -1,6 +1,6 @@
 import { appendFile, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { AgentAdapter, AgentInput, AgentResult } from "@veyra/protocol";
+import type { AgentAdapter, AgentInput, AgentResult } from "@veyraoss/protocol";
 import { runCli } from "../../apps/cli/src/application.js";
 import { createAgent, type AgentFactory } from "../../apps/cli/src/providers.js";
 

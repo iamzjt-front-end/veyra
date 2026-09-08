@@ -1,4 +1,4 @@
-# @veyra/sdk
+# @veyraoss/sdk
 
 Public provider plugin interfaces and registry.
 

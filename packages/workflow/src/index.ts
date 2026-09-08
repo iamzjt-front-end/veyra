@@ -103,4 +103,4 @@ export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";
 export { resolveRoute, RouterError, type RouteDecision } from "./router.js";
 export { buildWorkflowGraph, type ExecutionGraph, type WorkflowScope } from "./graph.js";
 export { aggregateReviews } from "./consensus.js";
-import type { AgentRequirements, AgentRoutingPolicy, BudgetLimits } from "@veyra/protocol";
+import type { AgentRequirements, AgentRoutingPolicy, BudgetLimits } from "@veyraoss/protocol";

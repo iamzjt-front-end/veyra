@@ -6,7 +6,11 @@ import type {
   RetryBackoff,
 } from "./index.js";
 import { pointerSegments } from "./inputs.js";
-import { isAgentRequirements, isAgentRoutingBinding, isAgentRoutingPolicy } from "@veyra/protocol";
+import {
+  isAgentRequirements,
+  isAgentRoutingBinding,
+  isAgentRoutingPolicy,
+} from "@veyraoss/protocol";
 
 export class WorkflowError extends Error {
   constructor(

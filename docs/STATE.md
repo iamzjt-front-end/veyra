@@ -1,6 +1,6 @@
 # Local run state
 
-`LocalRunStore` is the persistence boundary owned by `@veyra/core`. It stores versioned JSON and structured events; it does not schedule steps or construct providers.
+`LocalRunStore` is the persistence boundary owned by `@veyraoss/core`. It stores versioned JSON and structured events; it does not schedule steps or construct providers.
 
 ```text
 .veyra/
@@ -21,7 +21,7 @@
 ## API and snapshots
 
 ```ts
-import { LocalRunStore } from "@veyra/core";
+import { LocalRunStore } from "@veyraoss/core";
 
 const store = new LocalRunStore({ stateDir: ".veyra" });
 const run = await store.createRun({ goal, workflow, cwd: process.cwd() });

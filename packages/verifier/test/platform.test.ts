@@ -1,4 +1,4 @@
-import type { ProcessRunner } from "@veyra/runtime";
+import type { ProcessRunner } from "@veyraoss/runtime";
 import { afterEach, expect, it, vi } from "vitest";
 import { ShellVerifier } from "../src/index.js";
 

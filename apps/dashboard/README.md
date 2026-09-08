@@ -1,4 +1,4 @@
-# @veyra/dashboard
+# @veyraoss/dashboard
 
 Status: **planned for v0.5**.
 

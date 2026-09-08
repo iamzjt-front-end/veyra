@@ -1,13 +1,13 @@
 # Provider plugins and the SDK
 
-M4.2 adds an explicit provider plugin registry to `@veyra/sdk` in this `0.1.0` development checkout. A plugin constructs protocol adapters; Core continues to receive injected `AgentAdapter` instances and never imports provider code or plugin modules. This initial contract covers providers. Custom workflow node/tool registration remains separate work.
+M4.2 adds an explicit provider plugin registry to `@veyraoss/sdk` in this `0.1.0` development checkout. A plugin constructs protocol adapters; Core continues to receive injected `AgentAdapter` instances and never imports provider code or plugin modules. This initial contract covers providers. Custom workflow node/tool registration remains separate work.
 
 Current Core inputs carry labeled `instructionSources` alongside general `instructions`, plus `context.provenance` for supplied evidence. Deliver the complete envelope or preserve these fields explicitly in the provider prompt; forwarding only the former flattened `instructions` string loses project/workflow guidance. SDK exports the source contracts, guards and shared safety guidance. See [prompt source integration](PROMPT-SAFETY.md).
 
 ## Contract and registration
 
 ```ts
-import { PluginRegistry, type VeyraPlugin } from "@veyra/sdk";
+import { PluginRegistry, type VeyraPlugin } from "@veyraoss/sdk";
 import { MyAdapter } from "./my-adapter.js";
 
 const plugin = {
@@ -35,13 +35,13 @@ const adapter = registry.createAgent("example", {
 
 `VeyraPlugin` is a plain object with `apiVersion: 1`, `provider`, `version`, a synchronous `createAgent(agent, context)` hook, and optional asynchronous `checkReadiness(agent, context, controls)`. The provider identifier uses lowercase letters/digits separated by `.`, `_`, or `-`, up to 128 characters. Versions use an exact `major.minor.patch` string with optional prerelease/build suffixes; version ranges are unsupported. `isVeyraPlugin` rejects unknown fields, incompatible APIs and getters without invoking hooks.
 
-`PluginAgentConfig` contains the binding `id` (up to 128 characters), optional `model` (up to 512 characters) and JSON `options`. `PluginContext.options` contains the provider namespace settings. Each factory/probe receives independent copies. Plugin options have a 256 KiB serialized JSON limit. A returned adapter must match the requested ID and registered provider and implement `run`; metadata/readiness methods remain optional under the [capability contract](CAPABILITIES.md). Factories should construct adapters without starting work, writing output or contacting services. Agent execution belongs in `run`, and local subprocess lifecycle belongs in `@veyra/runtime`.
+`PluginAgentConfig` contains the binding `id` (up to 128 characters), optional `model` (up to 512 characters) and JSON `options`. `PluginContext.options` contains the provider namespace settings. Each factory/probe receives independent copies. Plugin options have a 256 KiB serialized JSON limit. A returned adapter must match the requested ID and registered provider and implement `run`; metadata/readiness methods remain optional under the [capability contract](CAPABILITIES.md). Factories should construct adapters without starting work, writing output or contacting services. Agent execution belongs in `run`, and local subprocess lifecycle belongs in `@veyraoss/runtime`.
 
 Registration does not invoke factories or probes. Each registry owns its registrations; there is no global registry. `list()` returns independent provider/API/version metadata. Duplicate names cannot override built-ins or previous registrations. Incompatible APIs, exact-version mismatches, missing plugins, invalid adapters and thrown factories produce stable `PluginError.code` values and safe diagnostics without raw plugin exceptions.
 
 The CLI explicitly registers OpenAI, Codex, Claude, Claude Code, Gemini API, Gemini CLI and OpenCode through the same contract in `apps/cli/src/plugins.ts`. Those registrations compose the existing adapter implementations in `plugins/*`; the SDK itself has no vendor imports. Built-in adapter defaults are overridden by namespace options, then agent options, then the explicit agent `model`; the binding always supplies `id`. Third-party plugins own and document their option interpretation.
 
-`openai-compatible` is also built in through `@veyra/openai`. It uses a separate Chat Completions adapter with required `baseURL`, explicit response-format support and optional `apiKeyEnv`; the official `openai` Responses adapter is unchanged. See [compatible/local models](OPENAI-COMPATIBLE.md).
+`openai-compatible` is also built in through `@veyraoss/openai`. It uses a separate Chat Completions adapter with required `baseURL`, explicit response-format support and optional `apiKeyEnv`; the official `openai` Responses adapter is unchanged. See [compatible/local models](OPENAI-COMPATIBLE.md).
 
 ## Local modules and trust
 

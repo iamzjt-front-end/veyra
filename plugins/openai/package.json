@@ -1,7 +1,6 @@
 {
-  "name": "@veyra/openai",
+  "name": "@veyraoss/openai",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -11,8 +10,8 @@
   },
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@veyra/protocol": "workspace:*",
-    "@veyra/runtime": "workspace:*",
+    "@veyraoss/protocol": "workspace:*",
+    "@veyraoss/runtime": "workspace:*",
     "openai": "6.49.0"
   },
   "scripts": {
@@ -36,5 +35,9 @@
     "dist",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

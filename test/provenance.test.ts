@@ -1,5 +1,5 @@
-import type { AgentInput } from "@veyra/protocol";
-import { PROMPT_SAFETY_GUIDANCE } from "@veyra/protocol";
+import type { AgentInput } from "@veyraoss/protocol";
+import { PROMPT_SAFETY_GUIDANCE } from "@veyraoss/protocol";
 import { describe, expect, it } from "vitest";
 import { roleInstructions as openaiInstructions } from "../plugins/openai/src/output.js";
 import { roleInstructions as claudeInstructions } from "../plugins/claude/src/output.js";

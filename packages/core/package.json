@@ -1,7 +1,6 @@
 {
-  "name": "@veyra/core",
+  "name": "@veyraoss/core",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "exports": {
     ".": {
@@ -11,11 +10,11 @@
   },
   "types": "./dist/index.d.ts",
   "dependencies": {
-    "@veyra/config": "workspace:*",
-    "@veyra/protocol": "workspace:*",
-    "@veyra/runtime": "workspace:*",
-    "@veyra/verifier": "workspace:*",
-    "@veyra/workflow": "workspace:*"
+    "@veyraoss/config": "workspace:*",
+    "@veyraoss/protocol": "workspace:*",
+    "@veyraoss/runtime": "workspace:*",
+    "@veyraoss/verifier": "workspace:*",
+    "@veyraoss/workflow": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -37,5 +36,9 @@
     "dist",
     "LICENSE",
     "README.md"
-  ]
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

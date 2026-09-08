@@ -1,4 +1,4 @@
-# @veyra/codex
+# @veyraoss/codex
 
 Codex CLI executor adapter.
 

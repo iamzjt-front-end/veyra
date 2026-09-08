@@ -1,7 +1,7 @@
 import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import type { ProcessRunner } from "@veyra/runtime";
+import type { ProcessRunner } from "@veyraoss/runtime";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { runCli } from "../src/application.js";
 

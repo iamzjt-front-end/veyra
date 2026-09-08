@@ -8,7 +8,7 @@ import {
   type AgentReadiness,
   type AgentRunOptions,
   type JsonObject,
-} from "@veyra/protocol";
+} from "@veyraoss/protocol";
 
 export const PLUGIN_API_VERSION = 1;
 

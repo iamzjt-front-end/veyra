@@ -4,10 +4,10 @@
 
 `createDeadline(timeoutMs?, signal?)` creates an abort signal for a bounded operation and exposes `timedOut()` plus `dispose()`. Core uses it for workflow agent/command deadlines spanning an entire invocation, including multi-command verification. Cancellation signals active work; the caller must await its cleanup and dispose the timer/listener. The first cause wins: parent cancellation clears the timer, and a later parent abort does not replace an already-fired deadline. Parent reasons propagate only through the ephemeral signal. It does not forcibly interrupt arbitrary JavaScript or replace provider process cancellation. See [cancellation semantics](CANCELLATION.md).
 
-`@veyra/runtime` owns generic local execution. Adapters and verifiers use `runProcess`; Core does not spawn provider executables.
+`@veyraoss/runtime` owns generic local execution. Adapters and verifiers use `runProcess`; Core does not spawn provider executables.
 
 ```ts
-import { runProcess } from "@veyra/runtime";
+import { runProcess } from "@veyraoss/runtime";
 
 const result = await runProcess({
   executable: process.execPath,

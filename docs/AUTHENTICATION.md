@@ -44,7 +44,7 @@ An injected SDK client reports unknown authentication because it owns transport/
 
 ## Redaction boundaries
 
-`@veyra/runtime` exports `collectSecretValues`, `createSecretRedactor`, `isSecretField` and `SecretRedactor`. These helpers are provider-neutral and require explicitly supplied values/environment; they do not read global state or files. The shared utility covers current Core, CLI, Verifier and provider output paths. TUI/Dashboard log renderers remain unimplemented and require their own integration verification when those milestones become eligible.
+`@veyraoss/runtime` exports `collectSecretValues`, `createSecretRedactor`, `isSecretField` and `SecretRedactor`. These helpers are provider-neutral and require explicitly supplied values/environment; they do not read global state or files. The shared utility covers current Core, CLI, Verifier and provider output paths. TUI/Dashboard log renderers remain unimplemented and require their own integration verification when those milestones become eligible.
 
 The helper collects recognized credential variable names, including generic `*_TOKEN`, API keys, access keys/IDs, passwords, credentials and private keys. Callers may add unusual variable names or explicit values. Text redaction replaces exact known values, JSON-escaped and doubly escaped representations, canonical URL-encoded variants, and Bearer diagnostics. Longer values are processed first and existing `[REDACTED]` markers remain stable. JSON redaction also masks credential-shaped fields and environment snapshots, and filters credential values embedded in payload object keys, without mutating caller data or token-usage counters. Masked payload keys may collide; redacted evidence does not preserve secret-keyed dictionaries as an executable data structure.
 
@@ -53,8 +53,8 @@ API input/output and native adapter prompts/bounded diagnostics use the helper. 
 Programmatic Core/store callers must supply their own `redactValues`, including custom secrets, and configure injected stores directly. Core does not import a provider or inspect global credentials. For example:
 
 ```ts
-import { collectSecretValues } from "@veyra/runtime";
-import { VeyraEngine } from "@veyra/core";
+import { collectSecretValues } from "@veyraoss/runtime";
+import { VeyraEngine } from "@veyraoss/core";
 
 const engine = new VeyraEngine({
   redactValues: collectSecretValues(process.env, ["MY_UNUSUAL_CREDENTIAL"]),

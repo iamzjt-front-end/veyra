@@ -1,24 +1,23 @@
 {
-  "name": "@veyra/cli",
+  "name": "@veyraoss/cli",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "bin": {
     "ve": "./dist/index.js"
   },
   "dependencies": {
-    "@veyra/core": "workspace:*",
-    "@veyra/config": "workspace:*",
-    "@veyra/protocol": "workspace:*",
-    "@veyra/runtime": "workspace:*",
-    "@veyra/sdk": "workspace:*",
-    "@veyra/workflow": "workspace:*",
-    "@veyra/codex": "workspace:*",
-    "@veyra/claude": "workspace:*",
-    "@veyra/claude-code": "workspace:*",
-    "@veyra/gemini": "workspace:*",
-    "@veyra/openai": "workspace:*",
-    "@veyra/opencode": "workspace:*",
+    "@veyraoss/core": "workspace:*",
+    "@veyraoss/config": "workspace:*",
+    "@veyraoss/protocol": "workspace:*",
+    "@veyraoss/runtime": "workspace:*",
+    "@veyraoss/sdk": "workspace:*",
+    "@veyraoss/workflow": "workspace:*",
+    "@veyraoss/codex": "workspace:*",
+    "@veyraoss/claude": "workspace:*",
+    "@veyraoss/claude-code": "workspace:*",
+    "@veyraoss/gemini": "workspace:*",
+    "@veyraoss/openai": "workspace:*",
+    "@veyraoss/opencode": "workspace:*",
     "yaml": "2.9.0"
   },
   "scripts": {
@@ -43,5 +42,9 @@
     "LICENSE",
     "README.md"
   ],
-  "exports": {}
+  "exports": {},
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  }
 }

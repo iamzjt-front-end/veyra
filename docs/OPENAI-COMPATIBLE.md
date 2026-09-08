@@ -1,6 +1,6 @@
 # OpenAI-compatible and local reasoning models
 
-M4.8 adds `OpenAICompatibleAdapter` from `@veyra/openai` and the built-in provider `openai-compatible`. It supports planner, reviewer and judge roles through an explicitly configured Chat Completions endpoint. The existing `openai` provider still uses the official OpenAI Responses adapter; its endpoint and behavior are unchanged. Core receives either implementation through the same protocol contracts.
+M4.8 adds `OpenAICompatibleAdapter` from `@veyraoss/openai` and the built-in provider `openai-compatible`. It supports planner, reviewer and judge roles through an explicitly configured Chat Completions endpoint. The existing `openai` provider still uses the official OpenAI Responses adapter; its endpoint and behavior are unchanged. Core receives either implementation through the same protocol contracts.
 
 ## Configuration
 

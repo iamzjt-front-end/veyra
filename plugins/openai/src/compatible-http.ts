@@ -1,4 +1,4 @@
-import type { UsageMetadata } from "@veyra/protocol";
+import type { UsageMetadata } from "@veyraoss/protocol";
 
 export const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);

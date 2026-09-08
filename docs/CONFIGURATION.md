@@ -1,6 +1,6 @@
 # Configuration
 
-`@veyra/config` exports `loadConfig(path)` to read a single `veyra.yaml` document and `parseConfig(value)` to validate already-parsed data without file, environment, or provider access. Both return a normalized `VeyraConfig` or throw `ConfigError`. Loading does not write files or connect providers.
+`@veyraoss/config` exports `loadConfig(path)` to read a single `veyra.yaml` document and `parseConfig(value)` to validate already-parsed data without file, environment, or provider access. Both return a normalized `VeyraConfig` or throw `ConfigError`. Loading does not write files or connect providers.
 
 ## Schema version 1
 
@@ -19,7 +19,7 @@ M4.2 adds optional `plugins`, a map of up to 64 provider identifiers. Each entry
 | `runtime.stateDir`         | `.veyra` | Non-empty path string                                    |
 | `approval.requiredFor`     | `[]`     | Array of non-empty operation names                       |
 
-Project name and model have no inferred default. Returned objects and arrays are independent copies. Paths remain as configured; callers resolve relative paths against the config directory when executing a project. Workflow contents are validated by [`@veyra/workflow`](WORKFLOWS.md). Provider readiness belongs to the adapters; explicit human gates use the [Core approval API](APPROVALS.md). `approval.requiredFor` does not yet insert gates or classify provider commands automatically.
+Project name and model have no inferred default. Returned objects and arrays are independent copies. Paths remain as configured; callers resolve relative paths against the config directory when executing a project. Workflow contents are validated by [`@veyraoss/workflow`](WORKFLOWS.md). Provider readiness belongs to the adapters; explicit human gates use the [Core approval API](APPROVALS.md). `approval.requiredFor` does not yet insert gates or classify provider commands automatically.
 
 Core snapshots effective workflow policies when a run starts. An explicit step `retry.max` overrides workflow `policy.retry.max`, which overrides `runtime.maxFixIterations`; zero disables repairs while allowing initial work. Child workflow retry defaults override inherited defaults. See [execution policies](WORKFLOWS.md#workflow-execution-policies) for saved deadlines, concurrency caps, approval selection, failure behavior, budget hooks and lifetime step limits.
 

@@ -1,10 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
-import type { AgentAdapter, AgentResult, VeyraEvent } from "@veyra/protocol";
-import type { AgentRuntime } from "@veyra/runtime";
-import type { Verifier } from "@veyra/verifier";
-import { loadWorkflow, type WorkflowDefinition } from "@veyra/workflow";
+import { parseConfig } from "@veyraoss/config";
+import type { AgentAdapter, AgentResult, VeyraEvent } from "@veyraoss/protocol";
+import type { AgentRuntime } from "@veyraoss/runtime";
+import type { Verifier } from "@veyraoss/verifier";
+import { loadWorkflow, type WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it, vi } from "vitest";
 import { FakeAgent } from "../../../test/helpers/fake-agent.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";

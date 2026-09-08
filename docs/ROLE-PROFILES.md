@@ -1,6 +1,6 @@
 # Agent role profiles
 
-M4.10 defines provider-neutral planner, executor, researcher, reviewer and judge profiles in `@veyra/protocol`, re-exported through `@veyra/sdk`. Each contains a `schemaVersion`, content `version`, semantic `role`, behavioral `instructions`, named context paths with purposes, and a normalized result contract. The initial content version is `1.0.0`.
+M4.10 defines provider-neutral planner, executor, researcher, reviewer and judge profiles in `@veyraoss/protocol`, re-exported through `@veyraoss/sdk`. Each contains a `schemaVersion`, content `version`, semantic `role`, behavioral `instructions`, named context paths with purposes, and a normalized result contract. The initial content version is `1.0.0`.
 
 Profiles describe work, evidence and permission boundaries. They do not select a model, install tools, enable network access, grant approval or change native permissions. They do not advertise new capabilities for an adapter. Core remains independent of provider packages.
 
@@ -46,7 +46,7 @@ import {
   listAgentRoleProfiles,
   isAgentRoleProfile,
   type AgentRoleProfile,
-} from "@veyra/sdk";
+} from "@veyraoss/sdk";
 
 const available: AgentRoleProfile[] = listAgentRoleProfiles();
 const planner = getAgentRoleProfile("planner");

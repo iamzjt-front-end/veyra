@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { lstat, mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { isWorkspaceInfo, type WorkspaceInfo } from "@veyra/protocol";
+import { isWorkspaceInfo, type WorkspaceInfo } from "@veyraoss/protocol";
 import { runProcess, type ProcessRunner } from "./process.js";
 import {
   acquireWorkspaceLease,

@@ -1,12 +1,12 @@
 import { join } from "node:path";
-import { parseConfig } from "@veyra/config";
+import { parseConfig } from "@veyraoss/config";
 import {
   type AgentAdapter,
   type AgentInput,
   getAgentRoleProfile,
   listAgentRoleProfiles,
-} from "@veyra/protocol";
-import type { WorkflowDefinition } from "@veyra/workflow";
+} from "@veyraoss/protocol";
+import type { WorkflowDefinition } from "@veyraoss/workflow";
 import { describe, expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { LocalRunStore, VeyraEngine } from "../src/index.js";

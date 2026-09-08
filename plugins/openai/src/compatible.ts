@@ -7,8 +7,8 @@ import {
   type AgentRunOptions,
   type UsageMetadata,
   isJsonValue,
-} from "@veyra/protocol";
-import { createDeadline, createSecretRedactor } from "@veyra/runtime";
+} from "@veyraoss/protocol";
+import { createDeadline, createSecretRedactor } from "@veyraoss/runtime";
 import { httpFailure, normalizeUsage, object, readJson } from "./compatible-http.js";
 import { outputFormat, parseOutput, roleInstructions } from "./output.js";
 
