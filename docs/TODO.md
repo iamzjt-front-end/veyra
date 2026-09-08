@@ -1144,12 +1144,18 @@ Live blocker: Claude Code 2.1.159 reports authenticated access, but `VEYRA_LIVE_
 
 ## M4.5 — Gemini API provider
 
+**Status:** [!] Implementation and deterministic verification passed; live smoke blocked by unavailable API credential.
+
 **Primary area:** `plugins/gemini`
 
-- [ ] planner/reviewer adapter
-- [ ] multimodal/vision capability surfaced only if actually supported by configured model
-- [ ] structured results and usage normalization
-- [ ] tests/smoke test
+- [x] planner/reviewer adapter
+- [x] multimodal/vision capability surfaced only if actually supported by configured model
+- [x] structured results and usage normalization
+- [!] tests/smoke test (87 adapter tests and guarded smoke tooling pass; live requests remain unverified)
+
+Implemented the Gemini Developer API adapter using built-in HTTP transport, role-specific constrained JSON and local evidence validation, bounded streamed bodies, complete request/body deadlines, explicit refusal/error normalization, redaction and provider-reported token accounting. Vision requires explicit opt-in and a documented exact model ID; bounded PNG/JPEG/WebP base64 images become separate request parts without file/URL access. CLI registration, readiness and examples use the existing provider-neutral interfaces. Frozen install, example workflow validation, root doctor and all five baseline commands passed (1090 tests including 87 adapter tests and CLI integration). The white-pixel smoke fixture's dimensions, decoded pixel and PNG checksums were verified locally.
+
+Live blocker: neither `GEMINI_API_KEY` nor `GOOGLE_API_KEY` is present (presence only was inspected). Attempted `VEYRA_LIVE_SMOKE=1 pnpm --filter @veyra/gemini smoke -- gemini-2.5-flash`; it exited 2 with `Set VEYRA_LIVE_SMOKE=1 and GEMINI_API_KEY, then run: pnpm --filter @veyra/gemini smoke -- <model>`. Supply a valid key in the environment and accessible model, then rerun the planner/reviewer smoke; an allowlisted vision model additionally runs the image check. No native CLI credential was extracted or substituted. M4.6 is independent and can proceed.
 
 ---
 
@@ -1600,4 +1606,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.5 — Gemini API provider.** M1.14 and M4.3 have live checks blocked by missing OpenAI/Anthropic API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M4.6 — Gemini CLI executor.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

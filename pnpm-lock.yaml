@@ -50,6 +50,9 @@ importers:
       '@veyra/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@veyra/gemini':
+        specifier: workspace:*
+        version: link:../../plugins/gemini
       '@veyra/openai':
         specifier: workspace:*
         version: link:../../plugins/openai
@@ -156,6 +159,15 @@ importers:
         version: link:../../packages/runtime
 
   plugins/codex:
+    dependencies:
+      '@veyra/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
+
+  plugins/gemini:
     dependencies:
       '@veyra/protocol':
         specifier: workspace:*

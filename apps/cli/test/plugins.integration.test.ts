@@ -87,6 +87,57 @@ const invoke = async (path: string, args: string[], services: CliServices = {}) 
 };
 
 describe("CLI plugin composition", () => {
+  it("discovers Gemini bindings with opt-in vision and credential-presence readiness", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      await fixture(path);
+      await writeFile(
+        join(path, "veyra.yaml"),
+        JSON.stringify({
+          version: 1,
+          workflow: { use: "workflow.yaml" },
+          agents: {
+            analysis: {
+              provider: "gemini",
+              model: "gemini-2.5-flash",
+              options: { role: "planner", vision: true },
+            },
+          },
+        }),
+      );
+      expect(
+        (await invoke(path, ["workflow", "validate", "workflow.yaml", "--config", "veyra.yaml"]))
+          .code,
+      ).toBe(0);
+      const runner: ProcessRunner = async () => ({
+        exitCode: 0,
+        signal: null,
+        stdout: "10.15.1",
+        stderr: "",
+        stdoutTruncated: false,
+        stderrTruncated: false,
+        durationMs: 1,
+      });
+      expect((await invoke(path, ["doctor"], { runProcess: runner })).code).toBe(1);
+      const ready = await invoke(path, ["doctor"], {
+        runProcess: runner,
+        env: { GEMINI_API_KEY: "fixture-google-key" },
+      });
+      expect(ready.code, ready.stdout).toBe(0);
+      expect(ready.records[0].providers[0]).toMatchObject({
+        provider: "gemini",
+        ready: true,
+        scope: "configuration",
+        descriptor: {
+          roles: ["planner"],
+          capabilities: ["reasoning", "structured-output", "vision"],
+        },
+      });
+      expect(ready.stdout).not.toContain("fixture-google-key");
+      const run = await invoke(path, ["run", "Plan a change"]);
+      expect(run.code).toBe(1);
+      expect(run.stdout).toContain("gemini_missing_api_key");
+    });
+  });
   it("validates, discovers and executes the Claude Code built-in through injected runtime", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       await writeFile(

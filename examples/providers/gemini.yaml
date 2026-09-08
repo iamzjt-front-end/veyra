@@ -1,0 +1,20 @@
+version: 1
+project:
+  name: gemini-development
+workflow:
+  use: dev
+agents:
+  planner:
+    provider: gemini
+    model: gemini-2.5-flash
+    options:
+      role: planner
+  executor:
+    provider: codex
+    options:
+      mode: cli
+  reviewer:
+    provider: gemini
+    model: gemini-2.5-flash
+    options:
+      role: reviewer

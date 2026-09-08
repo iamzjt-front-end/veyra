@@ -31,6 +31,8 @@ Results preserve binding order and contain independent descriptor/readiness copi
 
 The Claude API adapter also advertises planner/reviewer/judge roles and reasoning/structured-output capabilities, with credential-presence readiness only; see [Claude configuration](CLAUDE.md). [Claude Code](CLAUDE-CODE.md) advertises executor and code-execution/tool-use/local-cli/structured-output with bounded native CLI/authentication readiness. These adapters currently advertise no vision or web research. Capability declarations describe available adapter paths, not measured model quality or verified account/model access. Native provider permissions still apply; declarations do not create a sandbox.
 
+[Gemini](GEMINI.md) advertises planner/reviewer and reasoning/structured-output. Its inline-image path adds vision only with explicit `vision: true` for documented exact models; unknown model IDs cannot enable vision. Gemini readiness checks only its configured credential variable.
+
 ## Explicit workflow requirements
 
 ```yaml
