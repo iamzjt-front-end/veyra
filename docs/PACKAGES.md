@@ -5,6 +5,7 @@ Veyra will publish separate ESM packages for its existing responsibility boundar
 | Candidate               | Responsibility                                       |
 | ----------------------- | ---------------------------------------------------- |
 | `@veyraoss/protocol`    | Provider-neutral contracts and guards                |
+| `@veyraoss/project`     | Local Project identity and locator registry          |
 | `@veyraoss/config`      | Configuration parsing and validation                 |
 | `@veyraoss/runtime`     | Agent, process and workspace lifecycle               |
 | `@veyraoss/workflow`    | Workflow parsing/graphs, schema and built-in presets |
@@ -19,7 +20,7 @@ Veyra will publish separate ESM packages for its existing responsibility boundar
 | `@veyraoss/opencode`    | OpenCode CLI adapter                                 |
 | `@veyraoss/cli`         | Headless CLI consuming the packages above            |
 
-The repository root, TUI scaffold and Dashboard scaffold remain private. The fourteen candidates form a closed set for all current `@veyraoss/*` production dependencies. Publishing Core/SDK alone while leaving their required runtime packages unavailable would not produce installable packages. Native agent executables are installed separately; these packages do not redistribute or install provider CLIs automatically. Provider-specific code remains in plugins.
+The repository root, TUI scaffold and Dashboard scaffold remain private. The fifteen candidates form a closed set for all current `@veyraoss/*` production dependencies. Publishing Core/SDK alone while leaving their required runtime packages unavailable would not produce installable packages. Native agent executables are installed separately; these packages do not redistribute or install provider CLIs automatically. Provider-specific code remains in plugins.
 
 ## Package contents
 
@@ -35,14 +36,14 @@ Use pnpm to create release-candidate tarballs: its pack operation converts `work
 pnpm packages:check
 ```
 
-This builds packages and checks all fourteen tarballs, then exercises their public imports, TypeScript declarations, schema, presets and CLI from a temporary consumer outside the checkout. Only packed files supply `@veyraoss/*` modules; third-party dependencies reuse the frozen local install, without a network call. It also runs in `pnpm test`. `pnpm installation:check` separately verifies real npm global installation and removal in a disposable prefix; see [installation](INSTALLATION.md).
+This builds packages and checks all fifteen tarballs, then exercises their public imports, TypeScript declarations, schema, presets and CLI from a temporary consumer outside the checkout. Only packed files supply `@veyraoss/*` modules; third-party dependencies reuse the frozen local install, without a network call. It also runs in `pnpm test`. `pnpm installation:check` separately verifies real npm global installation and removal in a disposable prefix; see [installation](INSTALLATION.md).
 
 ## Ownership and publication gate
 
 The initial ownership check for the previous scope was blocked by `E401 Unauthorized`; anonymous package lookups returned 404 and did not establish ownership. The maintainer then created the official `@veyraoss` organization and explicitly requested this scope migration.
 
-On 2026-09-08, `npm whoami --registry=https://registry.npmjs.org` returned `zjex`, and `npm org ls veyraoss --json --registry=https://registry.npmjs.org` returned `{"zjex":"owner"}`. Public registry metadata requests for all fourteen names above returned HTTP 404. The authenticated organization response establishes ownership; absent package metadata alone would not. See [npm scopes](https://docs.npmjs.com/about-scopes/).
+On 2026-09-08, `npm whoami --registry=https://registry.npmjs.org` returned `zjex`, and `npm org ls veyraoss --json --registry=https://registry.npmjs.org` returned `{"zjex":"owner"}`. Public registry metadata requests for the original fourteen names (before Project was added) returned HTTP 404. The authenticated organization response establishes ownership; absent package metadata alone would not. See [npm scopes](https://docs.npmjs.com/about-scopes/).
 
-Only the fourteen selected packages omit `private` and declare `publishConfig.access: public` with the official npm registry. The root and TUI stay private; Dashboard remains an unpublished scaffold. The packed-manifest tests enforce this boundary. Maintainers must recheck authentication, organization permissions and name availability before the first release because registry state can change. Do not paste credentials into issues, configuration, workflow files or this document.
+Only the fifteen selected packages omit `private` and declare `publishConfig.access: public` with the official npm registry. The root and TUI stay private; Dashboard remains an unpublished scaffold. The packed-manifest tests enforce this boundary. Maintainers must recheck authentication, organization permissions and name availability before the first release because registry state can change. Do not paste credentials into issues, configuration, workflow files or this document.
 
 Public npm publication and GitHub releases require explicit human approval. Packing is local verification and grants no publication permission. Live provider smoke blockers and the v0.1 exit criteria remain recorded in [TODO](TODO.md); package verification does not clear them. [Versioning](VERSIONING.md) defines local release-note/changelog preparation, and [Release CI](RELEASING.md) defines artifact review and the protected publication workflow.

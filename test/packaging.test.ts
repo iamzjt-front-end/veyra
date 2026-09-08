@@ -10,6 +10,7 @@ const candidates = [
   "packages/protocol",
   "packages/config",
   "packages/runtime",
+  "packages/project",
   "packages/workflow",
   "packages/verifier",
   "packages/sdk",

@@ -2,6 +2,7 @@ import { parseArgs } from "node:util";
 
 const options = {
   config: { type: "string" },
+  registry: { type: "string" },
   workflow: { type: "string" },
   "allow-plugin": { type: "string", multiple: true },
   model: { type: "string" },
@@ -22,6 +23,8 @@ const options = {
 } as const;
 const allowed: Record<string, string[]> = {
   init: ["config", "workflow", "model", "force"],
+  projects: ["registry"],
+  project: ["registry"],
   run: ["config", "workflow", "non-interactive", "allow-plugin"],
   status: ["config", "run-id"],
   review: ["config", "run-id"],
@@ -64,6 +67,8 @@ export function argumentsFor(argv: string[]) {
       : (parsed.positionals[0] ?? "help");
   if (!Object.hasOwn(allowed, command))
     throw new CliError("unknown_command", `Unknown command: ${command}`, 1);
+  if (parsed.values.registry !== undefined && !parsed.values.registry.trim())
+    throw new CliError("invalid_registry", "--registry must name a directory.");
   for (const key of Object.keys(parsed.values)) {
     if (!["json", "help", "version", ...(allowed[command] ?? [])].includes(key))
       throw new CliError("invalid_option", `--${key} is not valid for ve ${command}.`);
@@ -76,9 +81,20 @@ export function argumentsFor(argv: string[]) {
     command !== "run" &&
     command !== "workflow" &&
     command !== "workspace" &&
+    command !== "project" &&
     positionals.length > (["status", "review", "resume"].includes(command) ? 1 : 0)
   )
     throw new CliError("unexpected_argument", `Unexpected argument for ve ${command}.`);
+  if (
+    command === "project" &&
+    (positionals.length !== 2 ||
+      !["add", "remove", "show"].includes(positionals[0] ?? "") ||
+      !positionals[1]?.trim())
+  )
+    throw new CliError(
+      "invalid_project_command",
+      "Use ve project add <path>, remove <project-id>, or show <project-id>.",
+    );
   if (
     command === "workspace" &&
     (positionals.length !== 2 || positionals[0] !== "remove" || !positionals[1]?.trim())
@@ -132,6 +148,10 @@ export const help = `Veyra — one goal, many agents, verified execution.
 Usage: ve <command>
 
 Commands:
+  projects    list registered Projects and stale locations
+  project add <path>     initialize/open and register a local Project
+  project remove <id>    unregister a Project (preserves project files)
+  project show <id>      inspect a registered Project
   init        create veyra.yaml and local-state ignore rules
   run <goal>  execute the configured workflow
   status [id] inspect active/latest run state
@@ -146,6 +166,7 @@ Commands:
   help        show this help
 
 Options:
+  --registry <directory> select registry root (default: ~/.veyra)
   --config <file>       select configuration (default: ./veyra.yaml)
   --workflow <name/path> override workflow for run/doctor, or select it during init
   --allow-plugin <name> trust a configured local plugin for run/resume/doctor; repeat per provider

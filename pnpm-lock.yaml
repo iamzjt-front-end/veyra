@@ -62,6 +62,9 @@ importers:
       '@veyraoss/opencode':
         specifier: workspace:*
         version: link:../../plugins/opencode
+      '@veyraoss/project':
+        specifier: workspace:*
+        version: link:../../packages/project
       '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -109,6 +112,9 @@ importers:
       '@veyraoss/protocol':
         specifier: workspace:*
         version: link:../protocol
+      '@veyraoss/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       yaml:
         specifier: 2.9.0
         version: 2.9.0

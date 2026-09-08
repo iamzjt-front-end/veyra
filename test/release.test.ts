@@ -156,7 +156,7 @@ async function noPublication(fixture: Fixture) {
 }
 
 describe("release preparation and publication boundaries", () => {
-  it("packs fourteen real tarballs in dependency order with matching hashes and notes", async () => {
+  it("packs fifteen real tarballs in dependency order with matching hashes and notes", async () => {
     await withReleaseFixture(async (fixture) => {
       expect(await command(fixture, "check", ["--ready"])).toContain("publishable=true");
       await command(fixture, "pack", ["--out", fixture.out]);
@@ -168,7 +168,7 @@ describe("release preparation and publication boundaries", () => {
         version: "0.1.0",
         publishable: true,
       });
-      expect(bundle.packages).toHaveLength(14);
+      expect(bundle.packages).toHaveLength(15);
       const seen = new Set<string>();
       for (const artifact of bundle.packages) {
         const bytes = await readFile(join(fixture.out, artifact.filename));
@@ -194,7 +194,7 @@ describe("release preparation and publication boundaries", () => {
       );
       expect(
         (await readFile(join(fixture.out, "SHA256SUMS"), "utf8")).trim().split("\n"),
-      ).toHaveLength(14);
+      ).toHaveLength(15);
       await command(fixture, "pack", ["--out", fixture.out], 1);
       await noPublication(fixture);
       expect(await git(fixture.cwd, "tag", "--list")).toBe("");
@@ -257,8 +257,8 @@ describe("release preparation and publication boundaries", () => {
         .trim()
         .split("\n")
         .map((line) => JSON.parse(line));
-      expect(calls).toHaveLength(28);
       const bundle = await json(join(fixture.out, "release.json"));
+      expect(calls).toHaveLength(bundle.packages.length * 2);
       for (const [index, artifact] of bundle.packages.entries()) {
         expect(calls[index * 2]).toEqual([
           "publish",

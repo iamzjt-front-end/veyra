@@ -17,7 +17,8 @@
       "@veyraoss/gemini",
       "@veyraoss/openai",
       "@veyraoss/opencode",
-      "@veyraoss/cli"
+      "@veyraoss/cli",
+      "@veyraoss/project"
     ]
   ],
   "linked": [],

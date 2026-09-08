@@ -3,6 +3,13 @@ import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { loadConfig } from "@veyraoss/config";
+import {
+  initializeProject,
+  openProject,
+  ProjectError,
+  ProjectRegistry,
+  type ProjectId,
+} from "@veyraoss/project";
 import { eventView, LocalRunStore, type RunResult, VeyraEngine } from "@veyraoss/core";
 import type { AgentPermissions, VeyraEvent } from "@veyraoss/protocol";
 import { type ProcessRunner, runProcess } from "@veyraoss/runtime";
@@ -54,6 +61,60 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     if (command === "version") {
       write({ version: CLI_VERSION, executable: "ve" }, `ve ${CLI_VERSION}`);
       return 0;
+    }
+    if (command === "projects" || command === "project") {
+      const registry = new ProjectRegistry(
+        values.registry ? { root: resolve(cwd, values.registry) } : {},
+      );
+      if (command === "projects") {
+        const projects = await registry.list();
+        write(
+          { projects },
+          projects
+            .map(
+              ({ project, status, reason }) =>
+                `${project.id} ${project.name} — ${project.root} (${status}${reason ? `: ${reason}` : ""})`,
+            )
+            .join("\n") || "No registered Projects. Use ve project add <path>.",
+        );
+        return 0;
+      }
+      const reference = positionals[1] as string;
+      if (positionals[0] === "add") {
+        const path = resolve(cwd, reference);
+        try {
+          await openProject(path);
+        } catch (error) {
+          if (!(error instanceof ProjectError) || error.code !== "project_missing") throw error;
+          try {
+            await initializeProject(path);
+          } catch (error) {
+            if (!(error instanceof ProjectError) || error.code !== "project_exists") throw error;
+          }
+        }
+        const result = await registry.register(path);
+        write(
+          result,
+          `Registered ${result.project.id}: ${result.project.name}\n${result.project.root}`,
+        );
+        return 0;
+      }
+      if (positionals[0] === "remove") {
+        const removed = await registry.unregister(reference as ProjectId);
+        if (!removed) throw new CliError("project_not_found", "Project is not registered.");
+        write(
+          { projectId: reference, removed },
+          `Unregistered ${reference}; project files are preserved.`,
+        );
+        return 0;
+      }
+      const result = await registry.get(reference as ProjectId);
+      if (!result) throw new CliError("project_not_found", "Project is not registered.");
+      write(
+        result,
+        `${result.project.id} ${result.project.name}\n${result.project.root}\n${result.status}${result.reason ? `: ${result.reason}` : ""}`,
+      );
+      return result.status === "available" ? 0 : 1;
     }
     const configPath = resolve(cwd, values.config ?? "veyra.yaml");
     const root = dirname(configPath);

@@ -87,7 +87,7 @@ async function withVersioningFixture(
     }
     const config = await readJson(join(cwd, ".changeset/config.json"));
     expect([...packages.keys()].sort()).toEqual(config.fixed[0].toSorted());
-    expect(packages.size).toBe(14);
+    expect(packages.size).toBe(15);
     const head = await initializeGit(cwd);
     await action(cwd, packages, head);
   } finally {
@@ -168,11 +168,7 @@ describe("local version and changelog preparation", () => {
         expect(coreLog).toContain("Fixture repair.");
         expect(coreLog).toContain(`@veyraoss/runtime@${next}`);
         expect(await readdir(join(cwd, ".changeset"))).toEqual(["config.json"]);
-        for (const path of [
-          "package.json",
-          "apps/tui/package.json",
-          "packages/project/package.json",
-        ]) {
+        for (const path of ["package.json", "apps/tui/package.json"]) {
           expect((await readJson(join(cwd, path))).version).toBe(
             (await readJson(join(root, path))).version,
           );

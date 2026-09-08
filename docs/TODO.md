@@ -216,7 +216,7 @@ Verification: 24 new Project/contract tests include three cold provider-free pro
 
 ## P0.2 — Add a lightweight global Project Registry
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.1
 
@@ -228,16 +228,16 @@ Allow Veyra surfaces/daemon to find known projects without copying workflow stat
 
 ### Requirements
 
-- [ ] global registry under `~/.veyra/projects.json` (or documented platform equivalent);
-- [ ] registry stores only locator/identity metadata;
-- [ ] project-owned run/context/workflow state remains in the project folder;
-- [ ] add project register/unregister/list/get operations;
-- [ ] make writes atomic enough to survive interruption;
-- [ ] guard concurrent writers;
-- [ ] detect moved/deleted projects and surface stale entries clearly;
-- [ ] avoid silently deleting stale entries;
-- [ ] do not store provider credentials or chat transcripts;
-- [ ] allow test-specific registry roots so tests never touch the real home directory.
+- [x] global registry under `~/.veyra/projects.json` (or documented platform equivalent);
+- [x] registry stores only locator/identity metadata;
+- [x] project-owned run/context/workflow state remains in the project folder;
+- [x] add project register/unregister/list/get operations;
+- [x] make writes atomic enough to survive interruption;
+- [x] guard concurrent writers;
+- [x] detect moved/deleted projects and surface stale entries clearly;
+- [x] avoid silently deleting stale entries;
+- [x] do not store provider credentials or chat transcripts;
+- [x] allow test-specific registry roots so tests never touch the real home directory.
 
 ### CLI target
 
@@ -253,6 +253,8 @@ Exact UX may evolve, but the project registry API must exist independently of pr
 ### Acceptance criteria
 
 Two separate Veyra processes can discover the same registered project and agree on its canonical path without reading unrelated project state.
+
+Verification: five independent concurrent writers and a second cold reader agree on the registry; killed-writer recovery, stale/duplicate identity, malformed/linked registry and separate-process CLI tests pass. All five baseline commands passed (1,762 tests), including isolated packing of the CLI dependency closure; frozen offline installation passed.
 
 ---
 
@@ -815,6 +817,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.2 — Add a lightweight global Project Registry.**
+**P0.3 — Define the Shared Project State contract.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

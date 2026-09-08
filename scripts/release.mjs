@@ -110,10 +110,10 @@ async function inspect(tag, distTag, ready) {
   }
   const fixed = (await json(".changeset/config.json")).fixed;
   requireValue(
-    packages.length === 14 &&
+    packages.length === 15 &&
       fixed.length === 1 &&
       JSON.stringify(packages.map((p) => p.name).sort()) === JSON.stringify([...fixed[0]].sort()),
-    "The release set must match the fourteen fixed official packages.",
+    "The release set must match the fifteen fixed official packages.",
   );
   /** @type {Package[]} */
   const ordered = [];

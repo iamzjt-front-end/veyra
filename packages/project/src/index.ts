@@ -6,6 +6,7 @@ import { parseDocument, stringify } from "yaml";
 import { isProjectDescriptor, type ProjectDescriptor, type ProjectId } from "@veyraoss/protocol";
 
 export type { ProjectDescriptor, ProjectId } from "@veyraoss/protocol";
+export { ProjectRegistry, RegistryError, type RegisteredProject } from "./registry.js";
 
 export class ProjectError extends Error {
   override readonly name = "ProjectError";

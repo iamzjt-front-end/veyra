@@ -18,7 +18,8 @@
     "@veyraoss/gemini": "workspace:*",
     "@veyraoss/openai": "workspace:*",
     "@veyraoss/opencode": "workspace:*",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "@veyraoss/project": "workspace:*"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

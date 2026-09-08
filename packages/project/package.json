@@ -1,7 +1,6 @@
 {
   "name": "@veyraoss/project",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Local Veyra Project identity and project-owned state.",
   "exports": {
@@ -19,6 +18,26 @@
   },
   "dependencies": {
     "@veyraoss/protocol": "workspace:*",
-    "yaml": "2.9.0"
+    "yaml": "2.9.0",
+    "@veyraoss/runtime": "workspace:*"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamzjt-front-end/veyra.git",
+    "directory": "packages/project"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   }
 }
