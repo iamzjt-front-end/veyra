@@ -149,6 +149,8 @@ The [package strategy](docs/PACKAGES.md) identifies fourteen release candidates 
 
 The [versioning policy](docs/VERSIONING.md) covers compatible changes, official package versions and the local Changesets workflow. Use `pnpm changeset` to add a release note and `pnpm release:status` to preview the next version. [Changelog](CHANGELOG.md) identifies pending notes and generated package histories.
 
+The manual [release workflow](docs/RELEASING.md) validates and packs review artifacts by default. Public publication is a separate job requiring explicit human approval through the protected `npm-release` environment.
+
 The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The Core loop, first adapters, and headless CLI commands work; live provider runs require the corresponding accounts and credentials.
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.

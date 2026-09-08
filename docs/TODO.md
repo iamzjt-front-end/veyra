@@ -1563,11 +1563,17 @@ Verified frozen installation, `pnpm release:status`, `pnpm versioning:check`, `p
 
 ## M7.3 — Release CI
 
+**Status:** [-] Implementation and local verification complete; hosted validation pending.
+
 - [ ] GitHub release workflow
 - [ ] npm provenance/signing where supported
 - [ ] build/test before publish
 - [ ] tag/version consistency checks
 - [ ] no secret leakage in logs
+
+Implemented the manual [release workflow](RELEASING.md): verification runs before a separately approved publication job, all Actions/tool versions are pinned, artifacts retain source/version metadata and hashes, and the publisher validates all tarballs before using npm OIDC/provenance and checking registry integrity. The GitHub `npm-release` environment was configured and read back with required reviewer `iamzjt-front-end` and a `main` branch restriction. No npm token was uploaded, trusted-publisher registration performed or package published.
+
+Local frozen installation, actionlint 1.7.12, all five baseline commands (1,696 tests), `pnpm release-ci:check` and actual `pnpm release:pack --tag v0.1.0 --dist-tag latest --out <temporary-directory>` passed. Ten new cases exercise real Git/pnpm packing and substitute npm only inside disposable fixtures for publication arguments, integrity failures and diagnostic redaction. The checkout's fourteen real tarballs were correctly marked as a non-publishable preview. Seventy-one local documentation targets resolve. Hosted validation will be dispatched with publication disabled before marking this item complete; live public publication/provenance remains outside this verification and requires explicit approval and registry setup.
 
 ---
 

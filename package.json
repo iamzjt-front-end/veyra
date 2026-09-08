@@ -14,7 +14,7 @@
     "format:check": "prettier --check .",
     "build": "turbo build",
     "dev": "turbo dev --parallel",
-    "check": "turbo check && tsc -p tsconfig.test.json",
+    "check": "turbo check && tsc -p tsconfig.test.json && tsc -p tsconfig.scripts.json",
     "test": "turbo test && vitest run --config vitest.config.ts",
     "smoke:live": "pnpm build && tsx test/smoke/manual-smoke.ts",
     "packages:check": "pnpm build && vitest run --config vitest.config.ts test/packaging.test.ts",
@@ -23,7 +23,10 @@
     "changeset": "changeset",
     "release:status": "changeset status",
     "release:version": "changeset version && pnpm install --lockfile-only && pnpm format",
-    "versioning:check": "vitest run --config vitest.config.ts test/versioning.test.ts"
+    "versioning:check": "vitest run --config vitest.config.ts test/versioning.test.ts",
+    "release:check": "node scripts/release.mjs check",
+    "release:pack": "node scripts/release.mjs pack",
+    "release-ci:check": "vitest run --config vitest.config.ts test/release.test.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

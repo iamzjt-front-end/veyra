@@ -44,7 +44,7 @@ pnpm packages:check
 
 Changesets does not commit automatically, version/tag private packages or publish as part of these scripts. No repository version was bumped to implement this workflow. The initial pending note can be previewed now; applying a release plan remains a deliberate local preparation step. Prereleases use explicit SemVer suffixes and a separate npm dist-tag when publication is eventually approved; no prerelease channel or publication workflow is enabled by this task.
 
-Public npm publication and GitHub releases still require explicit human approval and all applicable live/exit gates in [TODO](TODO.md). M7.3 owns release CI. Never invoke publication merely because local preparation passes.
+Public npm publication and GitHub releases still require explicit human approval and review of all applicable live/exit gates in [TODO](TODO.md). The [release CI procedure](RELEASING.md) prepares artifacts before its protected publication job. Never invoke publication merely because local preparation passes.
 
 ## Verification
 
