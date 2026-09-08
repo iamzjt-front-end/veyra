@@ -174,7 +174,15 @@ describe("local run state", () => {
 
   it("redacts known secret values and credential fields without persisting the environment", async () => {
     await withFixtureWorkspace(async ({ path }) => {
-      const secret = "fixture-private-credential";
+      const secret = 'fixture/private+"credential';
+      const escaped = JSON.stringify(secret).slice(1, -1);
+      const representations = [
+        secret,
+        escaped,
+        JSON.stringify(escaped).slice(1, -1),
+        encodeURIComponent(secret),
+        encodeURIComponent(encodeURIComponent(secret)),
+      ];
       const store = new LocalRunStore({ stateDir: join(path, ".veyra"), redactValues: [secret] });
       const run = await store.createRun({
         goal: `Work with ${secret}`,
@@ -198,6 +206,8 @@ describe("local run state", () => {
           data: {
             password: "another-value",
             env: { UNRECOGNIZED_CREDENTIAL: "hidden-environment-value" },
+            publicLog: representations.join(" "),
+            auth_token: "hidden-generic-token",
           },
         },
       });
@@ -206,7 +216,10 @@ describe("local run state", () => {
           readFile(join(store.directory, "runs", run.state.runId, file), "utf8"),
         ),
       );
-      expect(persisted.join("\n")).not.toContain(secret);
+      expect(persisted.join("\n")).not.toContain("fixture/private");
+      expect(persisted.join("\n")).not.toContain("fixture%2Fprivate");
+      expect(persisted.join("\n")).not.toContain("fixture%252Fprivate");
+      expect(persisted.join("\n")).not.toContain("hidden-generic-token");
       expect(persisted.join("\n")).not.toContain("other-secret-value");
       expect(persisted.join("\n")).not.toContain("another-value");
       expect(persisted.join("\n")).not.toContain("hidden-environment-value");

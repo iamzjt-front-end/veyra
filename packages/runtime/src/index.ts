@@ -1,5 +1,11 @@
 import type { AgentAdapter, AgentInput, AgentResult, AgentRunOptions } from "@veyra/protocol";
 export { createDeadline } from "./deadline.js";
+export {
+  collectSecretValues,
+  createSecretRedactor,
+  isSecretField,
+  type SecretRedactor,
+} from "./secrets.js";
 
 export interface AgentRuntime {
   runAgent(

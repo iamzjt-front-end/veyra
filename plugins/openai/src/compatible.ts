@@ -8,8 +8,8 @@ import {
   type UsageMetadata,
   isJsonValue,
 } from "@veyra/protocol";
-import { createDeadline } from "@veyra/runtime";
-import { httpFailure, normalizeUsage, object, readJson, redact } from "./compatible-http.js";
+import { createDeadline, createSecretRedactor } from "@veyra/runtime";
+import { httpFailure, normalizeUsage, object, readJson } from "./compatible-http.js";
 import { outputFormat, parseOutput, roleInstructions } from "./output.js";
 
 export interface OpenAICompatibleAdapterOptions {
@@ -214,6 +214,7 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
       );
     const keyName = this.#options.apiKeyEnv;
     const apiKey = keyName ? this.#env[keyName] : undefined;
+    const redactor = createSecretRedactor({ env: this.#env, values: apiKey ? [apiKey] : [] });
     if (keyName && !apiKey?.trim())
       return failure("missing_api_key", `Set ${keyName} before using the compatible adapter.`);
     if (apiKey && !/^[\x21-\x7e]+$/.test(apiKey))
@@ -247,7 +248,7 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
               role: "system",
               content: `${roleInstructions(role)} Return exactly this JSON Schema, without Markdown or extra text: ${JSON.stringify(format.schema)}`,
             },
-            { role: "user", content: JSON.stringify(redact(input, apiKey)) },
+            { role: "user", content: JSON.stringify(redactor.json(input)) },
           ],
           ...(mode === "text"
             ? {}
@@ -346,7 +347,7 @@ export class OpenAICompatibleAdapter implements AgentAdapter {
       }
       if (!isJsonValue(parsed))
         return failure("invalid_output", "Compatible normalization produced non-JSON data.");
-      const safe = redact(parsed, apiKey);
+      const safe = redactor.json(parsed);
       if (!object(safe) || safe.status !== parsed.status || safe.outcome !== parsed.outcome)
         return failure(
           "invalid_output",

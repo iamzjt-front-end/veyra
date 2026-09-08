@@ -8,6 +8,8 @@ Required fields are `version: 1`, an `agents` object, and `workflow.use` (a non-
 
 The optional `project` object requires `name` when present. Unknown fields at the root and inside project, agent, plugin, workflow, runtime, or approval objects are rejected; arbitrary provider settings belong under an agent's or plugin namespace's `options` object.
 
+Provider options must be credential-free. M4.9 rejects credential-shaped fields and `env`/`environment` snapshots at every nesting level. Use a valid `apiKeyEnv` variable name (up to 128 characters) or native CLI login. No secret value is read or echoed during parsing. See [authentication precedence and redaction](AUTHENTICATION.md).
+
 M4.2 adds optional `plugins`, a map of up to 64 provider identifiers. Each entry accepts `module`, `version`, and JSON `options` (default `{}`, at most 256 KiB). Built-ins may use an options-only namespace and optionally pin their exact plugin version. Third-party entries require an explicit local `.js`/`.mjs`/`.cjs` module path and exact version; URLs, package specifiers and version ranges are rejected. Parsing validates declarations without importing modules. CLI loading additionally requires `--allow-plugin <provider>` for each trusted local module. See the [plugin reference](PLUGINS.md) for the contract, precedence, trust boundary and examples. The whole `plugins` field remains absent when omitted, preserving existing normalized configs.
 
 | Optional value             | Default  | Validation                                               |

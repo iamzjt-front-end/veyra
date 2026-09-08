@@ -44,10 +44,13 @@ const adapterOptions = (
 /** Built-ins are composed here, never inside Core or the public SDK registry. */
 export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
   const openai = (agent: PluginAgentConfig, context: PluginContext) =>
-    new OpenAIAdapter(adapterOptions(agent, context) as OpenAIAdapterOptions);
+    new OpenAIAdapter(adapterOptions(agent, context) as OpenAIAdapterOptions, {
+      env: services.env,
+    });
   const codex = (agent: PluginAgentConfig, context: PluginContext) =>
     new CodexAdapter(adapterOptions(agent, context) as CodexAdapterOptions, {
       runProcess: services.runProcess,
+      env: services.env,
     });
   const claude = (agent: PluginAgentConfig, context: PluginContext) =>
     new ClaudeAdapter(adapterOptions(agent, context) as ClaudeAdapterOptions, {
@@ -143,26 +146,7 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
       provider: "openai",
       version: "0.1.0",
       createAgent: openai,
-      checkReadiness: async (agent, context, controls) => {
-        const adapter = openai(agent, context);
-        if (!services.env) return adapter.checkReadiness(controls);
-        if (controls.signal?.aborted)
-          return {
-            status: "unknown",
-            scope: "configuration",
-            message: "Readiness check was cancelled.",
-          };
-        const options = adapterOptions(agent, context);
-        const key = typeof options.apiKeyEnv === "string" ? options.apiKeyEnv : "OPENAI_API_KEY";
-        const present = Boolean(services.env[key]?.trim());
-        return {
-          status: present ? "ready" : "unavailable",
-          scope: "configuration",
-          message: present
-            ? `${key} is present; API access was not tested.`
-            : `Set ${key}; no key value is printed.`,
-        };
-      },
+      checkReadiness: (agent, context, controls) => openai(agent, context).checkReadiness(controls),
     },
     {
       apiVersion: 1,

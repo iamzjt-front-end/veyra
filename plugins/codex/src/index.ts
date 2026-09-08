@@ -10,9 +10,10 @@ import {
   type AgentRunOptions,
   isJsonValue,
   type JsonObject,
-  type JsonValue,
 } from "@veyra/protocol";
 import {
+  createSecretRedactor,
+  type SecretRedactor,
   ProcessExecutionError,
   type ProcessResult,
   type ProcessRunner,
@@ -43,10 +44,11 @@ export class CodexAdapter implements AgentAdapter {
   readonly provider = "codex";
   readonly #options: Readonly<CodexAdapterOptions>;
   readonly #runProcess: ProcessRunner;
+  readonly #env: Readonly<NodeJS.ProcessEnv>;
 
   constructor(
     options: CodexAdapterOptions = {},
-    dependencies: { runProcess?: ProcessRunner } = {},
+    dependencies: { runProcess?: ProcessRunner; env?: Readonly<NodeJS.ProcessEnv> } = {},
   ) {
     if (
       Object.keys(options).some(
@@ -89,6 +91,7 @@ export class CodexAdapter implements AgentAdapter {
     this.id = options.id ?? "codex";
     this.#options = Object.freeze({ ...options });
     this.#runProcess = dependencies.runProcess ?? runProcess;
+    this.#env = dependencies.env ?? process.env;
   }
 
   describe(): AgentDescriptor {
@@ -130,6 +133,7 @@ export class CodexAdapter implements AgentAdapter {
     const start = performance.now();
     const startedAt = new Date().toISOString();
     const output = new CodexOutput();
+    const redactor = createSecretRedactor({ env: this.#env });
     let processResult: ProcessResult | undefined;
     const finish = (result: AgentResult): AgentResult => ({
       ...result,
@@ -149,7 +153,7 @@ export class CodexAdapter implements AgentAdapter {
         ? {
             data: {
               ...result.data,
-              process: processEvidence(processResult),
+              process: processEvidence(processResult, redactor),
               ...(output.droppedRecords ? { droppedOversizedRecords: true } : {}),
             },
           }
@@ -163,7 +167,7 @@ export class CodexAdapter implements AgentAdapter {
       return failure("codex_invalid_input", "Codex input must contain a goal and plain JSON data.");
     if (options.signal?.aborted)
       return failure("codex_cancelled", "Codex execution was cancelled.");
-    const prompt = buildPrompt(input);
+    const prompt = buildPrompt(input, this.#env);
     if (Buffer.byteLength(prompt) > 256 * 1024)
       return failure(
         "codex_input_too_large",
@@ -219,8 +223,8 @@ export class CodexAdapter implements AgentAdapter {
           "codex_invalid_output",
           "Codex did not emit a completed turn with a valid structured result.",
         );
-      result.summary = redact(result.summary);
-      if (result.data) result.data = redactJson(result.data) as JsonObject;
+      result.summary = redactor.text(result.summary);
+      if (result.data) result.data = redactor.json(result.data) as JsonObject;
       return finish(result);
     } catch (error) {
       if (error instanceof ProcessExecutionError) {
@@ -267,7 +271,7 @@ export class CodexAdapter implements AgentAdapter {
               : "unknown";
       return {
         available: true,
-        version: match[1],
+        version: match[1] ? createSecretRedactor({ env: this.#env }).text(match[1]) : undefined,
         authentication,
         ready: authentication === "ready",
         message:
@@ -290,60 +294,28 @@ export class CodexAdapter implements AgentAdapter {
   }
 }
 
-export function buildPrompt(input: AgentInput): string {
+export function buildPrompt(
+  input: AgentInput,
+  env: Readonly<NodeJS.ProcessEnv> = process.env,
+): string {
   if (!isJsonValue(input)) throw new Error("Codex prompt input must be plain JSON data.");
   return [
     "You are Veyra's executor for the supplied task. Preserve and follow user/project AGENTS.md instructions and existing execution policies. Make only the changes needed for the goal and current task, using prior planner/reviewer/verification context as evidence. Do not commit, push, publish, or deploy. If explicit human approval or unavailable access is required, stop and report needs_input. Never copy authentication files or expose credentials in output.",
     "Return the requested structured result: status, concise summary, changedFiles, and commandsRun. List only changes and commands actually performed. These are execution claims; separate deterministic verification will follow.",
     "Task envelope:",
-    JSON.stringify(redactJson(input), null, 2),
+    JSON.stringify(createSecretRedactor({ env }).json(input), null, 2),
   ].join("\n\n");
 }
 
-function processEvidence(result: ProcessResult): JsonObject {
+function processEvidence(result: ProcessResult, redactor: SecretRedactor): JsonObject {
   return {
     exitCode: result.exitCode,
     signal: result.signal,
     durationMs: result.durationMs,
-    stdout: redact(result.stdout),
-    stderr: redact(result.stderr),
+    stdout: redactor.text(result.stdout),
+    stderr: redactor.text(result.stderr),
     stdoutTruncated: result.stdoutTruncated,
     stderrTruncated: result.stderrTruncated,
     ...(result.terminationReason ? { terminationReason: result.terminationReason } : {}),
   };
-}
-
-function redact(text: string): string {
-  let result = text;
-  for (const key of [
-    process.env.OPENAI_API_KEY,
-    process.env.CODEX_API_KEY,
-    process.env.CODEX_ACCESS_TOKEN,
-  ]) {
-    if (key) {
-      // JSONL contains JSON encoded inside agent_message.text as well as raw diagnostics.
-      const encoded = JSON.stringify(key).slice(1, -1);
-      const twiceEncoded = JSON.stringify(encoded).slice(1, -1);
-      for (const representation of [twiceEncoded, encoded, key])
-        result = result.split(representation).join("[REDACTED]");
-    }
-  }
-  return result.replace(/\bBearer\s+[^\s"']+/gi, "Bearer [REDACTED]");
-}
-
-function redactJson(value: JsonValue): JsonValue {
-  if (typeof value === "string") return redact(value);
-  if (Array.isArray(value)) return value.map(redactJson);
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        /(?:api[_-]?key|token|password|secret|authorization|cookie)$|^(?:env|environment)$/i.test(
-          key,
-        )
-          ? "[REDACTED]"
-          : redactJson(item),
-      ]),
-    );
-  return value;
 }

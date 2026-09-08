@@ -253,6 +253,24 @@ describe("Codex CLI adapter", () => {
     expect(isJsonValue(result)).toBe(true);
   });
 
+  it("redacts standard credentials from the supplied environment without rewriting native process auth", async () => {
+    const secret = "fixture-github-credential";
+    const runner: ProcessRunner = async (request) => {
+      expect(request.stdin).not.toContain(secret);
+      expect(request.env).toBeUndefined();
+      return completed({
+        stdout: lines({ ...message, summary: secret }),
+        stderr: encodeURIComponent(secret),
+      });
+    };
+    const result = await new CodexAdapter(
+      {},
+      { runProcess: runner, env: { GITHUB_TOKEN: secret } },
+    ).run({ ...input, context: { note: secret } });
+    expect(result.summary).toBe("[REDACTED]");
+    expect(JSON.stringify(result)).not.toContain(secret);
+  });
+
   it.each([
     { mode: "other" },
     { apiKey: "forbidden" },

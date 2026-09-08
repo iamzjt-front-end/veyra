@@ -39,6 +39,67 @@ function commands(cwd: string, dependencies: CliServices = {}) {
 }
 
 describe("CLI application commands", () => {
+  it("keeps standard and custom provider secrets out of events, saved files, errors and later CLI inspection", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const token = 'fixture/github+"token';
+      const custom = "fixture-custom-credential";
+      const encoded = JSON.stringify(token).slice(1, -1);
+      const exposed = [
+        token,
+        encoded,
+        JSON.stringify(encoded).slice(1, -1),
+        encodeURIComponent(token),
+        encodeURIComponent(encodeURIComponent(token)),
+        custom,
+      ].join(" ");
+      await writeFile(
+        join(path, "veyra.yaml"),
+        JSON.stringify({
+          version: 1,
+          workflow: { use: "workflow.yaml" },
+          agents: { worker: { provider: "fixture", options: { apiKeyEnv: "ODD_CREDENTIAL" } } },
+        }),
+      );
+      await writeFile(
+        join(path, "workflow.yaml"),
+        JSON.stringify({
+          version: 1,
+          name: "Auth boundary",
+          start: "token",
+          steps: { token: { type: "agent", agent: "worker" } },
+        }),
+      );
+      const ve = commands(path, {
+        env: { GITHUB_TOKEN: token, ODD_CREDENTIAL: custom },
+        createAgent: () => ({
+          id: "worker",
+          provider: "fixture",
+          run: async (input) => {
+            expect(JSON.stringify(input)).not.toContain("fixture/github");
+            throw new Error(`Provider failed: ${exposed}`);
+          },
+        }),
+      });
+      const result = await ve(["run", `Do this task with ${exposed}`, "--json"]);
+      expect(result.code, result.stderr).toBe(1);
+      const runId = result.records().at(-1).runId as string;
+      const status = await ve(["status", runId, "--json"]);
+      const reviewed = await ve(["review", runId]);
+      expect(status.records()[0]).toMatchObject({ currentStep: "token" });
+      const files = await Promise.all(
+        ["input.json", "state.json", "events.jsonl"].map((file) =>
+          readFile(join(path, ".veyra", "runs", runId, file), "utf8"),
+        ),
+      );
+      for (const text of [result.stdout, result.stderr, status.stdout, reviewed.stdout, ...files]) {
+        expect(text).not.toContain("fixture/github");
+        expect(text).not.toContain("fixture%2Fgithub");
+        expect(text).not.toContain("fixture%252Fgithub");
+        expect(text).not.toContain(custom);
+      }
+      expect(files.join("\n")).toContain("[REDACTED]");
+    });
+  });
   it("uses the normal approval and resume commands for workflow policy gates", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const worker = new FakeAgent({ status: "success", summary: "Approved work completed" });

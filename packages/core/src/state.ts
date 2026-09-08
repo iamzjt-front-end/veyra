@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lstat, mkdir, open, readFile, readdir, rename, rm } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { isJsonValue, type JsonValue, type VeyraEvent } from "@veyra/protocol";
+import { createSecretRedactor, isSecretField, type SecretRedactor } from "@veyra/runtime";
 import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { isStoredEvent } from "./state-events.js";
 
@@ -65,21 +66,17 @@ export class StateStoreError extends Error {
 }
 
 const RUN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SECRET_FIELD =
-  /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|passwd|secret|authorization|cookie|private[_-]?key)$|^(?:env|environment)$/i;
 const MAX_JSON_BYTES = 16 * 1024 * 1024;
 
 /** Local single-writer store. Scheduling, provider configuration, and credentials stay outside it. */
 export class LocalRunStore {
   readonly directory: string;
-  readonly #redactValues: readonly string[];
+  readonly #redactor: SecretRedactor;
   #pending: Promise<unknown> = Promise.resolve();
 
   constructor(options: LocalRunStoreOptions = {}) {
     this.directory = resolve(options.stateDir ?? ".veyra");
-    this.#redactValues = [...(options.redactValues ?? [])]
-      .filter(Boolean)
-      .sort((a, b) => b.length - a.length);
+    this.#redactor = createSecretRedactor({ values: options.redactValues });
   }
 
   createRun(input: CreateRunInput): Promise<StoredRun> {
@@ -350,7 +347,7 @@ export class LocalRunStore {
         path,
         "Only plain JSON-compatible data may be persisted.",
       );
-    const text = JSON.stringify(redact(value, this.#redactValues));
+    const text = JSON.stringify(redact(value, this.#redactor));
     if (Buffer.byteLength(text) > MAX_JSON_BYTES)
       throw new StateStoreError(
         "invalid_input",
@@ -508,18 +505,9 @@ function parseState(
   return structuredClone(value) as unknown as StoredRunState;
 }
 
-function redact(value: JsonValue, secrets: readonly string[], path: string[] = []): JsonValue {
-  if (typeof value === "string") {
-    return value
-      .split("[REDACTED]")
-      .map((part) => {
-        let result = part;
-        for (const secret of secrets) result = result.split(secret).join("[REDACTED]");
-        return result;
-      })
-      .join("[REDACTED]");
-  }
-  if (Array.isArray(value)) return value.map((item) => redact(item, secrets, path));
+function redact(value: JsonValue, redactor: SecretRedactor, path: string[] = []): JsonValue {
+  if (typeof value === "string") return redactor.text(value);
+  if (Array.isArray(value)) return value.map((item) => redact(item, redactor, path));
   if (value && typeof value === "object") {
     let structuralKeys = path.join(".") === "retryCounts";
     for (let offset = 0; path[offset] === "workflow" && path[offset + 1] === "steps"; offset += 3) {
@@ -532,9 +520,9 @@ function redact(value: JsonValue, secrets: readonly string[], path: string[] = [
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [
         key,
-        !structuralKeys && SECRET_FIELD.test(key)
+        !structuralKeys && isSecretField(key)
           ? "[REDACTED]"
-          : redact(item, secrets, [...path, key]),
+          : redact(item, redactor, [...path, key]),
       ]),
     );
   }

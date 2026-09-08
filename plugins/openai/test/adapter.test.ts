@@ -377,7 +377,7 @@ describe("OpenAI reasoning adapter", () => {
 
   it("uses the official SDK with an environment key and mocked HTTP transport", async () => {
     const key = "fixture-api-credential";
-    vi.stubEnv("VEYRA_TEST_OPENAI_KEY", key);
+    vi.stubEnv("VEYRA_TEST_OPENAI_KEY", "different-ambient-credential");
     vi.stubEnv("OPENAI_LOG", "debug");
     vi.stubEnv("OPENAI_BASE_URL", "https://unexpected.invalid/v1");
     const debug = vi.spyOn(console, "debug").mockImplementation(() => undefined);
@@ -410,9 +410,16 @@ describe("OpenAI reasoning adapter", () => {
         ),
     );
     vi.stubGlobal("fetch", fetch);
-    const instance = new OpenAIAdapter({
-      model: "fixture-model",
-      apiKeyEnv: "VEYRA_TEST_OPENAI_KEY",
+    const instance = new OpenAIAdapter(
+      {
+        model: "fixture-model",
+        apiKeyEnv: "VEYRA_TEST_OPENAI_KEY",
+      },
+      { env: { VEYRA_TEST_OPENAI_KEY: key } },
+    );
+    expect(await instance.checkReadiness()).toMatchObject({
+      status: "ready",
+      scope: "configuration",
     });
     const result = await instance.run({
       ...input,
@@ -426,9 +433,20 @@ describe("OpenAI reasoning adapter", () => {
     const body = String(call[1].body);
     expect(body).not.toContain(key);
     expect(body).not.toContain("hidden-input-password");
+    expect(JSON.stringify(call)).not.toContain("different-ambient-credential");
     expect(new Headers(call[1].headers).get("authorization")).toBe(`Bearer ${key}`);
     expect(JSON.stringify(result)).not.toContain(key);
     expect(debug).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back from an explicitly supplied empty environment to ambient OpenAI auth", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "ambient-credential");
+    const fetch = vi.fn();
+    vi.stubGlobal("fetch", fetch);
+    const instance = new OpenAIAdapter({ model: "fixture" }, { env: {} });
+    expect((await instance.checkReadiness()).status).toBe("unavailable");
+    expect((await instance.run(input)).error?.code).toBe("openai_missing_api_key");
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it("rejects unsupported roles and oversized context before calling the client", async () => {

@@ -8,8 +8,8 @@ import {
   type UsageMetadata,
   isJsonValue,
 } from "@veyra/protocol";
-import { createDeadline } from "@veyra/runtime";
-import { requestParts, redact, visionModels } from "./input.js";
+import { createDeadline, createSecretRedactor } from "@veyra/runtime";
+import { requestParts, visionModels } from "./input.js";
 import { readJson } from "./http.js";
 export { GeminiCliAdapter, type GeminiCliAdapterOptions } from "./cli.js";
 import {
@@ -175,6 +175,7 @@ export class GeminiAdapter implements AgentAdapter {
       );
     const keyName = this.#options.apiKeyEnv ?? "GEMINI_API_KEY";
     const apiKey = this.#env[keyName];
+    const redactor = createSecretRedactor({ env: this.#env, values: apiKey ? [apiKey] : [] });
     if (!apiKey?.trim())
       return failure("gemini_missing_api_key", `Set ${keyName} before using the Gemini adapter.`);
     if (Buffer.byteLength(JSON.stringify(input)) > 256 * 1024)
@@ -184,7 +185,7 @@ export class GeminiAdapter implements AgentAdapter {
       );
     let parts: ReturnType<typeof requestParts>;
     try {
-      parts = requestParts(input, this.#options.vision === true, apiKey);
+      parts = requestParts(input, this.#options.vision === true, redactor);
     } catch {
       return failure(
         "gemini_invalid_images",
@@ -308,7 +309,7 @@ export class GeminiAdapter implements AgentAdapter {
       }
       if (!isJsonValue(parsed))
         return failure("gemini_invalid_output", "Gemini normalization produced non-JSON output.");
-      const safe = redact(parsed, apiKey);
+      const safe = redactor.json(parsed);
       if (!object(safe) || safe.status !== parsed.status || safe.outcome !== parsed.outcome)
         return failure(
           "gemini_invalid_output",

@@ -1,5 +1,6 @@
 import type { AgentConfig, VeyraConfig } from "@veyra/config";
-import type { AgentAdapter } from "@veyra/protocol";
+import type { AgentAdapter, JsonValue } from "@veyra/protocol";
+import { collectSecretValues, createSecretRedactor } from "@veyra/runtime";
 import { PluginRegistry } from "@veyra/sdk";
 import { analyzeWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { CliError } from "./arguments.js";
@@ -117,32 +118,18 @@ export function adaptersFor(
 }
 
 export function secretValues(env: NodeJS.ProcessEnv, config?: VeyraConfig): string[] {
-  const names = new Set(
-    Object.keys(env).filter((key) =>
-      /(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret|authorization|cookie)$/i.test(
-        key,
-      ),
-    ),
-  );
+  const names = new Set<string>();
   for (const agent of Object.values(config?.agents ?? {})) {
     if (typeof agent.options.apiKeyEnv === "string") names.add(agent.options.apiKeyEnv);
   }
   for (const plugin of Object.values(config?.plugins ?? {})) {
     if (typeof plugin.options.apiKeyEnv === "string") names.add(plugin.options.apiKeyEnv);
   }
-  return [...names].map((name) => env[name]).filter((value): value is string => Boolean(value));
+  return collectSecretValues(env, [...names]);
 }
 
 export function redact(value: unknown, secrets: readonly string[]): unknown {
-  if (typeof value === "string") {
-    let result = value;
-    for (const secret of secrets) result = result.split(secret).join("[REDACTED]");
-    return result;
-  }
-  if (Array.isArray(value)) return value.map((item) => redact(item, secrets));
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, redact(item, secrets)]),
-    );
-  return value;
+  // Surface DTOs may contain workflow step/maps named "token"; persistence owns
+  // schema-aware field redaction, while display must preserve those structures.
+  return createSecretRedactor({ values: secrets }).json(value as JsonValue, false);
 }

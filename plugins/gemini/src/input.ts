@@ -1,4 +1,5 @@
-import { type AgentInput, type JsonObject, type JsonValue, isJsonValue } from "@veyra/protocol";
+import { type AgentInput, type JsonObject, isJsonValue } from "@veyra/protocol";
+import type { SecretRedactor } from "@veyra/runtime";
 import { object } from "./output.js";
 
 /** Exact models whose image input + structured text output are documented in GEMINI.md. */
@@ -8,9 +9,13 @@ export const visionModels: readonly string[] = Object.freeze([
   "gemini-2.5-flash-lite",
 ]);
 
-export function requestParts(input: AgentInput, vision: boolean, apiKey: string): JsonObject[] {
+export function requestParts(
+  input: AgentInput,
+  vision: boolean,
+  redactor: SecretRedactor,
+): JsonObject[] {
   if (!isJsonValue(input)) throw new Error("Input must contain plain JSON data.");
-  const safe = redact(input, apiKey) as JsonObject;
+  const safe = redactor.json(input) as JsonObject;
   const context = object(safe.context) ? safe.context : undefined;
   const images = context?.images;
   const parts: JsonObject[] = [];
@@ -44,25 +49,4 @@ export function requestParts(input: AgentInput, vision: boolean, apiKey: string)
       }));
   }
   return [{ text: JSON.stringify(safe) }, ...parts];
-}
-
-export function redact(value: JsonValue, key: string): JsonValue {
-  if (typeof value === "string")
-    return value
-      .split(key)
-      .join("[REDACTED]")
-      .replace(/\bBearer\s+[^\s"']+/gi, "Bearer [REDACTED]");
-  if (Array.isArray(value)) return value.map((item) => redact(item, key));
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([name, item]) => [
-        name,
-        /(?:api[_-]?key|token|password|secret|authorization|cookie)$|^(?:env|environment)$/i.test(
-          name,
-        )
-          ? "[REDACTED]"
-          : redact(item, key),
-      ]),
-    );
-  return value;
 }

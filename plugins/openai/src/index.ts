@@ -7,10 +7,10 @@ import {
   type AgentRunOptions,
   type ExecutionMetadata,
   isJsonValue,
-  type JsonValue,
   type UsageMetadata,
 } from "@veyra/protocol";
 import OpenAI from "openai";
+import { createSecretRedactor } from "@veyra/runtime";
 import type {
   Response,
   ResponseCreateParamsNonStreaming,
@@ -41,10 +41,11 @@ export class OpenAIAdapter implements AgentAdapter {
   readonly provider = "openai";
   readonly #options: Readonly<OpenAIAdapterOptions>;
   readonly #client?: OpenAIResponsesClient;
+  readonly #env: Readonly<NodeJS.ProcessEnv>;
 
   constructor(
     options: OpenAIAdapterOptions,
-    dependencies: { client?: OpenAIResponsesClient } = {},
+    dependencies: { client?: OpenAIResponsesClient; env?: Readonly<NodeJS.ProcessEnv> } = {},
   ) {
     if (
       Object.keys(options).some(
@@ -74,6 +75,7 @@ export class OpenAIAdapter implements AgentAdapter {
     this.id = options.id ?? "openai";
     this.#options = Object.freeze({ ...options });
     this.#client = dependencies.client;
+    this.#env = dependencies.env ?? process.env;
   }
 
   describe(): AgentDescriptor {
@@ -103,7 +105,7 @@ export class OpenAIAdapter implements AgentAdapter {
           "An injected client is configured; its authentication and API access were not probed.",
       };
     const key = this.#options.apiKeyEnv ?? "OPENAI_API_KEY";
-    const present = Boolean(process.env[key]?.trim());
+    const present = Boolean(this.#env[key]?.trim());
     return {
       status: present ? "ready" : "unavailable",
       scope: "configuration",
@@ -158,13 +160,14 @@ export class OpenAIAdapter implements AgentAdapter {
         "openai_invalid_input",
         "OpenAI timeout must be a positive integer below 2^31.",
       );
-    const apiKey = process.env[this.#options.apiKeyEnv ?? "OPENAI_API_KEY"];
+    const apiKey = this.#env[this.#options.apiKeyEnv ?? "OPENAI_API_KEY"];
+    const redactor = createSecretRedactor({ env: this.#env, values: apiKey ? [apiKey] : [] });
     if (!this.#client && !apiKey?.trim())
       return failure(
         "openai_missing_api_key",
         `Set ${this.#options.apiKeyEnv ?? "OPENAI_API_KEY"} before using the OpenAI adapter.`,
       );
-    const content = JSON.stringify(redact(input, apiKey));
+    const content = JSON.stringify(redactor.json(input));
     if (Buffer.byteLength(content) > 256 * 1024)
       return failure(
         "openai_input_too_large",
@@ -235,7 +238,7 @@ export class OpenAIAdapter implements AgentAdapter {
       }
       if (!isJsonValue(parsed))
         return failure("openai_invalid_output", "OpenAI normalization produced non-JSON data.");
-      const redacted = redact(parsed, apiKey);
+      const redacted = redactor.json(parsed);
       if (
         !redacted ||
         typeof redacted !== "object" ||
@@ -294,21 +297,4 @@ function normalizeUsage(value: Response["usage"]): UsageMetadata | undefined {
     if (typeof count === "number" && Number.isSafeInteger(count) && count >= 0) usage[key] = count;
   }
   return Object.keys(usage).length > 0 ? usage : undefined;
-}
-
-function redact(value: JsonValue, apiKey: string | undefined): JsonValue {
-  if (typeof value === "string") return apiKey ? value.split(apiKey).join("[REDACTED]") : value;
-  if (Array.isArray(value)) return value.map((item) => redact(item, apiKey));
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        /(?:api[_-]?key|token|password|secret|authorization|cookie)$|^(?:env|environment)$/i.test(
-          key,
-        )
-          ? "[REDACTED]"
-          : redact(item, apiKey),
-      ]),
-    );
-  return value;
 }

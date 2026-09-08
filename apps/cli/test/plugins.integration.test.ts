@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseConfig } from "@veyra/config";
 import { ProcessExecutionError, runProcess, type ProcessRunner } from "@veyra/runtime";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { runCli, type CliServices } from "../src/application.js";
 import { registryForProviders } from "../src/plugins.js";
@@ -88,6 +88,81 @@ const invoke = async (path: string, args: string[], services: CliServices = {}) 
 };
 
 describe("CLI plugin composition", () => {
+  it("uses the same configured OpenAI credential source for readiness and execution", async () => {
+    const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+      Response.json({
+        id: "fixture-response",
+        object: "response",
+        status: "completed",
+        error: null,
+        usage: null,
+        output: [
+          {
+            id: "message",
+            type: "message",
+            status: "completed",
+            role: "assistant",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify({
+                  summary: "Plan",
+                  instructions: "Check the fixture",
+                  acceptanceCriteria: ["Tests pass"],
+                  artifactIds: [],
+                }),
+                annotations: [],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    try {
+      const config = parseConfig({
+        version: 1,
+        workflow: { use: "dev" },
+        agents: {
+          planner: {
+            provider: "openai",
+            model: "fixture",
+            options: { apiKeyEnv: "AGENT_CREDENTIAL" },
+          },
+        },
+        plugins: { openai: { options: { apiKeyEnv: "NAMESPACE_CREDENTIAL" } } },
+      });
+      const registry = await registryForProviders(config, ["openai"], process.cwd(), [], {
+        env: {
+          AGENT_CREDENTIAL: "fixture-selected-key",
+          NAMESPACE_CREDENTIAL: "fixture-namespace-key",
+          OPENAI_API_KEY: "fixture-default-key",
+        },
+      });
+      const request = {
+        id: "planner",
+        model: "fixture",
+        options: { apiKeyEnv: "AGENT_CREDENTIAL" },
+      };
+      expect((await registry.checkReadiness("openai", request)).status).toBe("ready");
+      expect(fetch).not.toHaveBeenCalled();
+      expect(
+        (
+          await registry
+            .createAgent("openai", request)
+            .run({ runId: "run", stepId: "plan", role: "planner", goal: "Plan" })
+        ).status,
+      ).toBe("success");
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).get("authorization")).toBe(
+        "Bearer fixture-selected-key",
+      );
+      expect(JSON.stringify(fetch.mock.calls)).not.toContain("fixture-namespace-key");
+      expect(JSON.stringify(fetch.mock.calls)).not.toContain("fixture-default-key");
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
   it("reports an unconfigured compatible endpoint without choosing an implicit server", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const result = await invoke(path, ["doctor"], {

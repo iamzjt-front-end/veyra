@@ -20,7 +20,7 @@ import {
 
 export interface CliServices {
   cwd?: string;
-  /** Environment for readiness and redaction; production adapters retain their native auth. */
+  /** Environment for API auth, readiness and redaction; native CLIs retain their own auth. */
   env?: NodeJS.ProcessEnv;
   stdout?: (text: string) => void;
   stderr?: (text: string) => void;

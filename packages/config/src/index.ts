@@ -81,10 +81,28 @@ function optionValue(value: unknown, field: string, parents = new Set<object>())
       return value.map((item, index) => optionValue(item, `${field}[${index}]`, parents));
     }
     return Object.fromEntries(
-      Object.entries(object(value, field)).map(([key, item]) => [
-        key,
-        optionValue(item, `${field}.${key}`, parents),
-      ]),
+      Object.entries(object(value, field)).map(([key, item]) => {
+        // Configuration owns this rejection rule; runtime redaction is a separate
+        // boundary and must not become a config -> execution dependency.
+        if (
+          /(?:api[_-]?key|token|password|passwd|secret|authorization|cookie|private[_-]?key)$|^(?:env|environment)$/i.test(
+            key,
+          )
+        )
+          throw new ConfigError(
+            `${field}.${key}`,
+            "must not contain credentials or environment snapshots; use apiKeyEnv or native provider login",
+          );
+        if (
+          key === "apiKeyEnv" &&
+          (typeof item !== "string" || !/^[A-Za-z_][A-Za-z0-9_]{0,127}$/.test(item))
+        )
+          throw new ConfigError(
+            `${field}.${key}`,
+            "must name an environment variable of at most 128 characters, not contain a credential",
+          );
+        return [key, optionValue(item, `${field}.${key}`, parents)];
+      }),
     );
   } finally {
     parents.delete(value);

@@ -1211,12 +1211,18 @@ Verified frozen install and all five baseline commands (1334 tests total). The 7
 
 ## M4.9 — Authentication and secret-handling policy
 
-- [ ] environment/standard provider auth first
-- [ ] never echo secrets
-- [ ] never persist provider keys in run state
-- [ ] redaction utility for logs/errors
-- [ ] `ve doctor` reports presence/readiness without exposing values
-- [ ] document precedence of env/config/provider native login
+**Status:** [x] Complete and verified.
+
+Implementation decision: put the shared, explicitly configured text/JSON redactor in Runtime and use it at existing adapter/CLI/state boundaries. This is the minimum common primitive needed for this policy; Core retains schema-aware persistence handling and never reads global credentials. M6.3 remains open for broader pattern and surface hardening. Native provider login/configuration files are neither read nor changed by Veyra.
+
+- [x] environment/standard provider auth first
+- [x] never echo secrets
+- [x] never persist provider keys in run state
+- [x] redaction utility for logs/errors
+- [x] `ve doctor` reports presence/readiness without exposing values
+- [x] document precedence of env/config/provider native login
+
+Verified all five baseline commands (1373 tests total) and root `pnpm ve -- doctor --json`. Added 19 Runtime redaction cases, 16 credential-free config cases and four adapter/CLI regressions; strengthened existing SDK/state checks. Tests cover generic token variables, explicit custom variable names, overlap/idempotence, raw/escaped/URL-encoded diagnostics, unchanged usage/structural fields, no implicit ambient auth fallback, and no fixture credentials in CLI output or saved input/state/events. The OpenAI factory now uses one supplied environment for readiness and execution. Native CLI environment/login behavior is preserved. `docs/AUTHENTICATION.md` records precedence, programmatic store obligations, safe readiness claims and limits for unknown secrets/native files/third-party output; no native credentials were read or changed.
 
 ---
 
@@ -1624,4 +1630,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.9 — Authentication and secret-handling policy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M4.10 — Agent role profiles.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

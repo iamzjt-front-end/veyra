@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { createDeadline } from "@veyra/runtime";
+import { createDeadline, createSecretRedactor } from "@veyra/runtime";
 import type {
   Message,
   MessageCreateParamsNonStreaming,
@@ -13,7 +13,6 @@ import {
   type AgentResult,
   type AgentRunOptions,
   type ExecutionMetadata,
-  type JsonValue,
   type UsageMetadata,
 } from "@veyra/protocol";
 import { outputFormat, parseOutput, roleInstructions, type ClaudeRole } from "./output.js";
@@ -177,9 +176,10 @@ export class ClaudeAdapter implements AgentAdapter {
       );
     const keyName = this.#options.apiKeyEnv ?? "ANTHROPIC_API_KEY";
     const apiKey = this.#env[keyName];
+    const redactor = createSecretRedactor({ env: this.#env, values: apiKey ? [apiKey] : [] });
     if (!this.#client && !apiKey?.trim())
       return failure("claude_missing_api_key", `Set ${keyName} before using the Claude adapter.`);
-    const content = JSON.stringify(redact(input, apiKey));
+    const content = JSON.stringify(redactor.json(input));
     if (Buffer.byteLength(content) > 256 * 1024)
       return failure(
         "claude_input_too_large",
@@ -258,7 +258,7 @@ export class ClaudeAdapter implements AgentAdapter {
       }
       if (!isJsonValue(parsed))
         return failure("claude_invalid_output", "Claude normalization produced non-JSON data.");
-      const safe = redact(parsed, apiKey);
+      const safe = redactor.json(parsed);
       if (
         !safe ||
         typeof safe !== "object" ||
@@ -334,21 +334,4 @@ function normalizeUsage(value: Message["usage"]): UsageMetadata | undefined {
   )
     usage.totalTokens = usage.inputTokens + usage.outputTokens;
   return Object.keys(usage).length ? usage : undefined;
-}
-
-function redact(value: JsonValue, key: string | undefined): JsonValue {
-  if (typeof value === "string") return key ? value.split(key).join("[REDACTED]") : value;
-  if (Array.isArray(value)) return value.map((item) => redact(item, key));
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([name, item]) => [
-        name,
-        /(?:api[_-]?key|token|password|secret|authorization|cookie)$|^(?:env|environment)$/i.test(
-          name,
-        )
-          ? "[REDACTED]"
-          : redact(item, key),
-      ]),
-    );
-  return value;
 }

@@ -157,6 +157,8 @@ The [capability reference](docs/CAPABILITIES.md) covers configured adapter metad
 
 The [plugin reference](docs/PLUGINS.md) defines the public SDK contract, built-in registration, provider namespaces and explicitly trusted local third-party modules.
 
+The [authentication policy](docs/AUTHENTICATION.md) documents credential precedence, native login, scoped readiness and secret redaction.
+
 The [runtime reference](docs/RUNTIME.md) covers local command execution, output limits, cancellation, and platform behavior.
 
 The [verification reference](docs/VERIFICATION.md) describes sequential command checks, aggregate results, and verification events.

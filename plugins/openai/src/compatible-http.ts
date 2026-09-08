@@ -1,4 +1,4 @@
-import type { JsonValue, UsageMetadata } from "@veyra/protocol";
+import type { UsageMetadata } from "@veyra/protocol";
 
 export const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
@@ -57,34 +57,6 @@ export function normalizeUsage(value: unknown): UsageMetadata | undefined {
     if (typeof count === "number" && Number.isSafeInteger(count) && count >= 0) usage[name] = count;
   }
   return Object.keys(usage).length ? usage : undefined;
-}
-
-export function redact(value: JsonValue, key: string | undefined): JsonValue {
-  if (typeof value === "string") {
-    let safe = value;
-    if (key) {
-      for (const variant of new Set([
-        key,
-        encodeURIComponent(key),
-        encodeURIComponent(encodeURIComponent(key)),
-      ]))
-        safe = safe.split(variant).join("[REDACTED]");
-    }
-    return safe.replace(/\bBearer\s+[^\s"']+/gi, "Bearer [REDACTED]");
-  }
-  if (Array.isArray(value)) return value.map((item) => redact(item, key));
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value).map(([name, item]) => [
-        name,
-        /(?:api[_-]?key|token|password|secret|authorization|cookie)$|^(?:env|environment)$/i.test(
-          name,
-        )
-          ? "[REDACTED]"
-          : redact(item, key),
-      ]),
-    );
-  return value;
 }
 
 export function httpFailure(status: number): [string, string, boolean] {
