@@ -434,6 +434,23 @@ export type EventSink = (event: VeyraEvent) => void | Promise<void>;
 export { isWorkspaceInfo, type WorkspaceInfo } from "./workspace.js";
 export { isJsonValue } from "./json.js";
 export {
+  MAX_PROJECT_STATE_BYTES,
+  isProjectSharedState,
+  isProjectHandoff,
+  isProjectExecutionResult,
+  isProjectReview,
+  type ProjectProvenance,
+  type ProjectDecision,
+  type ProjectPlan,
+  type ProjectContext,
+  type ProjectHandoff,
+  type ProjectExecutionResult,
+  type ProjectReview,
+  type ProjectArtifactReference,
+  type ProjectSharedState,
+  type ProjectStateUpdate,
+} from "./project-state.js";
+export {
   isProjectId,
   isProjectDescriptor,
   type ProjectId,

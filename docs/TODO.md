@@ -260,7 +260,7 @@ Verification: five independent concurrent writers and a second cold reader agree
 
 ## P0.3 — Define the Shared Project State contract
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.1
 
@@ -272,18 +272,18 @@ Make `.veyra/` the shared blackboard between ChatGPT-facing surfaces, Veyra and 
 
 ### Requirements
 
-- [ ] define project context categories: goal, constraints, decisions, active plan, current task;
-- [ ] define structured handoff envelope;
-- [ ] define structured execution result envelope;
-- [ ] define review/next-action envelope;
-- [ ] connect handoffs to existing run/event/artifact ids instead of duplicating unbounded data;
-- [ ] preserve provenance: who/which surface produced each decision or handoff;
-- [ ] include schema/version metadata;
-- [ ] handoff/result structures must be JSON-serializable and provider-neutral;
-- [ ] support bounded summaries/references rather than persisting arbitrary full chat transcripts;
-- [ ] document what is project-shared vs session-local;
-- [ ] credentials/tokens must never appear in shared state;
-- [ ] retain current secret-redaction guarantees.
+- [x] define project context categories: goal, constraints, decisions, active plan, current task;
+- [x] define structured handoff envelope;
+- [x] define structured execution result envelope;
+- [x] define review/next-action envelope;
+- [x] connect handoffs to existing run/event/artifact ids instead of duplicating unbounded data;
+- [x] preserve provenance: who/which surface produced each decision or handoff;
+- [x] include schema/version metadata;
+- [x] handoff/result structures must be JSON-serializable and provider-neutral;
+- [x] support bounded summaries/references rather than persisting arbitrary full chat transcripts;
+- [x] document what is project-shared vs session-local;
+- [x] credentials/tokens must never appear in shared state;
+- [x] retain current secret-redaction guarantees.
 
 ### Required design principle
 
@@ -307,6 +307,8 @@ next action
 ### Acceptance criteria
 
 A fake planner and fake executor in separate processes can exchange a complete task/result solely through the Project Shared State contract, with provenance and no direct in-memory coupling.
+
+Verification: 25 new contract/store tests pass, including separate fake planner/executor/reviewer processes, revision conflicts, bounded cross-project evidence, malformed/linked state and secret redaction. All five baseline commands passed (1,787 tests). One existing 5-second Core test timed out under initial concurrent load; its unchanged isolated run and full rerun passed. See `docs/PROJECT-STATE.md`; this is contract proof, not real ChatGPT bridge proof.
 
 ---
 
@@ -817,6 +819,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.3 — Define the Shared Project State contract.**
+**P0.4 — Implement the local Veyra Daemon.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

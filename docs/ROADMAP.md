@@ -13,7 +13,7 @@ Goal: let a real ChatGPT workflow hand work to an already-authenticated native C
 - [x] product pivot recorded in `PRODUCT.md`
 - [x] Project first-class model
 - [x] global local Project Registry
-- [ ] shared Project State / handoff contract
+- [x] shared Project State / handoff contract
 - [ ] local Veyra Daemon
 - [ ] typed daemon IPC/tool API
 - [ ] native Codex readiness/auth as default executor path
