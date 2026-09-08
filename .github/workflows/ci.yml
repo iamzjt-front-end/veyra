@@ -14,8 +14,12 @@ concurrency:
 
 jobs:
   verify:
-    name: Verify repository
-    runs-on: ubuntu-latest
+    name: Verify (${{ matrix.os }}, Node 22)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     steps:
       - name: Check out repository
@@ -26,6 +30,10 @@ jobs:
         with:
           node-version: "22"
           package-manager-cache: false
+
+      - name: Record platform
+        run: |
+          node -e 'console.log(JSON.stringify({platform: process.platform, arch: process.arch, node: process.version}))'
 
       - name: Enable the declared pnpm version
         run: |

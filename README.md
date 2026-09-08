@@ -141,7 +141,7 @@ If Corepack reports `Cannot find matching keyid`, [update Corepack](https://pnpm
 
 Run `pnpm format` to format the repository. Prettier handles TypeScript, JSON, Markdown, and YAML; Biome supplies the recommended TypeScript/JSON lint rules. Two tools are used because Biome does not yet format Markdown or YAML. Generated build outputs, dependencies, coverage, Turbo cache, and local run state are excluded. TypeScript checking remains a separate `pnpm check` command.
 
-CI runs the same five checks for pull requests and pushes to `main`, using Node.js 22, Corepack, a cached pnpm store, and `pnpm install --frozen-lockfile`. The default suite does not require provider credentials or live API calls.
+CI runs the same five checks on macOS 15 (arm64) and Ubuntu 24.04 (x64) for pull requests and pushes to `main`, using Node.js 22, Corepack, a cached pnpm store, and `pnpm install --frozen-lockfile`. Native Windows is currently unsupported. See the [platform policy](docs/PLATFORMS.md) for verified targets and platform-specific limits. The default suite does not require provider credentials or live API calls.
 
 See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
 

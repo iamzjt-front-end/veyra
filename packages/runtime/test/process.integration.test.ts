@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
@@ -76,6 +76,28 @@ describe("local process runner", () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toBe("fixture\n");
       expect(await readFile(join(workspace.path, "cwd-marker.txt"), "utf8")).toBe("fixture");
+    });
+  });
+
+  it("preserves spaces, Unicode and shell punctuation in cwd, script paths and arguments", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const cwd = join(path, "project 你好 & spaces");
+      await mkdir(cwd);
+      const script = join(cwd, "script $(not-a-command).cjs");
+      await writeFile(
+        script,
+        "console.log(JSON.stringify({ cwd: process.cwd(), args: process.argv.slice(2) }))",
+      );
+      const args = ["../relative path", "你好", "$(touch forbidden)", "a\\b", "--flag=value"];
+      const result = await runProcess({
+        executable: process.execPath,
+        args: [script, ...args],
+        cwd,
+        timeoutMs: 5000,
+      });
+      expect(result.exitCode, result.stderr).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual({ cwd: await realpath(cwd), args });
+      await expect(readFile(join(cwd, "forbidden"))).rejects.toMatchObject({ code: "ENOENT" });
     });
   });
 

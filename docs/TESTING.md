@@ -14,6 +14,8 @@ Every workspace already has a Vitest test script. The shared `vitest.config.ts` 
 
 Core's package test script limits Vitest to four workers because its integration suites exercise synced filesystem writes and process-death recovery. The real-Git workspace suites use a 30-second per-test bound to accommodate multiple subprocesses under concurrent load. These limits leave behavioral assertions intact; time-sensitive Runtime tests retain their explicit execution deadlines.
 
+The [platform matrix](PLATFORMS.md) runs the complete default suite on macOS arm64 and Linux x64 with Node.js 22. Runtime/Verifier integration tests cover literal arguments, spaces/Unicode in working directories and script paths, Git worktree subdirectory mapping, POSIX quoting/pipelines/redirection, and command failure ordering. Platform unit tests check Windows shell selection and taskkill orchestration without claiming native Windows support.
+
 ## Deterministic agents
 
 `FakeAgent` implements `@veyra/protocol`'s `AgentAdapter`. Construct it with the exact `AgentResult` a scenario needs. Each run returns a copy of that result and records a copy of its input in `calls`, so mutation in one assertion cannot change a later response. No provider SDK or credentials are involved.

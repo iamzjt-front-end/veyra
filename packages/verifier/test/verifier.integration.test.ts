@@ -1,8 +1,35 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { expect, it } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { ShellVerifier } from "../src/index.js";
+
+it.skipIf(process.platform === "win32")(
+  "uses POSIX quoting, environment expansion, redirection and pipelines in a Unicode cwd",
+  async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const cwd = join(path, "project 你好 & spaces");
+      await mkdir(cwd);
+      const value = "literal $(touch forbidden) & spaces 你好";
+      const report = await new ShellVerifier().verify({
+        commands: [
+          'printf \'%s\\n\' "$VEYRA_PLATFORM_VALUE" > "output 你好.txt"',
+          'cat "output 你好.txt" | cat',
+          "exit 7",
+          "touch successor",
+        ],
+        cwd,
+        env: { VEYRA_PLATFORM_VALUE: value },
+      });
+      expect(report.success).toBe(false);
+      expect(report.results.map((result) => result.exitCode)).toEqual([0, 0, 7]);
+      expect(report.results[1]?.stdout).toBe(`${value}\n`);
+      expect(await readFile(join(cwd, "output 你好.txt"), "utf8")).toBe(`${value}\n`);
+      for (const file of ["forbidden", "successor"])
+        await expect(readFile(join(cwd, file))).rejects.toMatchObject({ code: "ENOENT" });
+    });
+  },
+);
 
 it("verifies real commands in an isolated fixture", async () => {
   await withFixtureWorkspace(async ({ path }) => {

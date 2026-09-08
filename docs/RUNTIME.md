@@ -31,6 +31,8 @@ Missing executables reject with `ProcessExecutionError.code === "executable_not_
 
 ## Cancellation and platform behavior
 
+The [platform policy](PLATFORMS.md) defines verified macOS/Linux targets and the currently unsupported native Windows boundary.
+
 On macOS/Linux, every command starts in its own process group. Timeout or `AbortSignal` sends SIGTERM to that group, then SIGKILL after `terminationGraceMs` (default 500 ms). The runner waits for the command's streams to close and for escalation to finish, including when the group leader exits before its descendants. Descendants that deliberately create a separate session escape this group; this is process lifecycle management, not a security sandbox.
 
 On Windows, the runtime invokes the system `taskkill.exe /PID <pid> /T /F` to force termination of the process and its descendants. There is no SIGTERM grace period on that platform. If tree termination fails, the runner attempts direct-child cleanup and rejects with `termination_failed`; it does not claim descendant cleanup succeeded. The taskkill helper has a five-second timeout. Windows tree termination has mocked orchestration tests but still needs native Windows validation. The POSIX descendant and signal-escalation tests are explicitly platform-specific. See Node's [process-group semantics](https://nodejs.org/api/child_process.html#optionsdetached) and Microsoft's [taskkill reference](https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/taskkill).

@@ -7,6 +7,31 @@ import { git, initializeGit } from "../../../test/helpers/git.js";
 import { LocalWorkspaceManager, runProcess } from "../src/index.js";
 
 describe("local workspace lifecycle", { timeout: 30_000 }, () => {
+  it("maps and removes a worktree with spaces and Unicode in repository and subdirectory paths", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const repository = join(path, "repository 你好 & spaces");
+      const relative = join("packages", "-nested ü");
+      const cwd = join(repository, relative);
+      await mkdir(cwd, { recursive: true });
+      await writeFile(join(cwd, "file.txt"), "original");
+      await initializeGit(repository);
+      const manager = new LocalWorkspaceManager(join(repository, ".veyra state"));
+      const id = randomUUID();
+      const workspace = await manager.prepare(id, cwd, { mode: "worktree" });
+      try {
+        expect(workspace.info.cwd).toBe(join(workspace.info.root, relative));
+        expect(await readFile(join(workspace.info.cwd, "file.txt"), "utf8")).toBe("original");
+      } finally {
+        await workspace.release();
+      }
+      await manager.remove(id, workspace.info);
+      await expect(readFile(join(workspace.info.cwd, "file.txt"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      expect(await readFile(join(cwd, "file.txt"), "utf8")).toBe("original");
+    });
+  });
+
   it("preserves the shared directory and rejects overlapping runs across state directories", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const first = await new LocalWorkspaceManager(join(path, "state-one")).prepare(

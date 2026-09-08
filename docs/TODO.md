@@ -1511,10 +1511,14 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,670 test
 
 ## M6.9 — Cross-platform support
 
-- [ ] macOS support verified
+**Status:** [-] In progress.
+
+- [x] macOS support verified
 - [ ] Linux support verified
-- [ ] Windows support policy explicitly decided/tested before claiming support
-- [ ] path, signals, process termination, shell behavior covered by tests where practical
+- [x] Windows support policy explicitly decided/tested before claiming support
+- [x] path, signals, process termination, shell behavior covered by tests where practical
+
+Local frozen install and all five baseline commands passed on macOS arm64 with Node.js 22.22.0 and pnpm 10.15.1 (1,677 tests). Seven added cases cover literal paths/arguments, Unicode Git worktrees, real POSIX shell semantics and mocked platform shell selection; the existing real process-group, signal, cancellation and recovery suites also passed. The [platform policy](PLATFORMS.md) explicitly leaves native Windows unsupported pending full native verification. Hosted macOS 15/Ubuntu 24.04 matrix verification is pending before this item is marked complete.
 
 ---
 

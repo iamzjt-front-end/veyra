@@ -21,6 +21,8 @@ An injected `EventSink` receives `verification.started` and `verification.comple
 
 Shell command text is intentional here: POSIX uses `/bin/sh -c`, and Windows uses `cmd.exe /d /s /c`. Commands come from trusted workflow configuration. Never interpolate an untrusted goal, agent response, or credential into a command. Environment values are passed to the runtime and are not included in results/events. Command text and output are evidence, so callers must also avoid secrets there and apply redaction where needed. See [runtime limits and cancellation behavior](RUNTIME.md).
 
+Native Windows remains unsupported pending native verification; its shell-selection branch has mocked tests. POSIX commands use `/bin/sh` regardless of the interactive `$SHELL`; avoid Bash/Zsh-only syntax unless the workflow explicitly invokes that shell. See the [platform policy](PLATFORMS.md).
+
 Core schedules each saved command step through this Verifier boundary, keeping deterministic results separate from LLM review.
 
 ## Command provenance
