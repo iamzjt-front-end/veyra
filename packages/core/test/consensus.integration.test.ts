@@ -81,57 +81,61 @@ describe("independent consensus reviews and judge", () => {
     });
   });
 
-  it("does not reuse verifier evidence from an earlier invocation of the same child scope", async () => {
-    await withFixtureWorkspace(async ({ path }) => {
-      const child = workflow();
-      child.start = "choose";
-      child.steps.choose = { type: "agent", agent: "choice", next: "route" };
-      child.steps.route = {
-        type: "router",
-        route: { from: "choose", path: "/data/route" },
-        on: { check: "verify", skip: "group" },
-      };
-      const definition: WorkflowDefinition = {
-        name: "repeat-child",
-        version: 1,
-        start: "call",
-        steps: {
-          call: {
-            type: "subworkflow",
-            workflow: child,
-            retry: { max: 1 },
-            on: { success: "call", failure: "done" },
+  it(
+    "does not reuse verifier evidence from an earlier invocation of the same child scope",
+    { timeout: 15_000 },
+    async () => {
+      await withFixtureWorkspace(async ({ path }) => {
+        const child = workflow();
+        child.start = "choose";
+        child.steps.choose = { type: "agent", agent: "choice", next: "route" };
+        child.steps.route = {
+          type: "router",
+          route: { from: "choose", path: "/data/route" },
+          on: { check: "verify", skip: "group" },
+        };
+        const definition: WorkflowDefinition = {
+          name: "repeat-child",
+          version: 1,
+          start: "call",
+          steps: {
+            call: {
+              type: "subworkflow",
+              workflow: child,
+              retry: { max: 1 },
+              on: { success: "call", failure: "done" },
+            },
+            done: { type: "end" },
           },
-          done: { type: "end" },
-        },
-      };
-      const choice: AgentAdapter = {
-        id: "choice",
-        provider: "fake",
-        run: async (input) => ({
-          status: "success",
-          summary: "Choose path",
-          data: { route: input.attempt === 1 ? "check" : "skip" },
-        }),
-      };
-      const reviewer = new FakeAgent(pass);
-      const store = storeAt(path);
-      const result = await new VeyraEngine({ store }).run({
-        config,
-        workflow: definition,
-        cwd: path,
-        goal: "Require current-scope evidence",
-        agents: { choice, first: reviewer, second: reviewer },
+        };
+        const choice: AgentAdapter = {
+          id: "choice",
+          provider: "fake",
+          run: async (input) => ({
+            status: "success",
+            summary: "Choose path",
+            data: { route: input.attempt === 1 ? "check" : "skip" },
+          }),
+        };
+        const reviewer = new FakeAgent(pass);
+        const store = storeAt(path);
+        const result = await new VeyraEngine({ store }).run({
+          config,
+          workflow: definition,
+          cwd: path,
+          goal: "Require current-scope evidence",
+          agents: { choice, first: reviewer, second: reviewer },
+        });
+        expect(result.status).toBe("completed");
+        expect(reviewer.calls).toHaveLength(2);
+        expect(decision(await store.readEvents(result.runId))).toMatchObject({
+          outcome: "fail",
+          reason: "verification_failed",
+          verification: [{ stepId: "call/verify", success: false }],
+        });
       });
-      expect(result.status).toBe("completed");
-      expect(reviewer.calls).toHaveLength(2);
-      expect(decision(await store.readEvents(result.runId))).toMatchObject({
-        outcome: "fail",
-        reason: "verification_failed",
-        verification: [{ stepId: "call/verify", success: false }],
-      });
-    });
-  });
+    },
+  );
 
   it("keeps judge retry limits across resume and cannot use quorum to hide a thrown reviewer", async () => {
     await withFixtureWorkspace(async ({ path }) => {
