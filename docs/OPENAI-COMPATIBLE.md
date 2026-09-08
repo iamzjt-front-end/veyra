@@ -59,7 +59,7 @@ pnpm ve -- doctor --config examples/providers/ollama.yaml
 pnpm ve -- run "Plan a small tested improvement from the supplied context" --config examples/providers/ollama.yaml
 ```
 
-Substitute `lmstudio.yaml` for the other example. Config-relative workflow paths remain valid. A successful plan pauses at its human gate (exit 3); inspect it with `ve review` before approving through `ve resume --approve`, using the same config. Model installation, service startup and model quality are user/provider responsibilities; Veyra does not download models automatically.
+Substitute `lmstudio.yaml` for the other example. Config-relative workflow paths remain valid. A successful plan pauses at its human gate (exit 3). Inspect the planner's `agent.completed` result in `.veyra/runs/<run-id>/events.jsonl` under the config directory and confirm the pending gate with `ve status` before approving through `ve resume --approve`, using the same config. `ve review` summarizes reviewer and verifier results, which this planning-only workflow does not produce. Model installation, service startup and model quality are user/provider responsibilities; Veyra does not download models automatically.
 
 ## Failures and verification
 
