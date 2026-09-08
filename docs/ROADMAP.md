@@ -1,118 +1,175 @@
 # Roadmap
 
-The repository keeps the full target architecture visible from the start. Roadmap milestones describe implementation maturity, not when directories are introduced.
+Veyra is now explicitly **project-centered and native-auth-first**. Read [`PRODUCT.md`](../PRODUCT.md) for the product definition and [`docs/TODO.md`](TODO.md) for the canonical task-by-task plan.
 
-For the canonical task-by-task implementation order, dependencies, tests, and acceptance criteria, see [`docs/TODO.md`](TODO.md).
+The repository already contains substantial verified orchestration/runtime/provider infrastructure. The roadmap below distinguishes those foundations from the current product priority.
 
-The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGENTS.md) defines contributor rules; [ARCHITECTURE](ARCHITECTURE.md) defines stable boundaries. This roadmap summarizes verified milestones and does not replace the detailed TODO.
+## P0 — Project-centered GPT ↔ Codex Native Bridge
+
+**Current product priority.**
+
+Goal: let a real ChatGPT workflow hand work to an already-authenticated native Codex inside a selected Veyra Project, then return structured implementation evidence to ChatGPT automatically for review/repair — with no manual copy/paste and no OpenAI API key required for the golden path.
+
+- [x] product pivot recorded in `PRODUCT.md`
+- [ ] Project first-class model
+- [ ] global local Project Registry
+- [ ] shared Project State / handoff contract
+- [ ] local Veyra Daemon
+- [ ] typed daemon IPC/tool API
+- [ ] native Codex readiness/auth as default executor path
+- [ ] project-bound Codex session continuity
+- [ ] project role binding to native Codex
+- [ ] canonical planner/executor/reviewer handoff protocol
+- [ ] real native Codex Project dispatch E2E with `OPENAI_API_KEY` unset
+- [ ] ChatGPT bridge feasibility ADR/spike
+- [ ] selected ChatGPT bridge proof
+- [ ] **real ChatGPT → Codex → ChatGPT closed loop (MVP gate)**
+- [ ] automatic review/fix loop
+- [ ] stable onboarding/demo
+
+The exact implementation order and acceptance criteria are in [`TODO.md`](TODO.md).
+
+## P1 — TUI / Agent Mission Control
+
+TUI work no longer waits on an OpenAI API smoke test. It is downstream of the native project bridge so it renders the correct Project/Daemon model instead of becoming a parallel orchestration system.
+
+- [ ] project selector/registry view
+- [ ] daemon health/readiness
+- [ ] workflow/run graph
+- [ ] native agent/session status
+- [ ] timeline/event stream
+- [ ] diff/review/verification views
+- [ ] approval inbox
+- [ ] pause/resume/cancel
+- [ ] TUI regression tests
+- [ ] stable demo
+
+Bare `ve` may eventually launch the TUI, while headless commands remain supported.
+
+## P2 — Dashboard
+
+Dashboard implementation follows a stable Project/Daemon/TUI model.
+
+- [ ] local Web control center foundation
+- [ ] project/run bridge and event streaming
+- [ ] Projects page
+- [ ] Run detail page
+- [ ] workflow visualization
+- [ ] native agent/provider readiness/settings
+- [ ] human approval inbox
+- [ ] cost/token/duration metrics where known
+- [ ] multi-project runs
+- [x] remote worker/control-plane design document only
+
+Remote/cloud execution remains deferred and requires a separate explicit product decision.
+
+---
+
+# Verified foundations retained from the pre-pivot roadmap
+
+These capabilities are not discarded. They provide the engine/safety/release base for P0.
 
 ## M0 — Repository baseline
 
-- [x] Reproducible pnpm install and lockfile
-- [x] Formatting/linting baseline
+- [x] reproducible pnpm install and lockfile
+- [x] formatting/linting baseline
 - [x] CI for pull requests/main
-- [x] Test conventions and deterministic fixtures
-- [x] Documentation hierarchy/cross-links
+- [x] test conventions and deterministic fixtures
+- [x] documentation hierarchy/cross-links
 
-## v0.1 — Working vertical slice
+## Orchestration / workflow foundation
 
-- [x] Complete Monorepo architecture scaffold
-- [x] Provider-neutral protocol scaffold
-- [x] Workflow types
-- [x] Core event contracts
-- [x] Runtime package scaffold
-- [x] Verifier package scaffold
-- [x] Built-in workflow preset scaffolds
-- [x] Provider/dashboard placeholders
+- [x] complete Monorepo architecture scaffold
+- [x] provider-neutral protocol contracts
 - [x] YAML config loader
-- [x] Workflow loader/validator
-- [x] Hardened protocol contracts
-- [x] Persistent local run state
-- [x] Working OpenAI planner/reviewer adapter
-- [x] Working Codex CLI executor adapter
-- [x] Local process runtime
-- [x] Shell verifier implementation
+- [x] workflow loader/validator
+- [x] persistent local run state
+- [x] local process runtime
+- [x] shell verifier
 - [x] Core orchestration loop
-- [x] Reviewer/fix loop
-- [x] Retry limit enforcement
-- [x] Human approval node
-- [x] Working `ve init/run/status/review/resume/doctor`
-- [x] Deterministic E2E tests
-- [ ] Opt-in real GPT + Codex smoke test (tooling tested; live run blocked by missing OpenAI API credential)
+- [x] reviewer/fix loop
+- [x] bounded retry enforcement
+- [x] human approval nodes
+- [x] `ve init/run/status/review/resume/doctor`
+- [x] deterministic E2E tests
+- [x] versioned Workflow DSL
+- [x] typed context/step outputs
+- [x] branching
+- [x] parallel steps
+- [x] routers
+- [x] subworkflows
+- [x] consensus/judge nodes
+- [x] execution policies/loop safety
+- [x] user-defined workflow UX
 
-## v0.2 — TUI
+## Native/provider foundation
 
-- [ ] TUI rendering/event foundation
-- [ ] Workflow graph/status view
-- [ ] Agent status panel
-- [ ] Timeline/event stream
-- [ ] Diff/review/verification views
-- [ ] Approval actions
-- [ ] Pause/resume/cancel
-- [ ] TUI regression tests
+- [x] Codex native adapter and deterministic/native fixture verification
+- [x] provider capability model
+- [x] public plugin registry/SDK
+- [x] OpenAI API adapter (optional integration)
+- [x] Claude API adapter (optional integration; live API smoke not required for P0)
+- [x] Claude Code adapter implementation (optional native integration)
+- [x] Gemini API adapter (optional integration)
+- [x] Gemini CLI adapter implementation (optional native integration)
+- [x] OpenCode adapter implementation (optional native integration)
+- [x] local/OpenAI-compatible adapter
+- [x] authentication/secret-handling policy
+- [x] agent role profiles
+- [x] optional provider capability routing
 
-## v0.3 — Workflow DSL
+### Optional live validations, no longer product blockers
 
-- [x] Versioned DSL schema
-- [x] Typed context/step outputs
-- [x] Branching
-- [x] Parallel steps
-- [x] Routers
-- [x] Subworkflows
-- [x] Consensus/judge nodes
-- [x] Execution policies/loop safety
-- [x] Workflow preset hardening
-- [x] User-defined workflow UX
+- [ ] OpenAI API live smoke (requires optional `OPENAI_API_KEY`)
+- [ ] Anthropic API live smoke
+- [ ] Gemini API live smoke
+- [ ] Claude Code live timeout investigation
+- [ ] OpenCode native credential investigation
+- [ ] Gemini CLI live verification when executable is available
 
-## v0.4 — Provider ecosystem
+Missing API credentials must not make the P0 native GPT ↔ Codex path unhealthy.
 
-- [x] Provider capability model
-- [x] Public plugin registry/SDK
-- [ ] Claude API (adapter and deterministic tests implemented; live smoke blocked by missing Anthropic API credential)
-- [ ] Claude Code (adapter and deterministic tests implemented; live smoke blocked by native provider request timeouts)
-- [ ] Gemini API (adapter, opt-in vision and deterministic tests implemented; live smoke blocked by missing API credential)
-- [x] Gemini CLI (Runtime adapter and deterministic tests; native executable unavailable for live verification)
-- [ ] OpenCode (adapter and deterministic tests implemented; live smoke blocked by native HTTP 401)
-- [x] Local/OpenAI-compatible adapter (explicit Chat Completions modes and loopback HTTP verification)
-- [x] Authentication/secret-handling policy
-- [x] Agent role profiles
-- [x] Optional provider capability routing (explicit ordered fallbacks, scoped readiness and user-supplied estimates)
+## Hardening
 
-## v0.5 — Dashboard
+- [x] worktree/workspace isolation
+- [x] command execution safety and provenance
+- [x] crash recovery/idempotency policy
+- [x] local run/store locking and stale-owner recovery
+- [x] cancellation propagation and process cleanup
+- [x] bounded event/artifact storage and retention
+- [x] prompt/decision provenance
+- [x] macOS/Linux platform verification and explicit native Windows policy
+- [ ] secret-redaction rendering checks for future ChatGPT Bridge/TUI/Dashboard surfaces (existing managed paths already hardened)
 
-Dashboard implementation is waiting for the requested stable TUI prerequisite; M2 remains dependent on the blocked live v0.1 smoke. The independent remote-control design document is complete; remote execution remains deferred.
+## Open-source productization
 
-- [ ] Local Web control center foundation
-- [ ] Local project/run bridge and event streaming
-- [ ] Projects page
-- [ ] Run detail page
-- [ ] Workflow visualization
-- [ ] Agent/provider settings
-- [ ] Human approval inbox
-- [ ] Cost/token/duration metrics
-- [ ] Multi-project runs
-- [x] Remote worker/control-plane design (documentation only; remote implementation requires explicit approval)
+- [x] official `@veyraoss` package strategy and ownership verification
+- [x] fixed versioning/changelog workflow
+- [x] release CI and protected publication workflow
+- [x] isolated global npm install verification for `ve`
+- [x] contributor/development documentation
+- [x] security/community policies
+- [x] example gallery
+- [x] local evaluation harness
+- [x] default no-external-product-telemetry policy
+- [ ] final product documentation/demo polish after P0/P1
 
-## Hardening and open-source productization
+No npm package/public release has been published yet. Publication remains an explicit human-approval boundary.
 
-These areas continue across milestones and are tracked in detail in `docs/TODO.md`:
+---
 
-- [x] worktree/workspace isolation (optional detached worktrees, execution leases, explicit safe cleanup)
-- [x] command execution safety (source evidence, explicit high-risk gates, native permission visibility)
-- [ ] secret redaction (current Core/CLI/provider/Verifier paths hardened and verified; TUI/Dashboard log checks await those surfaces)
-- [x] crash recovery/idempotency (owner liveness, matched completion boundaries, conservative partial-effect policy)
-- [x] local run/store locking, isolated concurrency and conservative stale-owner recovery
-- [x] cancellation propagation, process cleanup and persisted terminal reasons
-- [x] bounded event/artifact storage and explicit local history retention
-- [x] labeled prompt sources and persisted decision evidence provenance
-- [x] macOS/Linux platform verification and explicit unsupported native Windows policy
-- [x] public package strategy (fourteen verified `@veyraoss` candidates, authenticated organization ownership and isolated tarball tests)
-- [x] fixed official package versions, release notes and local changelog generation
-- [x] release CI with verified review artifacts and protected publication (live publication/provenance requires approval and npm setup)
-- [x] isolated npm global installation, fresh-install doctor guidance and upgrade/removal documentation (registry release and optional Homebrew distribution remain deferred)
-- [x] contributor guides, runnable plugin/workflow tutorials and architecture decision process
-- [x] security/community policies, private vulnerability channel, issue/PR templates and dependency review policy
-- [x] complete example gallery with deterministic CLI execution and explicit provider prerequisites
-- [ ] documentation polish (README/index verified; stable TUI demo blocked by M2)
-- [x] versioned local evaluation harness, pristine grading and explicit known/unknown metrics (no live model-quality claims)
-- [x] no external product telemetry policy, local metrics verification and development-tool opt-out
+# Release gate
+
+A first public release should not be triggered just because release tooling works.
+
+Before publication, at minimum:
+
+- [ ] P0 real ChatGPT → Codex → ChatGPT loop is verified;
+- [ ] P0 onboarding/demo is reproducible;
+- [ ] README/install docs describe native-auth-first behavior accurately;
+- [ ] OpenAI API key is clearly optional for the golden path;
+- [ ] all baseline/CI checks pass;
+- [ ] release artifacts/changelog are reviewed;
+- [ ] user gives explicit publication approval.
+
+For the next concrete engineering task, follow [`docs/TODO.md`](TODO.md#next-task).
