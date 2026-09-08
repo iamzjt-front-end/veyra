@@ -275,6 +275,20 @@ describe("Claude Code runtime adapter", () => {
       stderr: "fixture di",
     });
   });
+  it("redacts partial native credentials at a retained-output boundary", async () => {
+    const secret = "native-fixture-credential";
+    const adapter = new ClaudeCodeAdapter(
+      {},
+      {
+        env: { CLAUDE_CODE_OAUTH_TOKEN: secret },
+        runProcess: async () => completed({ stderr: secret.slice(0, 18), stderrTruncated: true }),
+      },
+    );
+    const result = await adapter.run(input);
+    expect(JSON.stringify(result)).not.toContain(secret.slice(0, 18));
+    expect(JSON.stringify(result)).toContain("[REDACTED]");
+  });
+
   it("redacts environment secrets, credential fields and bearer diagnostics", async () => {
     const secret = 'fixture-token-with-"quote';
     const runner: ProcessRunner = async (request) => {

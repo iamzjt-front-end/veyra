@@ -38,6 +38,7 @@ export interface LeafOptions {
   record: RecordEvent;
   runtime: AgentRuntime;
   verifier: Verifier;
+  redactText: (value: string) => string;
   role?: AgentRole;
   instructions?: string;
   extraContext?: JsonObject;
@@ -186,7 +187,7 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
     } catch (error) {
       const detail =
         error instanceof Error
-          ? error.message.slice(0, 2048)
+          ? options.redactText(error.message).slice(0, 2048)
           : "The provider threw a non-Error value.";
       const failure = {
         code: "agent_execution_failed",
@@ -237,7 +238,7 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
     } catch (error) {
       const detail =
         error instanceof Error
-          ? error.message.slice(0, 2048)
+          ? options.redactText(error.message).slice(0, 2048)
           : "The verifier threw a non-Error value.";
       throw new ExecutionError(
         "verifier_execution_failed",

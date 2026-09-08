@@ -86,7 +86,7 @@ function optionValue(value: unknown, field: string, parents = new Set<object>())
         // Configuration owns this rejection rule; runtime redaction is a separate
         // boundary and must not become a config -> execution dependency.
         if (
-          /(?:api[_-]?key|token|password|passwd|secret|authorization|cookie|private[_-]?key)$|^(?:env|environment)$/i.test(
+          /(?:api[_-]?key|token|password|passwd|secret|authorization|cookie|(?:private|secret|access)[_-]?key(?:[_-]?id)?|credentials?)$|^(?:env|environment)$/i.test(
             key,
           )
         )

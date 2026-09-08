@@ -87,6 +87,11 @@ export class LocalRunStore {
     this.#redactor = createSecretRedactor({ values: options.redactValues });
   }
 
+  /** Redact complete diagnostics before callers create bounded excerpts. */
+  redactText(value: string): string {
+    return this.#redactor.text(value);
+  }
+
   createRun(input: CreateRunInput, runId = randomUUID()): Promise<StoredRun> {
     return this.#mutate(async () => {
       if (
@@ -552,12 +557,23 @@ function redact(value: JsonValue, redactor: SecretRedactor, path: string[] = [])
         structuralKeys = true;
     }
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [
-        key,
-        !structuralKeys && isSecretField(key)
-          ? "[REDACTED]"
-          : redact(item, redactor, [...path, key]),
-      ]),
+      Object.entries(value).map(([key, item]) => {
+        const safeKey = redactor.text(key);
+        if (structuralKeys && safeKey !== key)
+          throw new StateStoreError(
+            "invalid_input",
+            "workflow/state",
+            "Redaction would change a structural identifier; remove credentials from identifiers.",
+          );
+        return [
+          safeKey,
+          !structuralKeys && isSecretField(key)
+            ? "[REDACTED]"
+            : typeof item === "string" && value[`${key}Truncated`] === true
+              ? redactor.text(item, { truncated: true })
+              : redact(item, redactor, [...path, key]),
+        ];
+      }),
     );
   }
   return value;

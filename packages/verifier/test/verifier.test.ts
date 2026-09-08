@@ -46,6 +46,33 @@ describe("ShellVerifier", () => {
     },
   );
 
+  it("redacts returned streams and emitted events using known values and explicit environment credentials", async () => {
+    const token = "verifier-fixture-credential";
+    const env = { AWS_SECRET_ACCESS_KEY: "fixture-access-value" };
+    const events: VeyraEvent[] = [];
+    const run = vi.fn<ProcessRunner>(async () => ({
+      ...passed,
+      stdout: env.AWS_SECRET_ACCESS_KEY,
+      stderr: token.slice(0, 18),
+      stderrTruncated: true,
+    }));
+    const report = await new ShellVerifier({
+      runProcess: run,
+      redactValues: [token],
+      emit: (event) => {
+        events.push(event);
+      },
+    }).verify({ commands: ["echo literal"], env, execution });
+    expect(report.results[0]).toMatchObject({
+      stdout: "[REDACTED]",
+      stderr: "[REDACTED]",
+      stderrTruncated: true,
+    });
+    expect(JSON.stringify(events)).not.toContain(env.AWS_SECRET_ACCESS_KEY);
+    expect(JSON.stringify(events)).not.toContain(token.slice(0, 18));
+    expect(run.mock.calls[0]?.[0].env).toEqual(env);
+  });
+
   it("runs commands sequentially and returns an aggregate plus per-command evidence", async () => {
     let active = false;
     const run = vi.fn<ProcessRunner>(async () => {

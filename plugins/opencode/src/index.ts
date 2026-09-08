@@ -151,8 +151,12 @@ export class OpenCodeAdapter implements AgentAdapter {
                 exitCode: processResult.exitCode,
                 signal: processResult.signal,
                 durationMs: processResult.durationMs,
-                stdout: redact.text(processResult.stdout),
-                stderr: redact.text(processResult.stderr),
+                stdout: redact.text(processResult.stdout, {
+                  truncated: processResult.stdoutTruncated,
+                }),
+                stderr: redact.text(processResult.stderr, {
+                  truncated: processResult.stderrTruncated,
+                }),
                 stdoutTruncated: processResult.stdoutTruncated,
                 stderrTruncated: processResult.stderrTruncated,
                 ...(processResult.terminationReason

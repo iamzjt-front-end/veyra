@@ -99,7 +99,7 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 
 - [x] worktree/workspace isolation (optional detached worktrees, execution leases, explicit safe cleanup)
 - [x] command execution safety (source evidence, explicit high-risk gates, native permission visibility)
-- [ ] secret redaction
+- [ ] secret redaction (current Core/CLI/provider/Verifier paths hardened and verified; TUI/Dashboard log checks await those surfaces)
 - [ ] crash recovery/idempotency
 - [ ] locking/concurrency/cancellation
 - [ ] artifact/log retention

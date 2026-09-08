@@ -39,6 +39,16 @@ function commands(cwd: string, dependencies: CliServices = {}) {
 }
 
 describe("CLI application commands", () => {
+  it("redacts recognizable credentials in plain and JSON CLI errors without an environment value", async () => {
+    const secret = `sk-proj-${"FixtureOnly".repeat(5)}`;
+    for (const flags of [[], ["--json"]]) {
+      const result = await commands(process.cwd())([secret, ...flags]);
+      expect(result.code).toBe(1);
+      expect(result.stdout + result.stderr).not.toContain(secret);
+      expect(result.stdout + result.stderr).toContain("[REDACTED]");
+    }
+  });
+
   it("keeps standard and custom provider secrets out of events, saved files, errors and later CLI inspection", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const token = 'fixture/github+"token';

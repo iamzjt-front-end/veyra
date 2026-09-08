@@ -1424,10 +1424,18 @@ Root `pnpm ve -- doctor` passed. The Claude Code example doctor displayed `defau
 
 ## M6.3 — Secret redaction
 
-- [ ] centralized redaction helper
-- [ ] redact common API key/token patterns and configured secret env names
-- [ ] apply to events, stderr excerpts, persisted errors, Dashboard/TUI logs
-- [ ] test that known fixture secrets never reach `.veyra/runs`
+**Status:** [!] Current execution paths verified; TUI/Dashboard log-renderer checks are blocked by their unimplemented milestones.
+
+- [x] centralized redaction helper
+- [x] redact common API key/token patterns and configured secret env names
+- [!] apply to events, stderr excerpts, persisted errors, Dashboard/TUI logs
+- [x] test that known fixture secrets never reach `.veyra/runs`
+
+Implemented recognizable token/private-key/header patterns, credential-shaped fields and payload keys, explicit custom environment names, and bounded-output prefix filtering in the shared Runtime helper. Core sanitizes full exceptions before clipping and refuses credential-bearing structural identifiers. Native CLI adapters pass truncation flags; Verifier filters returned/emitted evidence while preserving the authorized process input. Scope and limits are documented in [AUTHENTICATION](AUTHENTICATION.md).
+
+Verified all five baseline commands; `pnpm test` passed 1,546 tests, including 27 new cases for unknown recognizable formats, configured secrets, encoded/truncated values, emitted events, persisted errors/files, subsequent agent context and CLI diagnostics. The initial full test run timed out in an existing worktree-resume test at 5 seconds; that file passed independently in 1.70 seconds and the full suite rerun passed without code changes.
+
+Blocker evidence: `apps/tui/src/index.ts` still prints only `TUI scaffold`; `apps/dashboard/README.md` reports `planned for v0.5` and no Dashboard log renderer exists. Current Core/CLI/provider/Verifier paths pass, but renderer-specific tests cannot execute until the dependent M2 and M5 surfaces are implemented. Revisit their logs and integration tests when those milestones become eligible; do not mark this item complete in advance. Independent M6.4 can proceed.
 
 ---
 
@@ -1659,4 +1667,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.3 — Secret redaction.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and independent hardening work can proceed.
+**Next eligible: M6.4 — Crash recovery and idempotency.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.

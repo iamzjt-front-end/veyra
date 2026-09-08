@@ -10,6 +10,7 @@ import {
   type ProcessResult,
   type ProcessRunner,
   runProcess,
+  createSecretRedactor,
 } from "@veyra/runtime";
 
 export const DEFAULT_VERIFICATION_TIMEOUT_MS = 300_000;
@@ -39,19 +40,24 @@ export interface Verifier {
 export interface ShellVerifierOptions {
   runProcess?: ProcessRunner;
   emit?: EventSink;
+  /** Additional known values supplied by the embedding application; never persisted. */
+  redactValues?: readonly string[];
 }
 
 /** Executes trusted workflow command text sequentially; no LLM judgment or Core dependency. */
 export class ShellVerifier implements Verifier {
   readonly #runProcess: ProcessRunner;
   readonly #emit?: EventSink;
+  readonly #redactValues: readonly string[];
 
   constructor(options: ShellVerifierOptions = {}) {
     this.#runProcess = options.runProcess ?? runProcess;
     this.#emit = options.emit;
+    this.#redactValues = [...(options.redactValues ?? [])];
   }
 
   async verify(request: VerificationRequest): Promise<VerificationReport> {
+    const redactor = createSecretRedactor({ values: this.#redactValues, env: request.env });
     const commandSource = request.commandSource === undefined ? "caller" : request.commandSource;
     if (commandSource !== "workflow" && commandSource !== "caller")
       throw new Error(
@@ -76,7 +82,7 @@ export class ShellVerifier implements Verifier {
         type: "verification.started",
         ...execution,
         at: new Date().toISOString(),
-        commands: [...commands],
+        commands: commands.map((command) => redactor.text(command)),
         commandSource,
       });
     }
@@ -121,6 +127,10 @@ export class ShellVerifier implements Verifier {
         };
       }
       if (execution) result.execution = { ...execution };
+      result.command = redactor.text(result.command);
+      result.stdout = redactor.text(result.stdout, { truncated: result.stdoutTruncated });
+      result.stderr = redactor.text(result.stderr, { truncated: result.stderrTruncated });
+      if (result.error) result.error.message = redactor.text(result.error.message);
       results.push(result);
       if (!result.success) break;
     }

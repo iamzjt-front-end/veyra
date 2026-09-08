@@ -26,3 +26,7 @@ Core schedules each saved command step through this Verifier boundary, keeping d
 ## Command provenance
 
 `VerificationRequest.commandSource` is `workflow` for Core-scheduled commands and defaults to `caller` for the direct API. Only these trusted sources are accepted; provider/agent sources are rejected before process creation. Both verification event types record the source. Provider `commandsRun` results remain claims and never become command requests. See the [command safety and approval policy](COMMAND-SAFETY.md) for explicit shell semantics, host permissions and high-risk gates.
+
+## Filtered evidence
+
+`ShellVerifier({ redactValues? })` sanitizes returned command labels, stdout/stderr/error messages and emitted command/output evidence with the shared Runtime helper. Recognized values from an explicitly supplied request `env` are also filtered. Actual commands and environment remain unchanged for execution; no ambient credential discovery is added. Truncation flags allow the helper to remove known credential fragments at retained-output boundaries. Core retains its additional configured store/event filter. See [redaction scope and limits](AUTHENTICATION.md#recognizable-token-patterns-and-bounded-diagnostics).

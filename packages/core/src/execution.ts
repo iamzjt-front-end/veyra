@@ -321,6 +321,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
           record,
           runtime,
           verifier,
+          redactText: (value: string) => store.redactText(value),
         };
         let leaf: LeafResult;
         if (step.type === "subworkflow") {

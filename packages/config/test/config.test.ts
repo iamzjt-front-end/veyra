@@ -13,6 +13,24 @@ const minimal = () => ({
 });
 
 describe("parseConfig", () => {
+  it.each(["credentials", "AWS_SECRET_ACCESS_KEY", "AWS_ACCESS_KEY_ID"])(
+    "rejects credential-shaped option %s without echoing its value",
+    (name) => {
+      const value = {
+        ...minimal(),
+        agents: {
+          planner: { provider: "fixture", options: { [name]: "fixture-private-material" } },
+        },
+      };
+      expect(() => parseConfig(value)).toThrow(/must not contain credentials/);
+      try {
+        parseConfig(value);
+      } catch (error) {
+        expect(String(error)).not.toContain("fixture-private-material");
+      }
+    },
+  );
+
   it("validates a minimal config and applies independent defaults", () => {
     const config = parseConfig(minimal());
     expect(config).toEqual({
