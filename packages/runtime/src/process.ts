@@ -147,6 +147,23 @@ export const runProcess: ProcessRunner = async (request) => {
       }
     }
 
+    function escalate(reapRetries = 0) {
+      const cleanupFailure = signalChild("SIGKILL");
+      // macOS may report EPERM for a group awaiting reaping even after SIGTERM
+      // succeeded. Yield to child-exit handling before retrying the same group.
+      if (
+        process.platform === "darwin" &&
+        cleanupFailure?.systemCode === "EPERM" &&
+        reapRetries < 5
+      ) {
+        escalation = setTimeout(() => escalate(reapRetries + 1), 10);
+        return;
+      }
+      failure ??= cleanupFailure;
+      cleanupFinished = true;
+      finish();
+    }
+
     function stop(reason?: ProcessResult["terminationReason"]) {
       if (stopping) return;
       stopping = true;
@@ -180,14 +197,7 @@ export const runProcess: ProcessRunner = async (request) => {
       }
       signalChild("SIGTERM");
       // Keep escalation even if the leader closes first: descendants may ignore SIGTERM.
-      escalation = setTimeout(() => {
-        // A graceful signal can race with macOS reaping (EPERM for a zombie-only group).
-        // The final attempt decides cleanup: successful SIGKILL or ESRCH supersedes it.
-        const cleanupFailure = signalChild("SIGKILL");
-        failure ??= cleanupFailure;
-        cleanupFinished = true;
-        finish();
-      }, request.terminationGraceMs ?? 500);
+      escalation = setTimeout(() => escalate(), request.terminationGraceMs ?? 500);
     }
 
     function abort() {

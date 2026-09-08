@@ -172,6 +172,25 @@ describe("local process runner", () => {
     expect(result.durationMs).toBeLessThan(3000);
   });
 
+  it.skipIf(process.platform !== "darwin")(
+    "waits through macOS reaping when escalation runs before the child close callback",
+    async () => {
+      const controller = new AbortController();
+      const running = node("setInterval(() => {}, 1000)", {
+        signal: controller.signal,
+        terminationGraceMs: 0,
+      });
+      controller.abort();
+      // Let the actual OS child exit while preventing Node from reaping it yet.
+      const until = performance.now() + 45;
+      while (performance.now() < until) {}
+      const result = await running;
+      expect(result.terminationReason).toBe("cancelled");
+      expect(result.exitCode).not.toBe(0);
+      expect(result.durationMs).toBeLessThan(3000);
+    },
+  );
+
   it("cancels after receiving live output and retains that output", async () => {
     const controller = new AbortController();
     const result = await node("console.log('ready'); setInterval(() => {}, 1000)", {
