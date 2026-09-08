@@ -134,7 +134,7 @@ No OpenAI API key is required for this path.
 
 ## P0.0 — Record the product pivot
 
-**Status:** [x] Complete.
+**Status:** [x] Complete and documented.
 
 **Depends on:** none
 
@@ -143,12 +143,12 @@ No OpenAI API key is required for this path.
 - [x] canonical `PRODUCT.md` defining project-centered/native-auth-first behavior;
 - [x] replace the API-first TODO with this P0 plan;
 - [x] preserve access to the historical plan through Git history/legacy pointer;
-- [ ] update `AGENTS.md` with project-first/native-auth-first rules;
-- [ ] update `docs/ARCHITECTURE.md` with Project, Daemon and Bridge responsibilities;
-- [ ] update `docs/ROADMAP.md` so API smoke is optional/non-blocking;
-- [ ] update README positioning and current priority.
+- [x] update `AGENTS.md` with project-first/native-auth-first rules;
+- [x] update `docs/ARCHITECTURE.md` with Project, Daemon and Bridge responsibilities;
+- [x] update `docs/ROADMAP.md` so API smoke is optional/non-blocking;
+- [x] update README positioning and current priority.
 
-**P0.0 is complete only after all documentation updates above land and links resolve.**
+P0.0 intentionally changes product priority without discarding verified engine/provider/security work.
 
 ---
 
@@ -813,6 +813,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.0 is currently in progress until the product/architecture/roadmap/contributor docs are synchronized. After that, the next implementation task is P0.1 — Define Veyra Project as a first-class model.**
+**P0.1 — Define Veyra Project as a first-class model.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.
