@@ -106,7 +106,7 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] bounded event/artifact storage and explicit local history retention
 - [x] labeled prompt sources and persisted decision evidence provenance
 - [x] macOS/Linux platform verification and explicit unsupported native Windows policy
-- [ ] public package/release strategy
+- [ ] public package/release strategy (fourteen candidates and isolated tarball tests prepared; npm ownership blocked by authentication)
 - [ ] contributor/security/community docs
 - [ ] example gallery and docs polish
 - [ ] evaluation/benchmark harness

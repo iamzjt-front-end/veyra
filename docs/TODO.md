@@ -1520,6 +1520,8 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,670 test
 
 Local frozen install and all five baseline commands passed on macOS arm64 with Node.js 22.22.0 and pnpm 10.15.1 (1,677 tests). The [hosted matrix passed on both macOS 15 and Ubuntu 24.04](https://github.com/iamzjt-front-end/veyra/actions/runs/34203473354) at commit `bf9c9d7`, including the frozen install and all five checks. Seven added cases cover literal paths/arguments, Unicode Git worktrees, real POSIX shell semantics and mocked platform shell selection; the existing real process-group, signal, cancellation and recovery suites also passed. The [platform policy](PLATFORMS.md) explicitly leaves native Windows unsupported pending full native verification. Local documentation targets and formatting were checked.
 
+Follow-up: the documentation commit's [macOS CI run](https://github.com/iamzjt-front-end/veyra/actions/runs/34203906068) exposed a real reaping race: graceful group signaling returned `EPERM`, followed by final `ESRCH`. Commit `44d63e4` uses the final escalation result and keeps persistent failures fatal. Three regression cases passed; a real delayed-event-loop reproduction returned the same `EPERM` but completed correctly in all 12 runs after the fix. Commit `d802b13` also gives one repeated consensus persistence fixture a 15-second test limit after a concurrent-I/O timeout, preserving its assertions. All five local checks subsequently passed with 1,681 tests.
+
 ---
 
 # M7 — Open-source productization and releases
@@ -1528,11 +1530,17 @@ Goal: turn a working internal tool into a credible public developer project.
 
 ## M7.1 — Public package strategy
 
-- [ ] decide which packages are published (`@veyra/core`, `@veyra/sdk`, official plugins, CLI package)
-- [ ] executable remains `ve`
-- [ ] verify npm package/scope ownership and naming before first release
-- [ ] remove `private: true` only from packages intentionally published
-- [ ] exports/types/files fields are correct
+**Status:** [!] Package candidates prepared and verified; npm ownership is blocked.
+
+- [x] decide which packages are published (`@veyra/core`, `@veyra/sdk`, official plugins, CLI package)
+- [x] executable remains `ve`
+- [!] verify npm package/scope ownership and naming before first release
+- [!] remove `private: true` only from packages intentionally published
+- [x] exports/types/files fields are correct
+
+Prepared the fourteen candidates in the [package strategy](PACKAGES.md), with explicit ESM/type exports, runtime-only file allowlists, MIT licenses and repository metadata. Workflow builds and includes its own preset assets instead of resolving outside the installed package. `pnpm packages:check` packed and inspected every candidate, then imported modules, compiled SDK consumer types, loaded presets/schema and invoked `ve` from an isolated consumer. A frozen install and all five baseline checks passed (1,681 tests). Third-party dependencies reuse the frozen install; no registry install or public publication is claimed.
+
+**Blocker:** on 2026-09-08, `npm whoami --registry=https://registry.npmjs.org` returned `E401 Unauthorized`; `npm org ls veyra --json --registry=https://registry.npmjs.org` returned `E401` with an invalid-authentication-token diagnostic. The `@veyra/core` metadata command and anonymous metadata requests for all fourteen names returned 404, which does not establish scope ownership. An authenticated maintainer must verify the `@veyra` account/organization and publish permissions, or explicitly choose a different scope. All candidates keep `private: true` until then; root/TUI/Dashboard remain private. Public publishing still requires explicit approval. Independent versioning, documentation and local tooling may proceed.
 
 ---
 
@@ -1693,4 +1701,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M7.1 — Public package strategy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent productization work can proceed.
+**Next eligible: M7.2 — Versioning and changelog.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. M7.1's npm ownership check is blocked by invalid authentication. Independent productization work can proceed.

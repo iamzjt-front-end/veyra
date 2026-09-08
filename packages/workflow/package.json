@@ -4,12 +4,15 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./dist/index.js",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
     "./workflow-v1.schema.json": "./schema/workflow-v1.schema.json"
   },
   "types": "./dist/index.d.ts",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node scripts/copy-presets.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
@@ -20,5 +23,21 @@
   },
   "devDependencies": {
     "ajv": "8.20.0"
-  }
+  },
+  "description": "Declarative workflow loading, graph validation and built-in presets.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamzjt-front-end/veyra.git",
+    "directory": "packages/workflow"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "schema/workflow-v1.schema.json"
+  ]
 }

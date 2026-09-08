@@ -17,6 +17,7 @@
     "check": "turbo check && tsc -p tsconfig.test.json",
     "test": "turbo test && vitest run --config vitest.config.ts",
     "smoke:live": "pnpm build && tsx test/smoke/manual-smoke.ts",
+    "packages:check": "pnpm build && vitest run --config vitest.config.ts test/packaging.test.ts",
     "clean": "turbo clean && rm -rf node_modules",
     "ve": "tsx apps/cli/src/index.ts"
   },

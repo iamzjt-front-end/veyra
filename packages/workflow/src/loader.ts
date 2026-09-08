@@ -35,7 +35,7 @@ async function loadResolved(
     throw new WorkflowError("reference", "must be a non-empty preset name or path");
   }
   const filePath = presets.has(reference)
-    ? fileURLToPath(new URL(`../../../workflows/${reference}.yaml`, import.meta.url))
+    ? fileURLToPath(new URL(`../dist/presets/${reference}.yaml`, import.meta.url))
     : resolve(cwd, reference);
   let source: string;
   let canonical: string;

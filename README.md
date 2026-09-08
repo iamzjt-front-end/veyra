@@ -145,6 +145,8 @@ CI runs the same five checks on macOS 15 (arm64) and Ubuntu 24.04 (x64) for pull
 
 See [testing conventions](docs/TESTING.md) for deterministic fake agents, unit/integration/E2E test placement, and disposable fixture workspaces.
 
+The [package strategy](docs/PACKAGES.md) identifies release candidates and npm ownership gates. `pnpm packages:check` verifies actual tarballs from an isolated consumer; packages remain private while ownership is unresolved.
+
 The [configuration reference](docs/CONFIGURATION.md) documents the implemented version 1 schema and loader. The Core loop, first adapters, and headless CLI commands work; live provider runs require the corresponding accounts and credentials.
 
 The [workflow reference](docs/WORKFLOWS.md) covers preset/file loading, node validation, and outcome transitions.

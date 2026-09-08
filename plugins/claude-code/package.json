@@ -3,7 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@veyra/protocol": "workspace:*",
@@ -15,5 +20,20 @@
     "test": "vitest run --passWithNoTests",
     "smoke": "tsx test/manual-smoke.ts",
     "clean": "rm -rf dist"
-  }
+  },
+  "description": "Claude Code CLI executor adapter.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iamzjt-front-end/veyra.git",
+    "directory": "plugins/claude-code"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ]
 }
