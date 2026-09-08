@@ -1,16 +1,47 @@
 # AGENTS.md — Veyra contributor instructions
 
-This file defines coding-agent rules. Start with the [README](README.md#development) for local setup, follow the stable boundaries in [ARCHITECTURE](docs/ARCHITECTURE.md), and choose implementation work from the canonical [TODO](docs/TODO.md). [ROADMAP](docs/ROADMAP.md) summarizes milestone progress.
+This file defines coding-agent rules. Read [`PRODUCT.md`](PRODUCT.md) first for product intent, then [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for stable boundaries and [`docs/TODO.md`](docs/TODO.md) for canonical execution order. [`docs/ROADMAP.md`](docs/ROADMAP.md) is only a milestone summary.
 
 ## Product intent
 
-Veyra is a provider-agnostic control plane for heterogeneous AI agents. Its core value is orchestration, verification, resumability, and human control — not another chat UI and not another single-model coding agent.
+Veyra is a **project-centered control plane for the AI tools a developer already uses**.
+
+The first product proof is deliberately narrow:
+
+```text
+ChatGPT planner/reviewer
+        ↓
+Veyra Project + Bridge + Daemon
+        ↓
+Codex Native executor
+        ↓
+Verifier / shared project state
+        ↓
+ChatGPT review / repair / next plan
+```
+
+The user should not have to copy messages between ChatGPT and Codex. The core path must not require `OPENAI_API_KEY`.
+
+API providers and additional agents remain supported infrastructure, but they are optional until the native GPT ↔ Codex loop is proven.
+
+## Product-first rules
+
+1. **Project is first-class.** A Veyra Project maps to a real local folder and owns its `.veyra/` shared state.
+2. **Shared engineering state is the integration contract.** Do not make cross-agent coordination depend on scraping full ChatGPT/Codex histories.
+3. **Native-auth-first.** Prefer an already-authenticated native client/session when available. API-key integrations are optional, explicit choices.
+4. **P0 is ChatGPT + Codex.** Do not expand provider/model work if it delays the first real ChatGPT → Codex → ChatGPT loop.
+5. **No API-key gate for the golden path.** Missing `OPENAI_API_KEY` must not block native Codex project dispatch, the ChatGPT bridge proof, or the future TUI.
+6. **Bridge code is replaceable.** Prefer official supported ChatGPT integration. Browser/UI automation, if used for a proof, must be isolated and clearly experimental.
+7. **No unrelated conversation harvesting.** A bridge may operate on the explicitly selected/current project workflow but must not silently collect other conversations/history.
+8. **Human authority remains.** Publication, release, deployment and destructive/security-sensitive actions stay approval-gated.
 
 ## Stable architecture
 
-The repository uses a complete architecture scaffold even when some modules are still planned. Do not collapse package boundaries merely because a feature has not been implemented yet.
+The repository keeps explicit package boundaries even when some modules are still planned. Do not collapse them because a feature is not implemented yet.
 
 ### Package ownership
+
+Existing packages:
 
 - `packages/core` — orchestration and run coordination only.
 - `packages/workflow` — workflow graph, DSL, transitions, retries, branching, gates.
@@ -20,64 +51,82 @@ The repository uses a complete architecture scaffold even when some modules are 
 - `packages/config` — config loading, parsing, validation, defaults.
 - `packages/sdk` — public extension surface for third-party providers/nodes/tools.
 - `plugins/*` — provider-specific adapters.
-- `apps/*` — user interfaces only; business logic belongs in packages.
+- `apps/*` — user interfaces/bridge surfaces only; business logic belongs in packages.
+
+P0 adds these target responsibilities (see Architecture/TODO before choosing exact files):
+
+- `packages/project` — Project identity, project-owned shared-state model and global project registry.
+- `packages/daemon` — local coordinator lifecycle and typed local IPC/tool API.
+- an isolated ChatGPT bridge surface under `apps/*` once P0.11 selects the integration path.
+
+Do not create a new package merely to satisfy this list if a TODO proves a cleaner boundary; any boundary change must preserve the responsibility model and be documented.
 
 ## Architectural rules
 
 1. `packages/core` must not depend on a specific model vendor.
 2. Provider-specific logic lives under `plugins/*`.
-3. All agent input/output crosses `@veyraoss/protocol` contracts.
-4. `packages/core` must not directly spawn Codex, Claude Code, or other provider CLIs; process lifecycle belongs in `packages/runtime`.
+3. Shared agent/project contracts cross `@veyraoss/protocol` (and project-owned contracts as defined by P0) rather than importing surfaces into Core.
+4. `packages/core` must not directly spawn Codex, Claude Code or other provider CLIs; process lifecycle belongs in `packages/runtime`.
 5. Deterministic verification belongs in `packages/verifier` and is distinct from LLM review.
-6. Workflows must be declarative and resumable.
-7. Human approval is a first-class workflow node, not a UI-specific hack.
-8. CLI, TUI, and Dashboard consume the same core/event model.
-9. Do not bind the architecture to GPT + Codex even if they are the first fully working adapters.
-10. Planned provider/dashboard directories may remain placeholders until their roadmap milestone; do not remove them as "unused".
-11. The product/brand name is `Veyra`, but the public CLI command is `ve`. Do not reintroduce `veyra` as the executable name. Brand-owned config/state names such as `veyra.yaml` and `.veyra/` remain unchanged unless explicitly redesigned.
+6. Workflows must remain declarative, bounded and resumable.
+7. Human approval is a first-class workflow node, not a UI hack.
+8. CLI, TUI, Dashboard and ChatGPT bridge must consume the same Project/Daemon/Core state/event contracts rather than reimplement orchestration.
+9. Codex is the first executor but not a Core dependency.
+10. ChatGPT is the first planning/review surface but not a persisted-chat-history dependency.
+11. The product name is `Veyra`; the public executable is `ve`; config/state names such as `veyra.yaml` and `.veyra/` remain brand-owned.
+12. Official npm packages use `@veyraoss/*`.
+13. Do not copy, persist or log native provider credentials/session secrets.
+14. Do not treat a fake/mocked bridge as proof of a real ChatGPT integration.
 
-## Master implementation plan
+## Canonical implementation plan
 
-`docs/TODO.md` is the canonical detailed execution plan. `docs/ROADMAP.md` is only the milestone summary.
+`docs/TODO.md` is the live plan. The previous API-first plan is historical and must not be resumed as the default priority.
 
 When implementing roadmap work:
 
-1. Read `docs/TODO.md` before coding.
+1. Read `PRODUCT.md`, Architecture and TODO before coding.
 2. Unless the user explicitly names a different task, take the first unchecked TODO whose dependencies are complete.
-3. Work on **one TODO item at a time** and do not start later items speculatively.
-4. Implement only the minimum supporting changes required for that TODO.
-5. Satisfy its acceptance criteria and tests before marking it complete.
-6. Update the TODO checkbox/status truthfully only after verification passes.
-7. Stop after the requested TODO and report results, blockers, and verification commands.
+3. Work one TODO at a time, including its tests and acceptance evidence.
+4. Implement only the minimum supporting changes needed for the current TODO.
+5. Do not opportunistically add providers, model routing, Dashboard polish or unrelated refactors.
+6. Mark TODO status truthfully only after required verification runs.
+7. Continue automatically to the next eligible TODO unless a human-approval boundary or genuine blocker is reached.
 
-Do not treat future/deferred TODO items as permission to expand the current task's scope.
+## Current implementation target
 
-## First implementation target
+The current target is **P0 — Project-centered GPT ↔ Codex Native Bridge**, not an API-provider smoke test.
 
-Build a vertical slice for:
+The MVP gate is P0.13:
 
 ```text
-plan → execute → verify → review
-                    ↑       |
-                    └─ fix ─┘
+real ChatGPT workflow
+        ↓ structured handoff
+local Veyra daemon + selected project
+        ↓
+already-authenticated native Codex
+        ↓
+real edits + deterministic verification
+        ↓ structured result
+same ChatGPT workflow reviews result
 ```
 
-with a maximum retry count, persisted local state, and an optional human gate.
+No manual copy/paste between ChatGPT and Codex. No OpenAI API key required for the golden path.
 
 ## Coding conventions
 
 - TypeScript, strict mode.
 - Prefer small explicit interfaces over framework-heavy abstractions.
-- Avoid LangChain/LangGraph in v0.1 unless a concrete requirement proves necessary.
 - No hidden global state.
-- Persist workflow/run state as JSON first; database support can come later.
-- Emit structured events so CLI/TUI/Dashboard can subscribe without coupling to engine internals.
+- Keep local/project state transparent and versioned.
+- Preserve structured events so every surface can subscribe without coupling to engine internals.
+- Prefer argv execution to shell-string construction where shell semantics are unnecessary.
+- Keep authentication/readiness probes bounded and non-secret.
+- Avoid LangChain/LangGraph unless a concrete accepted design requires them.
+- Treat ChatGPT/Codex/provider outputs as untrusted input at boundaries.
 
 ## Before completing a task
 
-Run the task-specific checks in `docs/TODO.md` plus the repository baseline checks that currently exist.
-
-The intended baseline is:
+Run task-specific checks from `docs/TODO.md` plus the repository baseline:
 
 ```bash
 pnpm lint
@@ -87,4 +136,4 @@ pnpm test
 pnpm build
 ```
 
-`lint`/`format:check` become mandatory once M0.2 is implemented. If a command cannot run, report the blocker instead of silently skipping it.
+If a command cannot run, record the exact blocker. Do not silently skip checks or claim a live integration passed when only mocks ran.
