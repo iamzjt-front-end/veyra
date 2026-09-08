@@ -1272,6 +1272,10 @@ Goal: provide a visual management surface for multiple projects/runs while reusi
 
 ## M5.1 — Dashboard technical foundation
 
+**Status:** [!] Blocked by the requested TUI-stability prerequisite.
+
+The Autopilot request, section 25, says: “Do not prematurely build a large Web application before the core and TUI are stable.” Treating Dashboard implementation as dependent on that prerequisite preserves the requested milestone order. Inspected `apps/tui/src/index.ts` (still prints `TUI scaffold`), M2.1 (depends on v0.1 completion), and M1.14 (live closed loop remains blocked by the absent OpenAI API credential). No Dashboard implementation or new dependency was started. Unblock M1.14, finish the dependent v0.1/TUI acceptance checks, then start this foundation; M5.2–M5.9 depend on it. M5.10 is an independent design-only document, and M6 hardening may proceed independently.
+
 **Primary area:** `apps/dashboard`
 
 - [ ] choose a lightweight web stack suitable for a local control center
@@ -1642,4 +1646,4 @@ When finished:
 
 ## Next task
 
-**Next candidate: M5.1 — Dashboard technical foundation; check the TUI-stability prerequisite before starting Dashboard implementation.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M5.10 — Remote worker/control-plane design (documentation only).** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

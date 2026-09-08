@@ -80,6 +80,8 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 
 ## v0.5 — Dashboard
 
+Dashboard implementation is waiting for the requested stable TUI prerequisite; M2 remains dependent on the blocked live v0.1 smoke. The independent remote-control design document can proceed without enabling remote execution.
+
 - [ ] Local Web control center foundation
 - [ ] Local project/run bridge and event streaming
 - [ ] Projects page
