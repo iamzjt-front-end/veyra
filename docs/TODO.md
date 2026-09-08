@@ -539,7 +539,7 @@ Verification: canonical serialization/parse, schema versions, safe references, b
 
 ## P0.10 — Real native Codex Project dispatch E2E
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.4–P0.9
 
@@ -560,18 +560,20 @@ Prove the local half of the product before adding ChatGPT UI automation.
 
 ### Safety
 
-- [ ] explicit opt-in for live native Codex smoke;
-- [ ] disposable fixture only;
-- [ ] protected tests/instructions checked for tampering;
-- [ ] bounded timeout/retry;
-- [ ] cleanup on success/failure;
-- [ ] no publication/push/deployment.
+- [x] explicit opt-in for live native Codex smoke;
+- [x] disposable fixture only;
+- [x] protected tests/instructions checked for tampering;
+- [x] bounded timeout/retry;
+- [x] cleanup on success/failure;
+- [x] no publication/push/deployment.
 
 ### Acceptance criteria
 
 A real already-authenticated Codex completes the disposable fixture task through Veyra daemon/project handoff with `OPENAI_API_KEY` unset.
 
 This is the first major P0 gate.
+
+Verification: `env -u OPENAI_API_KEY pnpm --filter @veyraoss/cli smoke:native` passed with real native `codex-cli 0.153.4`, Project `bebab765-d550-4d1d-83b7-2407e50c2d61`, run `bd573315-0b40-4fbc-abb4-772f1c75aaa5`, session `01a081fb-3bd8-7561-a9e1-59c52d3afc36`. A production CLI daemon dispatched the canonical handoff, Codex changed only `src/message.js`, and an independent client fetched actual passing test/build/diff evidence. Protected files and build output passed; the fixture and daemon were cleaned up. Default harness tests also reject false success, tampering and symlink substitution, and verify cancellation cleanup. All five baseline commands passed (1,878 tests). See `docs/NATIVE-DISPATCH.md`; this proves native local dispatch, not the later ChatGPT bridge.
 
 ---
 
@@ -831,6 +833,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.10 — Real native Codex Project dispatch E2E.**
+**P0.11 — ChatGPT Bridge feasibility spike.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

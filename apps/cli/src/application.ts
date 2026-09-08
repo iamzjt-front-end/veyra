@@ -81,11 +81,26 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           env,
           resolveExecution: async (project, handoff) => {
             const binding = (await loadProjectBindings(project))?.roles.executor;
-            if (binding)
-              return nativeExecution(project, binding, handoff, {
-                env,
-                runProcess: services.runProcess,
-              });
+            if (binding) {
+              const verificationConfig = handoff.requestedVerification?.length
+                ? await loadConfig(resolve(project.root, "veyra.yaml"))
+                : undefined;
+              return nativeExecution(
+                project,
+                binding,
+                handoff,
+                {
+                  env,
+                  runProcess: services.runProcess,
+                },
+                verificationConfig
+                  ? {
+                      config: verificationConfig,
+                      workflow: await loadWorkflow(verificationConfig.workflow.use, project.root),
+                    }
+                  : undefined,
+              );
+            }
             const config = await loadConfig(resolve(project.root, "veyra.yaml"));
             const workflow = await loadWorkflow(config.workflow.use, project.root);
             const agents = services.createAgent

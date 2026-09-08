@@ -27,6 +27,7 @@
     "dev": "tsx src/index.ts",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
+    "smoke:native": "tsx test/manual-native-dispatch.ts",
     "clean": "rm -rf dist"
   },
   "description": "The Veyra command-line application, exposed as ve.",

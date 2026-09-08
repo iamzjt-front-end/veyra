@@ -13,7 +13,7 @@ import type { ProcessRunner } from "@veyraoss/runtime";
 import { LocalRunStore } from "@veyraoss/core";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { fixtureProjectState } from "../../../test/helpers/project-state.js";
-import { nativeExecution } from "../src/native-executor.js";
+import { nativeExecution, nativeConfig } from "../src/native-executor.js";
 
 it.each(["pass", "fail", "skip"])(
   "exchanges canonical planner/native-adapter/reviewer envelopes with actual %s verification evidence",
@@ -68,10 +68,31 @@ it.each(["pass", "fail", "skip"])(
         registryRoot,
         env: {},
         resolveExecution: (project, handoff) => {
-          const setup = nativeExecution(project, { provider: "codex", mode: "native" }, handoff, {
-            env: {},
-            runProcess: runner,
-          });
+          const setup = nativeExecution(
+            project,
+            { provider: "codex", mode: "native" },
+            handoff,
+            {
+              env: {},
+              runProcess: runner,
+            },
+            {
+              config: nativeConfig(project, { provider: "codex", mode: "native" }),
+              workflow: {
+                version: 1,
+                name: "trusted-checks",
+                start: "verify",
+                steps: {
+                  verify: {
+                    type: "command",
+                    run: [
+                      "node -e \"if(require('node:fs').readFileSync('answer.txt','utf8')!=='42')process.exit(1)\"",
+                    ],
+                  },
+                },
+              },
+            },
+          );
           setup.workflow.steps = {
             execute: {
               type: "agent",
