@@ -433,4 +433,10 @@ export type VeyraEvent = EventMetadata &
 export type EventSink = (event: VeyraEvent) => void | Promise<void>;
 export { isWorkspaceInfo, type WorkspaceInfo } from "./workspace.js";
 export { isJsonValue } from "./json.js";
+export {
+  isProjectId,
+  isProjectDescriptor,
+  type ProjectId,
+  type ProjectDescriptor,
+} from "./project.js";
 export { isAgentDescriptor, isAgentReadiness, isAgentRequirements } from "./capabilities.js";

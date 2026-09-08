@@ -137,9 +137,20 @@ describe("local version and changelog preparation", () => {
         );
         await changeset(cwd, ["status", "--output", "plan.json"]);
         const plan = await readJson(join(cwd, "plan.json"));
-        expect(plan.releases).toHaveLength(14);
+        // Private dependents can appear as type:none entries so Changesets can update
+        // dependency ranges, even though privatePackages.version is disabled.
+        const publicReleases = plan.releases.filter((release: { name: string }) =>
+          packages.has(release.name),
+        );
+        expect(publicReleases).toHaveLength(packages.size);
+        for (const release of plan.releases) {
+          if (!packages.has(release.name)) {
+            expect(release.type).toBe("none");
+            expect(release.newVersion).toBe(release.oldVersion);
+          }
+        }
         expect(
-          new Set(plan.releases.map((release: { newVersion: string }) => release.newVersion)),
+          new Set(publicReleases.map((release: { newVersion: string }) => release.newVersion)),
         ).toEqual(new Set([next]));
         expect(plan.changesets).toHaveLength(2);
         await changeset(cwd, ["version"]);
@@ -157,7 +168,11 @@ describe("local version and changelog preparation", () => {
         expect(coreLog).toContain("Fixture repair.");
         expect(coreLog).toContain(`@veyraoss/runtime@${next}`);
         expect(await readdir(join(cwd, ".changeset"))).toEqual(["config.json"]);
-        for (const path of ["package.json", "apps/tui/package.json"]) {
+        for (const path of [
+          "package.json",
+          "apps/tui/package.json",
+          "packages/project/package.json",
+        ]) {
           expect((await readJson(join(cwd, path))).version).toBe(
             (await readJson(join(root, path))).version,
           );

@@ -11,7 +11,7 @@ The repository already contains substantial verified orchestration/runtime/provi
 Goal: let a real ChatGPT workflow hand work to an already-authenticated native Codex inside a selected Veyra Project, then return structured implementation evidence to ChatGPT automatically for review/repair — with no manual copy/paste and no OpenAI API key required for the golden path.
 
 - [x] product pivot recorded in `PRODUCT.md`
-- [ ] Project first-class model
+- [x] Project first-class model
 - [ ] global local Project Registry
 - [ ] shared Project State / handoff contract
 - [ ] local Veyra Daemon

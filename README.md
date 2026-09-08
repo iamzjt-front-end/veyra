@@ -121,16 +121,16 @@ Codex should reuse its normal installed/authenticated client state. Missing `OPE
 
 Existing API integrations remain available as optional capabilities:
 
-| Integration                                             | Implemented surface                                  | Product role now                                                       |
-| ------------------------------------------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------- |
-| [Codex](docs/CODEX.md)                                  | Native coding CLI                                    | **P0 executor / native golden path**                                    |
-| [OpenAI](docs/OPENAI.md)                                | Responses planner/reviewer/judge                     | Optional API integration; live API key smoke is non-blocking           |
-| [Claude](docs/CLAUDE.md)                                | API planner/reviewer/judge                           | Optional/deferred until GPT ↔ Codex product proof                      |
-| [Claude Code](docs/CLAUDE-CODE.md)                      | Native coding CLI                                    | Optional/deferred additional native executor                           |
-| [Gemini](docs/GEMINI.md)                                | API reasoning and opt-in inline image input          | Optional/deferred                                                      |
-| [Gemini CLI](docs/GEMINI-CLI.md)                        | Native coding CLI                                    | Optional/deferred                                                      |
-| [OpenCode](docs/OPENCODE.md)                            | Native coding CLI                                    | Optional/deferred                                                      |
-| [OpenAI-compatible / local](docs/OPENAI-COMPATIBLE.md)  | Explicit Chat Completions endpoint and response mode | Optional local/API-compatible integration                              |
+| Integration                                            | Implemented surface                                  | Product role now                                             |
+| ------------------------------------------------------ | ---------------------------------------------------- | ------------------------------------------------------------ |
+| [Codex](docs/CODEX.md)                                 | Native coding CLI                                    | **P0 executor / native golden path**                         |
+| [OpenAI](docs/OPENAI.md)                               | Responses planner/reviewer/judge                     | Optional API integration; live API key smoke is non-blocking |
+| [Claude](docs/CLAUDE.md)                               | API planner/reviewer/judge                           | Optional/deferred until GPT ↔ Codex product proof            |
+| [Claude Code](docs/CLAUDE-CODE.md)                     | Native coding CLI                                    | Optional/deferred additional native executor                 |
+| [Gemini](docs/GEMINI.md)                               | API reasoning and opt-in inline image input          | Optional/deferred                                            |
+| [Gemini CLI](docs/GEMINI-CLI.md)                       | Native coding CLI                                    | Optional/deferred                                            |
+| [OpenCode](docs/OPENCODE.md)                           | Native coding CLI                                    | Optional/deferred                                            |
+| [OpenAI-compatible / local](docs/OPENAI-COMPATIBLE.md) | Explicit Chat Completions endpoint and response mode | Optional local/API-compatible integration                    |
 
 Provider identifiers and models remain configuration choices. Core contains no vendor-selection assumptions.
 

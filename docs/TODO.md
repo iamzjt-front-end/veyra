@@ -154,7 +154,7 @@ P0.0 intentionally changes product priority without discarding verified engine/p
 
 ## P0.1 — Define Veyra Project as a first-class model
 
-**Status:** [ ]
+**Status:** [x]
 
 **Depends on:** P0.0
 
@@ -168,16 +168,16 @@ A project maps to one real local folder.
 
 ### Requirements
 
-- [ ] define a provider-neutral `ProjectId` and typed project descriptor;
-- [ ] project has canonical absolute path and display name;
-- [ ] project identity must remain stable across process restarts;
-- [ ] detect/handle duplicate project ids intentionally;
-- [ ] define `.veyra/project.yaml` (or equivalent documented project metadata file);
-- [ ] separate project metadata from workflow/provider config where practical;
-- [ ] never require provider credentials to create/open a project;
-- [ ] support opening an existing initialized project from any nested subdirectory;
-- [ ] fail clearly if the configured project path no longer exists;
-- [ ] path handling must resist accidental traversal/symlink confusion where security-relevant.
+- [x] define a provider-neutral `ProjectId` and typed project descriptor;
+- [x] project has canonical absolute path and display name;
+- [x] project identity must remain stable across process restarts;
+- [x] detect/handle duplicate project ids intentionally;
+- [x] define `.veyra/project.yaml` (or equivalent documented project metadata file);
+- [x] separate project metadata from workflow/provider config where practical;
+- [x] never require provider credentials to create/open a project;
+- [x] support opening an existing initialized project from any nested subdirectory;
+- [x] fail clearly if the configured project path no longer exists;
+- [x] path handling must resist accidental traversal/symlink confusion where security-relevant.
 
 ### Expected project layout
 
@@ -209,6 +209,8 @@ Do not create empty directories merely for aesthetics if they are not yet needed
 ### Acceptance criteria
 
 A provider-free process can create, close and reopen the same typed Veyra Project and locate its project-owned `.veyra` state reliably.
+
+Verification: 24 new Project/contract tests include three cold provider-free processes, nested/symlink paths and identity conflicts. `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,751 tests) and `pnpm build` passed; frozen offline installation also passed. See `packages/project/README.md` for metadata and relocation behavior.
 
 ---
 
@@ -813,6 +815,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.1 — Define Veyra Project as a first-class model.**
+**P0.2 — Add a lightweight global Project Registry.**
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.
