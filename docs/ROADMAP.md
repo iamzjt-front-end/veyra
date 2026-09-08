@@ -103,7 +103,7 @@ These areas continue across milestones and are tracked in detail in `docs/TODO.m
 - [x] crash recovery/idempotency (owner liveness, matched completion boundaries, conservative partial-effect policy)
 - [x] local run/store locking, isolated concurrency and conservative stale-owner recovery
 - [x] cancellation propagation, process cleanup and persisted terminal reasons
-- [ ] artifact/log retention
+- [x] bounded event/artifact storage and explicit local history retention
 - [ ] cross-platform support
 - [ ] public package/release strategy
 - [ ] contributor/security/community docs

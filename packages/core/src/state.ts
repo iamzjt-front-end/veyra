@@ -20,6 +20,8 @@ import {
 } from "@veyra/runtime";
 import { parseWorkflow, buildWorkflowGraph, type WorkflowDefinition } from "@veyra/workflow";
 import { isStoredEvent, isSerializedError } from "./state-events.js";
+import { digest, eventArtifact, eventView, MAX_INLINE_EVENT_BYTES } from "./artifacts.js";
+import type { PruneRunsOptions, PruneRunsResult } from "./retention.js";
 
 export type RunStatus = "running" | "paused" | "completed" | "failed";
 
@@ -275,7 +277,12 @@ export class LocalRunStore {
     return this.#mutate(async () => {
       await this.#loadRun(runId);
       const path = join(this.#runPath(runId), "events.jsonl");
-      if (!isStoredEvent(event) || event.runId !== runId) {
+      if (
+        !isStoredEvent(event) ||
+        event.runId !== runId ||
+        event.type === "event.stored" ||
+        event.payload !== undefined
+      ) {
         throw new StateStoreError(
           "invalid_input",
           path,
@@ -284,7 +291,7 @@ export class LocalRunStore {
       }
       const previous = await this.#readEvents(runId);
       const recorded = { ...event, eventId: randomUUID(), sequence: previous.length + 1 };
-      const serialized = this.#serialize(recorded, path);
+      let serialized = this.#serialize(recorded, path);
       const safeEvent: unknown = JSON.parse(serialized);
       if (!isStoredEvent(safeEvent) || safeEvent.runId !== runId)
         throw new StateStoreError(
@@ -292,6 +299,30 @@ export class LocalRunStore {
           path,
           "Redaction changed structural event fields; remove secrets from execution identifiers.",
         );
+      if (Buffer.byteLength(serialized) > MAX_INLINE_EVENT_BYTES) {
+        const artifact = eventArtifact(safeEvent, `${serialized}\n`);
+        const artifactDir = join(this.#runPath(runId), "artifacts");
+        await directory(artifactDir);
+        const artifactPath = join(artifactDir, `${artifact.id}.json`);
+        if (await exists(artifactPath))
+          throw new StateStoreError(
+            "unsafe_path",
+            artifactPath,
+            "Refusing to replace an existing artifact.",
+          );
+        const view = eventView({ ...safeEvent, payload: artifact });
+        const inline = this.#serialize(view, path);
+        if (!isStoredEvent(view) || Buffer.byteLength(inline) > MAX_INLINE_EVENT_BYTES)
+          throw new StateStoreError(
+            "invalid_input",
+            path,
+            "Artifact metadata exceeds the inline event limit.",
+          );
+        // Publish and sync the complete redacted payload before its event-log reference.
+        await this.#writeAtomic(artifactPath, safeEvent);
+        safeEvent.payload = artifact;
+        serialized = inline;
+      }
       const handle = await open(path, "a", 0o600);
       try {
         await handle.writeFile(`${serialized}\n`, "utf8");
@@ -308,20 +339,22 @@ export class LocalRunStore {
   }
 
   async listRuns(): Promise<StoredRunState[]> {
-    return this.#read(async () => {
-      const runs = join(this.directory, "runs");
-      if (!(await exists(this.directory))) return [];
-      await directory(this.directory);
-      if (!(await exists(runs))) return [];
-      await directory(runs);
-      const records: StoredRunState[] = [];
-      for (const name of await readdir(runs)) {
-        if (RUN_ID.test(name)) records.push((await this.#loadRun(name)).state);
-      }
-      return records.sort(
-        (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.runId.localeCompare(b.runId),
-      );
-    });
+    return this.#read(() => this.#listRuns());
+  }
+
+  async #listRuns(): Promise<StoredRunState[]> {
+    const runs = join(this.directory, "runs");
+    if (!(await exists(this.directory))) return [];
+    await directory(this.directory);
+    if (!(await exists(runs))) return [];
+    await directory(runs);
+    const records: StoredRunState[] = [];
+    for (const name of await readdir(runs)) {
+      if (RUN_ID.test(name)) records.push((await this.#loadRun(name)).state);
+    }
+    return records.sort(
+      (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.runId.localeCompare(b.runId),
+    );
   }
 
   async readEvents(runId: string): Promise<VeyraEvent[]> {
@@ -341,26 +374,156 @@ export class LocalRunStore {
 
   async getActiveRun(): Promise<StoredRun | null> {
     return this.#read(async () => {
-      const path = this.#activePath();
-      if (!(await exists(this.directory))) return null;
-      await directory(this.directory);
-      const stateDir = join(this.directory, "state");
-      if (!(await exists(stateDir))) return null;
-      await directory(stateDir);
-      if (!(await exists(path))) return null;
-      const pointer = await readJson(path);
-      if (
-        !object(pointer) ||
-        pointer.version !== 1 ||
-        !(
-          pointer.runId === null ||
-          (typeof pointer.runId === "string" && RUN_ID.test(pointer.runId))
-        )
-      )
-        corrupt(path, "Invalid active run pointer.");
-      if (pointer.runId === null) return null;
-      return this.#loadRun(pointer.runId as string);
+      const id = await this.#activeRunId();
+      return id === null ? null : this.#loadRun(id);
     });
+  }
+
+  async #activeRunId(): Promise<string | null> {
+    const path = this.#activePath();
+    if (!(await exists(this.directory))) return null;
+    await directory(this.directory);
+    const stateDir = join(this.directory, "state");
+    if (!(await exists(stateDir))) return null;
+    await directory(stateDir);
+    if (!(await exists(path))) return null;
+    const pointer = await readJson(path);
+    if (
+      !object(pointer) ||
+      pointer.version !== 1 ||
+      !(pointer.runId === null || (typeof pointer.runId === "string" && RUN_ID.test(pointer.runId)))
+    )
+      corrupt(path, "Invalid active run pointer.");
+    if (pointer.runId === null) return null;
+    return pointer.runId as string;
+  }
+
+  /** Preview by default; remove only terminal, old, unselected runs with no retained worktree. */
+  async pruneRuns(options: PruneRunsOptions = {}): Promise<PruneRunsResult> {
+    if (!object(options as unknown))
+      throw new StateStoreError(
+        "invalid_input",
+        this.directory,
+        "Prune options must be an object.",
+      );
+    const olderThanDays = options.olderThanDays ?? 30;
+    const keepLast = options.keepLast ?? 20;
+    if (
+      Object.keys(options).some((key) => !["olderThanDays", "keepLast", "apply"].includes(key)) ||
+      !Number.isSafeInteger(olderThanDays) ||
+      olderThanDays < 0 ||
+      olderThanDays > 365_000 ||
+      !Number.isSafeInteger(keepLast) ||
+      keepLast < 0 ||
+      keepLast > 100_000 ||
+      (options.apply !== undefined && typeof options.apply !== "boolean")
+    )
+      throw new StateStoreError(
+        "invalid_input",
+        this.directory,
+        "Prune expects olderThanDays (0–365000), keepLast (0–100000) and an explicit boolean apply flag.",
+      );
+    const cutoff = new Date(Date.now() - olderThanDays * 86_400_000).toISOString();
+    const planned = await this.#read(() => this.#prunePlan(cutoff, keepLast));
+    const result: PruneRunsResult = {
+      dryRun: !options.apply,
+      cutoff,
+      keepLast,
+      ...planned,
+      removed: [],
+    };
+    if (!options.apply) return result;
+    for (const candidate of planned.candidates) {
+      try {
+        await this.withRunLock(candidate.runId, async () => {
+          const trash = await this.#mutate(async () => {
+            // Recheck current selection, newest-run protection and workspace availability under coordination.
+            const fresh = await this.#prunePlan(cutoff, keepLast);
+            if (!fresh.candidates.some((run) => run.runId === candidate.runId)) {
+              result.skipped.push({ runId: candidate.runId, reason: "changed_since_preview" });
+              return undefined;
+            }
+            await this.#readEvents(candidate.runId);
+            const trashDir = join(this.directory, "state", "trash");
+            await mkdir(trashDir, { recursive: true, mode: 0o700 });
+            await directory(trashDir);
+            const target = join(trashDir, `${candidate.runId}-${randomUUID()}`);
+            if (await exists(target))
+              throw new StateStoreError(
+                "unsafe_path",
+                target,
+                "Refusing to replace an existing cleanup target.",
+              );
+            await rename(this.#runPath(candidate.runId), target);
+            try {
+              await syncDirectory(join(this.directory, "runs"));
+              await syncDirectory(trashDir);
+            } catch {
+              throw new StateStoreError(
+                "io_error",
+                target,
+                "History moved out of the live run list but cleanup publication failed; inspect this exact retained directory.",
+              );
+            }
+            return target;
+          });
+          if (!trash) return;
+          try {
+            await rm(trash, { recursive: true });
+            await syncDirectory(dirname(trash));
+          } catch {
+            throw new StateStoreError(
+              "io_error",
+              trash,
+              "History left the live run list but cleanup is incomplete; inspect this exact trash directory.",
+            );
+          }
+          result.removed.push(candidate);
+        });
+      } catch (error) {
+        if (
+          error instanceof StateStoreError &&
+          ["lock_busy", "lock_timeout", "not_found"].includes(error.code)
+        )
+          result.skipped.push({ runId: candidate.runId, reason: error.code });
+        else throw error;
+      }
+    }
+    return result;
+  }
+
+  async #prunePlan(cutoff: string, keepLast: number) {
+    const states = await this.#listRuns();
+    const active = await this.#activeRunId();
+    const candidates: PruneRunsResult["candidates"] = [];
+    const skipped: PruneRunsResult["skipped"] = [];
+    for (const [index, state] of states.entries()) {
+      const reason =
+        state.runId === active
+          ? "active_selection"
+          : !["completed", "failed"].includes(state.status)
+            ? "nonterminal"
+            : index < keepLast
+              ? "keep_last"
+              : Date.parse(state.updatedAt) >= Date.parse(cutoff)
+                ? "recent"
+                : undefined;
+      if (reason) {
+        skipped.push({ runId: state.runId, reason });
+        continue;
+      }
+      const run = await this.#loadRun(state.runId);
+      if (run.input.workspace?.mode === "worktree" && (await exists(run.input.workspace.root))) {
+        skipped.push({ runId: state.runId, reason: "workspace_present" });
+        continue;
+      }
+      candidates.push({
+        runId: state.runId,
+        updatedAt: state.updatedAt,
+        sizeBytes: await treeBytes(this.#runPath(state.runId)),
+      });
+    }
+    return { candidates, skipped };
   }
 
   #activePath() {
@@ -456,7 +619,7 @@ export class LocalRunStore {
         path,
         "Incomplete final event record; preserve the file and repair it before resuming.",
       );
-    return text
+    const records = text
       ? text
           .slice(0, -1)
           .split("\n")
@@ -469,6 +632,7 @@ export class LocalRunStore {
             }
             if (
               !isStoredEvent(event) ||
+              event.payload !== undefined ||
               event.runId !== runId ||
               event.sequence !== index + 1 ||
               !event.eventId
@@ -477,6 +641,46 @@ export class LocalRunStore {
             return event;
           })
       : [];
+    const events: VeyraEvent[] = [];
+    for (const record of records) {
+      if (record.type !== "event.stored") {
+        events.push(record);
+        continue;
+      }
+      const artifact = record.artifact;
+      const artifactDir = join(this.#runPath(runId), "artifacts");
+      await directory(artifactDir);
+      const artifactPath = join(artifactDir, `${artifact.id}.json`);
+      await regularFile(artifactPath);
+      const stat = await lstat(artifactPath);
+      if (stat.size !== artifact.sizeBytes || stat.size > MAX_JSON_BYTES + 1)
+        corrupt(artifactPath, "Stored event payload size disagrees with its reference.");
+      const serialized = await readFile(artifactPath, "utf8");
+      if (digest(serialized) !== artifact.metadata?.sha256)
+        corrupt(artifactPath, "Stored event payload digest disagrees with its reference.");
+      let event: unknown;
+      try {
+        event = JSON.parse(serialized);
+      } catch {
+        corrupt(artifactPath, "Invalid stored event payload JSON.");
+      }
+      if (
+        !isStoredEvent(event) ||
+        event.type === "event.stored" ||
+        event.payload !== undefined ||
+        event.type !== record.eventType ||
+        event.runId !== runId ||
+        event.eventId !== record.eventId ||
+        event.sequence !== record.sequence ||
+        JSON.stringify(eventArtifact(event, serialized)) !== JSON.stringify(artifact)
+      )
+        corrupt(artifactPath, "Stored event payload identity disagrees with its reference.");
+      const expanded = { ...event, payload: artifact };
+      if (JSON.stringify(eventView(expanded)) !== JSON.stringify(record))
+        corrupt(artifactPath, "Stored event preview disagrees with its payload.");
+      events.push(expanded);
+    }
+    return events;
   }
 
   #serialize(value: unknown, path: string) {
@@ -698,6 +902,20 @@ function redact(value: JsonValue, redactor: SecretRedactor, path: string[] = [])
     );
   }
   return value;
+}
+
+async function treeBytes(path: string): Promise<number> {
+  const info = await lstat(path);
+  if (info.isSymbolicLink() || (!info.isDirectory() && !info.isFile()))
+    throw new StateStoreError(
+      "unsafe_path",
+      path,
+      "Refusing cleanup of linked or special run content.",
+    );
+  if (info.isFile()) return info.size;
+  let total = 0;
+  for (const name of await readdir(path)) total += await treeBytes(join(path, name));
+  return total;
 }
 
 async function exists(path: string) {

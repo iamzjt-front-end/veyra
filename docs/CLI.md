@@ -94,6 +94,12 @@ Agent nodes may opt into [ordered provider fallbacks](PROVIDER-ROUTING.md). Run 
 
 Optional `runtime.workspace.mode: worktree` creates a detached per-run workspace. `run.started` and `status` show the saved directory, isolation mode and starting commit; `status --json` adds `workspace` and `workspaceAvailable`. Resume retains that location even when current configuration changes. `ve workspace remove <run-id> [--config <file>] [--recover-interrupted] [--json]` removes only a clean, unchanged, Veyra-owned worktree for a completed/failed run and preserves its run history. There is no force option. See [workspace policies and boundaries](WORKSPACES.md).
 
+## Artifact views and history cleanup
+
+Large run/resume events and JSON review results use bounded `event.stored` records with a preview and an artifact reference. Plain output shows the managed payload path; paths resolve inside `.veyra/runs/<run-id>/`. Core's store API restores the complete retained event for execution. See [artifact storage and capture limits](ARTIFACTS-RETENTION.md).
+
+`ve prune [--older-than-days <n>] [--keep-last <n>] [--config <file>] [--json]` previews eligible terminal history. Defaults preserve the newest 20 runs and runs updated within 30 days. Add `--apply` to delete eligible run directories and their managed artifacts. Active selection, nonterminal runs, retained worktrees and busy/stale control leases remain protected. It does not construct providers or execute project commands. Review the [cleanup policy and partial-failure behavior](ARTIFACTS-RETENTION.md#preview-and-apply-cleanup) before applying it.
+
 ## Command safety visibility
 
 Doctor/run output displays declared native permission controls when an adapter supplies them, including explicit unknown/native configuration modes. Verification startup identifies its trusted command source and host shell permissions. `status` shows the protected operation preview for policy-generated approval gates. See [command safety](COMMAND-SAFETY.md) for the enforced gate behavior, intentional shell syntax and native-provider boundaries.

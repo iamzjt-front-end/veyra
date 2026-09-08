@@ -417,7 +417,7 @@ await new VeyraEngine({emit:event=>{if(event.type==='run.paused'){writeFileSync(
       expect((await ve(["init", "--force", "--model", "replacement"])).code).toBe(0);
       expect(await readFile(join(path, "veyra.yaml"), "utf8")).toContain("replacement");
       expect(await readFile(join(path, ".gitignore"), "utf8")).toBe(
-        `${ignore}# Veyra local run state\n.veyra/state/\n.veyra/runs/\n`,
+        `${ignore}# Veyra local run state\n.veyra/state/\n.veyra/runs/\n.veyra/worktrees/\n`,
       );
     });
   });

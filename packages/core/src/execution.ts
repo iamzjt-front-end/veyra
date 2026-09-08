@@ -466,7 +466,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
       return success();
     } catch (error) {
       if (error instanceof StateStoreError) throw error;
-      const failure = normalizeError(error, stepId);
+      const failure = normalizeError(error, stepId, (value) => store.redactText(value));
       if (active && !stepSettled)
         await record(
           { type: "step.failed", ...active, message: failure.message, error: failure, at: now() },
@@ -525,7 +525,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<RunResult>
     result = {
       status: "failure",
       lastStep: run.state.currentStep,
-      error: normalizeError(error, run.state.currentStep),
+      error: normalizeError(error, run.state.currentStep, (value) => store.redactText(value)),
     };
   }
   await store.updateRun(runId, { status: "failed", error: result.error });
@@ -559,15 +559,22 @@ function operationPreview(step: WorkflowStep): { preview: string; truncated: boo
   return { preview: text.slice(0, 8192), truncated: text.length > 8192 };
 }
 
-function normalizeError(error: unknown, stepId?: string): SerializedError {
-  return error instanceof ExecutionError ||
+function normalizeError(
+  error: unknown,
+  stepId: string | undefined,
+  redactText: (value: string) => string,
+): SerializedError {
+  const failure =
+    error instanceof ExecutionError ||
     error instanceof InputResolutionError ||
     error instanceof RouterError
-    ? { code: error.code, message: error.message }
-    : {
-        code: "run_execution_failed",
-        message: `Workflow execution failed at step '${stepId ?? "start"}'.`,
-      };
+      ? { code: error.code, message: error.message }
+      : {
+          code: "run_execution_failed",
+          message: `Workflow execution failed at step '${stepId ?? "start"}'.`,
+        };
+  // Leave room for the existing 2 KiB adapter diagnostic and its step/error prefix.
+  return { ...failure, message: redactText(failure.message).slice(0, 4096) };
 }
 
 function pendingSubworkflow(

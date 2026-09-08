@@ -7,6 +7,7 @@
   state/
     active.json
     locks/        # ephemeral store/run coordination
+    trash/        # explicitly pruned history awaiting deletion
   worktrees/
     <UUID>/        # optional detached Git execution workspace
   runs/
@@ -37,7 +38,9 @@ The directory defaults to `.veyra` relative to the caller's working directory. C
 
 `loadRun(id)` reads an input/state pair. `listRuns()` returns states ordered by update time, and `getActiveRun()` loads the selected run or returns null. `setActiveRun(id)` selects an existing run; null clears the pointer without deleting history. Completing a run does not implicitly clear that selection. Terminal `error` metadata is validated and redacted, and is allowed only on failed snapshots. It records cancellation/deadline reasons as well as other terminal failures; see [cancellation](CANCELLATION.md).
 
-`appendEvent(id, event)` validates the shared event contract, assigns a UUID event ID and a one-based sequence, redacts it, and appends one JSON line. `readEvents(id)` validates and returns the recorded events. Appends validate the existing log before adding a record. These APIs read the local history into memory; large-history streaming and retention are later work. A single JSON snapshot/event is limited to 16 MiB on write; use artifacts for large output. Artifact directories are created now; artifact collection and rendering belong to later tasks.
+`appendEvent(id, event)` validates the shared event contract, assigns a UUID event ID and a one-based sequence, and redacts it before publication. Events larger than 64 KiB are stored in managed JSON artifacts with bounded `event.stored` references in the timeline. `readEvents(id)` validates and restores complete events, adding their store-owned `payload` reference when present. Appends validate the existing log and its referenced payloads before adding a record. These APIs still read local history into memory; streaming is not implemented. A single JSON snapshot/event is limited to 16 MiB on write. See [artifact storage and retention](ARTIFACTS-RETENTION.md) for integrity checks, capture limits and crash behavior.
+
+`pruneRuns()` previews old terminal history eligible for cleanup, preserving active selection, the newest 20 runs, runs updated within 30 days, and retained worktrees. `pruneRuns({ apply: true })` explicitly deletes eligible managed history under run/store coordination. See the [cleanup policy](ARTIFACTS-RETENTION.md#preview-and-apply-cleanup) before applying it.
 
 ## Interruption and errors
 

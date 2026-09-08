@@ -33,7 +33,7 @@ export async function initialize(
   };
   if (options.force) await writeAtomic(configPath, stringify(config), 0o600);
   else await writeFile(configPath, stringify(config), { flag: "wx", mode: 0o600 });
-  const block = "# Veyra local run state\n.veyra/state/\n.veyra/runs/\n";
+  const block = "# Veyra local run state\n.veyra/state/\n.veyra/runs/\n.veyra/worktrees/\n";
   if (!ignored.endsWith(block))
     await writeAtomic(
       ignorePath,

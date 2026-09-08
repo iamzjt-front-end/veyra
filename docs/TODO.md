@@ -1484,11 +1484,15 @@ Verified `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (1,623 test
 
 ## M6.7 — Log/artifact retention
 
-- [ ] bounded inline logs
-- [ ] large outputs stored as artifacts/files
-- [ ] retention/cleanup command or policy
-- [ ] artifact metadata includes producer/step/timestamp
-- [ ] avoid repo bloat by default
+**Status:** [x] Complete and verified.
+
+- [x] bounded inline logs
+- [x] large outputs stored as artifacts/files
+- [x] retention/cleanup command or policy
+- [x] artifact metadata includes producer/step/timestamp
+- [x] avoid repo bloat by default
+
+Verified all five baseline commands and 1,649 tests. Large events are redacted before atomic payload publication, with bounded timeline/CLI previews, producer identity, timestamps, byte sizes and SHA-256 references. Core restores complete retained evidence for mappings, resume and subscribers. Tests cover fresh-process restoration, large run/agent/verifier payloads, corruption/path/symlink refusal and a real crash before reference append. `ve prune` previews by default and explicitly applies age/count retention under run/store coordination; tests preserve active/paused histories, worktrees, busy leases and external files, recheck concurrent selection, and report retained trash after injected deletion failure. State/history/worktree ignore rules prevent accidental repository bloat. Fifty-three documentation links passed validation. [Artifact and retention documentation](ARTIFACTS-RETENTION.md) records capture limits, legacy compatibility, cooperative locking and partial-cleanup recovery. No developer run history was deleted.
 
 ---
 
@@ -1681,4 +1685,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M6.7 — Log/artifact retention.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.
+**Next eligible: M6.8 — Prompt/context safety and provenance.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open, Dashboard implementation waits for TUI stability, and M6.3 awaits those log renderers. Independent hardening work can proceed.

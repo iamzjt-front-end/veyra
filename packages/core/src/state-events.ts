@@ -8,6 +8,7 @@ import {
   type VeyraEvent,
   type SerializedError,
 } from "@veyra/protocol";
+import { EVENT_PREVIEW_BYTES, isEventArtifact } from "./artifacts.js";
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): value is RecordValue =>
@@ -84,7 +85,16 @@ function artifact(value: unknown): boolean {
     ["path", "mediaType"].every((key) => optional(value[key], string)) &&
     optional(value.sizeBytes, integer) &&
     optional(value.createdAt, timestamp) &&
-    optional(value.producer, (producer) => record(producer) && execution(producer)) &&
+    optional(
+      value.producer,
+      (producer) =>
+        record(producer) &&
+        string(producer.runId) &&
+        optional(producer.stepId, string) &&
+        optional(producer.attemptId, string) &&
+        optional(producer.attempt, integer) &&
+        optional(producer.parentStepId, string),
+    ) &&
     optional(value.metadata, record)
   );
 }
@@ -240,10 +250,22 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
     !string(value.runId) ||
     !timestamp(value.at) ||
     !optional(value.eventId, string) ||
-    !optional(value.sequence, integer)
+    !optional(value.sequence, integer) ||
+    !optional(value.payload, isEventArtifact)
   )
     return false;
   switch (value.type) {
+    case "event.stored":
+      return (
+        value.payload === undefined &&
+        isEventArtifact(value.artifact) &&
+        value.artifact.id === value.eventId &&
+        value.artifact.producer.runId === value.runId &&
+        value.artifact.createdAt === value.at &&
+        value.artifact.metadata.eventType === value.eventType &&
+        typeof value.preview === "string" &&
+        Buffer.byteLength(value.preview) <= EVENT_PREVIEW_BYTES
+      );
     case "run.started":
       return (
         string(value.goal) &&

@@ -2,7 +2,7 @@ import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { loadConfig } from "@veyra/config";
-import { LocalRunStore, type RunResult, VeyraEngine } from "@veyra/core";
+import { eventView, LocalRunStore, type RunResult, VeyraEngine } from "@veyra/core";
 import type { AgentPermissions, VeyraEvent } from "@veyra/protocol";
 import { type ProcessRunner, runProcess } from "@veyra/runtime";
 import { loadWorkflow } from "@veyra/workflow";
@@ -139,12 +139,37 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     secrets = secretValues(env, config);
     config.runtime.stateDir = resolve(root, config.runtime.stateDir);
     const store = new LocalRunStore({ stateDir: config.runtime.stateDir, redactValues: secrets });
+    if (command === "prune") {
+      const result = await store.pruneRuns({
+        ...(values["older-than-days"] !== undefined
+          ? { olderThanDays: Number(values["older-than-days"]) }
+          : {}),
+        ...(values["keep-last"] !== undefined ? { keepLast: Number(values["keep-last"]) } : {}),
+        apply: values.apply ?? false,
+      });
+      write(
+        { type: "retention", ...result },
+        [
+          `${result.dryRun ? "Preview" : "Cleanup"}: ${result.candidates.length} eligible runs; ${result.removed.length} removed.`,
+          ...result.candidates.map(
+            (run) => `${run.runId} — ${run.sizeBytes} bytes, updated ${run.updatedAt}`,
+          ),
+          `${result.skipped.length} runs preserved by policy or ownership.`,
+          ...(result.dryRun
+            ? [
+                "Review this list, then pass --apply to delete eligible history and managed artifacts. Workspaces are preserved.",
+              ]
+            : []),
+        ].join("\n"),
+      );
+      return 0;
+    }
     const emit = (event: VeyraEvent) => {
       if (json) {
-        write(event, "");
+        write(eventView(event), "");
         return;
       }
-      let line = event.type;
+      let line: string = event.type;
       if ("stepId" in event && event.stepId) line += ` ${event.stepId}`;
       if (event.type === "run.started" && event.workspace)
         line += `\nCWD: ${event.workspace.cwd}\nWorkspace: ${event.workspace.mode}${event.workspace.mode === "worktree" ? ` (HEAD ${event.workspace.commit})` : ""}`;
@@ -179,7 +204,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         line += `: ${event.allowed ? "allowed" : "denied"} (${event.phase})${event.reason ? ` — ${event.reason}` : ""}`;
       else if (event.type === "run.failed" || event.type === "step.failed")
         line += `: ${event.message}`;
-      write(event, line);
+      if (event.payload)
+        line = `${line.slice(0, 4096)}\nStored payload: ${event.payload.path} (${event.payload.sizeBytes} bytes)`;
+      write(eventView(event), line);
     };
     const engine = new VeyraEngine({ store, emit });
     const finish = (result: RunResult) => {
@@ -297,14 +324,18 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         .reverse()
         .find((event) => event.type === "verification.completed");
       write(
-        { runId: run.state.runId, review: review ?? null, verification: verification ?? null },
+        {
+          runId: run.state.runId,
+          review: review ? eventView(review) : null,
+          verification: verification ? eventView(verification) : null,
+        },
         [
           `Run: ${run.state.runId}`,
           review?.type === "agent.completed"
-            ? `Review: ${review.result.outcome ?? review.result.status} — ${review.result.summary}\nArtifacts: ${JSON.stringify(review.result.artifacts ?? [])}`
+            ? `Review: ${review.result.outcome ?? review.result.status} — ${review.result.summary.slice(0, 240)}\nArtifacts: ${JSON.stringify(review.payload ? [review.payload] : (review.result.artifacts ?? []))}`
             : "No reviewer result is saved yet.",
           verification?.type === "verification.completed"
-            ? `Verification: ${verification.success ? "passed" : "failed"}\n${verification.results.map((result) => `${result.success ? "PASS" : "FAIL"} ${result.command} (exit ${result.exitCode ?? "unavailable"})`).join("\n")}`
+            ? `Verification: ${verification.success ? "passed" : "failed"}\n${verification.results.map((result) => `${result.success ? "PASS" : "FAIL"} ${result.command} (exit ${result.exitCode ?? "unavailable"})`).join("\n")}${verification.payload ? `\nStored payload: ${verification.payload.path}` : ""}`
             : "No verification result is saved yet.",
         ].join("\n"),
       );

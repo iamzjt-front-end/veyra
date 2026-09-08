@@ -7,4 +7,5 @@ coverage/
 !.env.example
 .veyra/state/
 .veyra/runs/
+.veyra/worktrees/
 .DS_Store

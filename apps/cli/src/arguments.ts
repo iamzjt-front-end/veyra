@@ -11,6 +11,9 @@ const options = {
   json: { type: "boolean" },
   "non-interactive": { type: "boolean" },
   force: { type: "boolean" },
+  apply: { type: "boolean" },
+  "older-than-days": { type: "string" },
+  "keep-last": { type: "string" },
   approve: { type: "boolean" },
   reject: { type: "boolean" },
   "recover-interrupted": { type: "boolean" },
@@ -36,6 +39,7 @@ const allowed: Record<string, string[]> = {
   doctor: ["config", "workflow", "allow-plugin"],
   workflow: ["config"],
   workspace: ["config", "recover-interrupted"],
+  prune: ["config", "apply", "older-than-days", "keep-last"],
   help: [],
   version: [],
 };
@@ -108,6 +112,9 @@ export function argumentsFor(argv: string[]) {
     );
   if (parsed.values.approve && parsed.values.reject)
     throw new CliError("conflicting_decision", "Choose either --approve or --reject.");
+  for (const key of ["older-than-days", "keep-last"] as const)
+    if (parsed.values[key] !== undefined && !/^\d+$/.test(parsed.values[key]))
+      throw new CliError("invalid_retention_policy", `--${key} must be a non-negative integer.`);
   if (
     (parsed.values["approval-id"] || parsed.values.comment) &&
     !parsed.values.approve &&
@@ -134,6 +141,7 @@ Commands:
   workflow list          list built-in workflows and required agents
   workflow validate <name/path>  validate a workflow without executing it
   workspace remove <id>  remove a clean, unchanged worktree after a terminal run
+  prune       preview old terminal history eligible for cleanup
   version     print version
   help        show this help
 
@@ -150,5 +158,8 @@ Options:
   --recover-interrupted  recover a completed boundary after the owner and its children stopped
   --model <model>      planner/reviewer model for init
   --force              replace an existing config during init
+  --older-than-days <n> prune only history older than n days (default 30)
+  --keep-last <n>       always preserve the newest n runs (default 20)
+  --apply              delete eligible history during prune; default is a preview
 
 No-argument TUI mode remains planned. Commands currently run headlessly.`;

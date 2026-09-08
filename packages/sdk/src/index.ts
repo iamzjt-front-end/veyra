@@ -20,6 +20,7 @@ export type {
   AgentRunOptions,
   ApprovalDecision,
   ArtifactRef,
+  ArtifactProducer,
   EventMetadata,
   RecoveryBoundary,
   EventSink,

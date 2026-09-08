@@ -23,4 +23,11 @@ export { discoverAgents, type DiscoveredAgent, type DiscoveryOptions } from "./a
 export type { AgentCandidate } from "./agents.js";
 export { selectAgentRoute, type AgentRouteRequest } from "./agent-routing.js";
 export type { BudgetCheck, BudgetHook } from "./budget.js";
+export type { PruneRunsOptions, PruneRunsResult, RetainedRunCandidate } from "./retention.js";
+export {
+  eventView,
+  MAX_INLINE_EVENT_BYTES,
+  EVENT_PREVIEW_BYTES,
+  type EventArtifact,
+} from "./artifacts.js";
 export type { PendingApproval, ReadRunRequest, ResolveApprovalRequest } from "./approval.js";

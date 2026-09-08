@@ -56,6 +56,7 @@ export class RunContext {
   addEvent(event: VeyraEvent) {
     if (event.type === "agent.completed") {
       const result = event.result;
+      const artifacts = [...(result.artifacts ?? []), ...(event.payload ? [event.payload] : [])];
       this.add(
         event.stepId,
         {
@@ -63,16 +64,19 @@ export class RunContext {
           outcome: result.status === "success" ? (result.outcome ?? "success") : result.status,
           summary: result.summary,
           ...(result.data ? { data: result.data } : {}),
-          ...(result.artifacts ? { artifacts: result.artifacts as unknown as JsonValue[] } : {}),
+          ...(artifacts.length ? { artifacts: artifacts as unknown as JsonValue[] } : {}),
         },
-        result.artifacts,
+        artifacts,
       );
     } else if (event.type === "verification.completed") {
       const output: StepOutput = {
         type: "command",
         outcome: event.success ? "success" : "failure",
         results: event.results,
-        artifacts: event.results.flatMap((item) => item.artifacts ?? []),
+        artifacts: [
+          ...event.results.flatMap((item) => item.artifacts ?? []),
+          ...(event.payload ? [event.payload] : []),
+        ],
       };
       this.add(event.stepId, output as unknown as JsonObject, output.artifacts);
     } else if (event.type === "consensus.completed") {

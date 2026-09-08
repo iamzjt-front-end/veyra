@@ -18,7 +18,7 @@ Context, result data, artifact metadata, and structured error details use `JsonO
 
 ## Results, artifacts, and usage
 
-`AgentResult` keeps execution status (`success`, `failure`, `needs_input`) separate from a workflow `outcome` such as `pass`/`fail`. Optional timing uses ISO 8601 timestamp strings and milliseconds. Artifacts carry an ID, kind, optional path/media type/byte size, creation time, and producer execution identity.
+`AgentResult` keeps execution status (`success`, `failure`, `needs_input`) separate from a workflow `outcome` such as `pass`/`fail`. Optional timing uses ISO 8601 timestamp strings and milliseconds. Artifacts carry an ID, kind, optional path/media type/byte size, creation time, and `ArtifactProducer` identity: run ID with optional step/attempt/parent identity. Run-level artifacts omit the step; step artifacts include it. Protocol and SDK export this contract.
 
 `UsageMetadata` has optional input/output/total/cached-input/reasoning token counts and an optional cost amount with an explicit currency. Unknown usage or cost is omitted, never treated as zero. Producers validate non-negative counts and costs; this package does not calculate prices or assume a currency.
 
@@ -43,5 +43,6 @@ All events carry a run ID and ISO timestamp. Persistence can add an event ID and
 - Verification started/completed, with deterministic command results.
 - Approval required/resolved, with explicit `approved`/`rejected` decisions.
 - Process output, referencing a stdout/stderr artifact and an optional bounded preview.
+- `event.stored` is a bounded display/storage reference for a large event, with its original `eventType`, managed `artifact`, and preview. Core's store restores the complete event with a store-owned `payload` reference before execution or subscriber delivery. Consumers must not execute or make decisions from a truncated preview; see [artifact storage](ARTIFACTS-RETENTION.md).
 
 `EventSink` receives this same union for CLI, TUI, and Dashboard consumers. Declaring an event does not mean its producing runtime feature is implemented; the canonical [TODO](TODO.md) records that status.

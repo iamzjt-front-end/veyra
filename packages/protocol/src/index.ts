@@ -80,6 +80,15 @@ export interface AgentInput extends ExecutionMetadata {
   profile?: AgentRoleProfile;
 }
 
+/** Run-level evidence may omit a step; step-produced artifacts retain its attempt identity. */
+export interface ArtifactProducer {
+  runId: string;
+  stepId?: string;
+  attemptId?: string;
+  attempt?: number;
+  parentStepId?: string;
+}
+
 export interface ArtifactRef {
   id: string;
   kind: string;
@@ -87,7 +96,7 @@ export interface ArtifactRef {
   mediaType?: string;
   sizeBytes?: number;
   createdAt?: string;
-  producer?: ExecutionMetadata;
+  producer?: ArtifactProducer;
   metadata?: JsonObject;
 }
 
@@ -248,6 +257,8 @@ export interface EventMetadata {
   at: string;
   eventId?: string;
   sequence?: number;
+  /** Store-owned reference to a complete payload; absent on ordinary inline events. */
+  payload?: ArtifactRef;
 }
 
 interface StepEventMetadata {
@@ -273,6 +284,13 @@ export interface RecoveryBoundary {
 
 export type VeyraEvent = EventMetadata &
   (
+    | {
+        /** Bounded persisted/output representation; Core resolves the referenced event for execution. */
+        type: "event.stored";
+        eventType: string;
+        artifact: ArtifactRef;
+        preview: string;
+      }
     | { type: "run.started"; goal: string; workflowName?: string; workspace?: WorkspaceInfo }
     | { type: "workspace.removed"; workspace: WorkspaceInfo }
     | {
