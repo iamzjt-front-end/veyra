@@ -30,7 +30,8 @@ function agentReferences(workflow: WorkflowDefinition): Map<string, string[]> {
   for (const id of analyzeWorkflow(workflow).reachableSteps) {
     const step = graph.steps[id];
     if (step?.type !== "agent" || !step.agent) continue;
-    references.set(step.agent, [...(references.get(step.agent) ?? []), id]);
+    for (const name of [step.agent, ...(step.routing?.fallbacks ?? [])])
+      references.set(name, [...(references.get(name) ?? []), id]);
   }
   return references;
 }

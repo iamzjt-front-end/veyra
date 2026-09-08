@@ -10,7 +10,10 @@ import type {
 import { isAgentDescriptor, isAgentReadiness } from "@veyra/protocol";
 import { ExecutionError } from "./execution-error.js";
 
-function descriptorFor(adapter: AgentAdapter): AgentDescriptor | undefined {
+/** Read-only adapter surface, also usable with previously collected diagnostic metadata. */
+export type AgentCandidate = Pick<AgentAdapter, "id" | "provider" | "describe" | "checkReadiness">;
+
+function descriptorFor(adapter: AgentCandidate): AgentDescriptor | undefined {
   if (!adapter.describe) return undefined;
   try {
     const value = adapter.describe();
@@ -32,7 +35,7 @@ function descriptorFor(adapter: AgentAdapter): AgentDescriptor | undefined {
 
 /** Resolve the explicitly pinned binding; never replace it with another provider silently. */
 export function selectAgent(
-  adapter: AgentAdapter,
+  adapter: AgentCandidate,
   binding: string,
   requirements: AgentRequirements = {},
   imposedRole?: AgentRole,

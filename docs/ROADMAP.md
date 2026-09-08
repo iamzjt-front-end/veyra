@@ -76,7 +76,7 @@ The [README](../README.md) introduces Veyra and local setup. [AGENTS.md](../AGEN
 - [x] Local/OpenAI-compatible adapter (explicit Chat Completions modes and loopback HTTP verification)
 - [x] Authentication/secret-handling policy
 - [x] Agent role profiles
-- [ ] Optional provider capability routing
+- [x] Optional provider capability routing (explicit ordered fallbacks, scoped readiness and user-supplied estimates)
 
 ## v0.5 — Dashboard
 

@@ -81,3 +81,7 @@ Output is readable plain text by default, without ANSI styling. `--json` produce
 | `130` / `143` | CLI interrupted by SIGINT / SIGTERM after cancellation propagates                      |
 
 Default tests inject fake adapters through the CLI application's service interface; there is no production fake-provider flag or hidden test environment switch. The public entry-point integration also runs a real command-only fixture without credentials.
+
+## Explicit provider routing
+
+Agent nodes may opt into [ordered provider fallbacks](PROVIDER-ROUTING.md). Run text and JSON events report each evaluated candidate and selection reason before invocation. `workflow validate` checks every configured candidate without imports/probes. `doctor` includes per-step `routing` decisions using its collected readiness snapshots; an eligible fallback can satisfy a routed step, while independently pinned providers must still be ready. Configuration errors cannot be hidden by fallback. Omit workflow `routing` and explicitly configure `provider`/`model` to keep a binding pinned.

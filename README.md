@@ -155,6 +155,8 @@ The [protocol reference](docs/PROTOCOL.md) defines shared agent/result/event con
 
 The [capability reference](docs/CAPABILITIES.md) covers configured adapter metadata, opt-in readiness discovery and explicit workflow role/capability requirements.
 
+The [provider-routing reference](docs/PROVIDER-ROUTING.md) covers opt-in ordered fallbacks, readiness, user-supplied cost estimates, provider/model pinning and audited selection.
+
 The [role-profile reference](docs/ROLE-PROFILES.md) defines provider-neutral guidance and context contracts for planning, execution, research, review and judging.
 
 The [plugin reference](docs/PLUGINS.md) defines the public SDK contract, built-in registration, provider namespaces and explicitly trusted local third-party modules.

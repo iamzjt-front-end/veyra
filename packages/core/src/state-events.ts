@@ -2,6 +2,7 @@ import {
   isAgentDescriptor,
   isAgentRequirements,
   isAgentRoleProfile,
+  isAgentRoutingDecision,
   isJsonValue,
   type VeyraEvent,
 } from "@veyra/protocol";
@@ -383,6 +384,8 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
               ? agentResult(value.result)
               : error(value.error)))
       );
+    case "agent.routed":
+      return isAgentRoutingDecision(value.decision);
     case "agent.selected":
       return (
         string(value.agentId) &&

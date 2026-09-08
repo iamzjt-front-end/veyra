@@ -144,8 +144,38 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 86400000
+        },
+        "routing": {
+          "$ref": "#/definitions/agentRouting"
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "required": ["routing"],
+            "properties": {
+              "routing": {}
+            }
+          },
+          "then": {
+            "required": ["requires"],
+            "properties": {
+              "requires": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": {}
+                }
+              },
+              "agent": {
+                "type": "string",
+                "pattern": "\\S",
+                "maxLength": 128
+              }
+            }
+          }
+        }
+      ]
     },
     "command": {
       "type": "object",
@@ -520,6 +550,76 @@
           "type": "integer",
           "minimum": 1,
           "maximum": 1000
+        }
+      }
+    },
+    "agentRouting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fallbacks", "fallbackOn"],
+      "properties": {
+        "fallbacks": {
+          "type": "array",
+          "maxItems": 15,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "\\S",
+            "maxLength": 128
+          }
+        },
+        "fallbackOn": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["requirements", "unavailable", "budget"]
+          }
+        },
+        "allowUnknownReadiness": {
+          "type": "boolean"
+        },
+        "readinessTimeoutMs": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 60000
+        },
+        "budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["currency", "maxEstimatedCost", "estimates"],
+          "properties": {
+            "currency": {
+              "type": "string",
+              "pattern": "^[A-Z]{3}$",
+              "maxLength": 3
+            },
+            "maxEstimatedCost": {
+              "type": "number",
+              "minimum": 0
+            },
+            "estimates": {
+              "type": "array",
+              "maxItems": 16,
+              "uniqueItems": true,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["agent", "amount"],
+                "properties": {
+                  "agent": {
+                    "type": "string",
+                    "pattern": "\\S",
+                    "maxLength": 128
+                  },
+                  "amount": {
+                    "type": "number",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

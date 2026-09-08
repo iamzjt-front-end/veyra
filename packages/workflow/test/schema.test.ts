@@ -21,6 +21,82 @@ const minimal = () => ({
 });
 
 describe("published version 1 workflow schema", () => {
+  it("validates opt-in ordered routing in both validators and checks candidate references at runtime", () => {
+    const make = (routing: unknown) => ({
+      ...minimal(),
+      steps: {
+        done: {
+          type: "agent",
+          agent: "primary",
+          requires: { role: "planner", capabilities: ["reasoning"] },
+          routing,
+        },
+      },
+    });
+    const routing = {
+      fallbacks: ["backup"],
+      fallbackOn: ["requirements", "unavailable", "budget"],
+      allowUnknownReadiness: false,
+      readinessTimeoutMs: 5000,
+      budget: {
+        currency: "USD",
+        maxEstimatedCost: 0.02,
+        estimates: [
+          { agent: "primary", amount: 0.03 },
+          { agent: "backup", amount: 0.01 },
+        ],
+      },
+    };
+    expect(validate(make(routing)), JSON.stringify(validate.errors)).toBe(true);
+    expect(parseWorkflow(make(routing)).steps.done?.routing).toEqual(routing);
+    for (const patch of [
+      { fallbacks: ["backup", "backup"] },
+      { fallbackOn: ["run_failure"] },
+      { fallbackOn: ["unavailable", "unavailable"] },
+      { fallbacks: [" "] },
+      { fallbacks: ["x".repeat(129)] },
+      { readinessTimeoutMs: 0 },
+      { readinessTimeoutMs: 60001 },
+      { allowUnknownReadiness: "yes" },
+      { maxRetries: 4 },
+      { budget: { ...routing.budget, maxEstimatedCost: -1 } },
+      { budget: { ...routing.budget, currency: "usd" } },
+    ]) {
+      expect(validate(make({ ...routing, ...patch }))).toBe(false);
+      expect(() => parseWorkflow(make({ ...routing, ...patch }))).toThrow("routing");
+    }
+    const missingRole = make(routing);
+    missingRole.steps.done.requires = { role: "", capabilities: [] };
+    expect(validate(missingRole)).toBe(false);
+    expect(() => parseWorkflow(missingRole)).toThrow("requires");
+    const noRequires = {
+      ...minimal(),
+      steps: { done: { type: "agent", agent: "primary", routing } },
+    };
+    expect(validate(noRequires)).toBe(false);
+    expect(() => parseWorkflow(noRequires)).toThrow("requires.role");
+    const command = {
+      ...minimal(),
+      steps: { done: { type: "command", run: ["node --version"], routing } },
+    };
+    expect(validate(command)).toBe(false);
+    expect(() => parseWorkflow(command)).toThrow("routing");
+    // Candidate-name relationships need the runtime parser, as do graph references elsewhere in v1.
+    for (const patch of [
+      { fallbacks: ["primary"] },
+      { budget: { ...routing.budget, estimates: [{ agent: "absent", amount: 0 }] } },
+      {
+        budget: {
+          ...routing.budget,
+          estimates: [
+            { agent: "backup", amount: 0 },
+            { agent: "backup", amount: 1 },
+          ],
+        },
+      },
+    ])
+      expect(() => parseWorkflow(make({ ...routing, ...patch }))).toThrow("routing");
+  });
   it("accepts explicit role/capability requirements and rejects malformed or non-agent declarations", () => {
     const make = (requires: unknown) => ({
       ...minimal(),
@@ -199,6 +275,7 @@ describe("published version 1 workflow schema", () => {
     "consensus",
     "policy",
     "capabilities",
+    "provider-routing",
   ])("validates the documented %s example and editor schema path", async (name) => {
     const file = fileURLToPath(
       new URL(`../../../examples/workflows/v1/${name}.yaml`, import.meta.url),

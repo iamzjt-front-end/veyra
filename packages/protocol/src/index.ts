@@ -2,6 +2,18 @@ export type AgentRole =
   "planner" | "researcher" | "executor" | "reviewer" | "judge" | (string & {});
 
 import type { AgentRoleProfile } from "./profiles.js";
+import type { AgentRoutingDecision } from "./routing.js";
+export {
+  isAgentRoutingPolicy,
+  isAgentRoutingBinding,
+  isAgentRoutingDecision,
+  routingFailureCategory,
+  type AgentRoutingPolicy,
+  type AgentRoutingDecision,
+  type AgentRoutingAttempt,
+  type AgentRoutingReason,
+  type AgentFallbackReason,
+} from "./routing.js";
 export {
   getAgentRoleProfile,
   listAgentRoleProfiles,
@@ -317,6 +329,7 @@ export type VeyraEvent = EventMetadata &
         results: ParallelChildResult[];
       })
     | (StepEventMetadata & { type: "parallel.paused"; results: ParallelChildResult[] })
+    | (StepEventMetadata & { type: "agent.routed"; decision: AgentRoutingDecision })
     | (AgentEventMetadata & {
         type: "agent.selected";
         binding: string;

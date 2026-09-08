@@ -124,7 +124,11 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           `Config:   ${result.config.status}${result.config.message ? ` — ${result.config.message}` : ""}`,
           ...result.providers.map(
             (provider) =>
-              `${provider.required ? "Required" : "Optional"} ${provider.agent} (${provider.provider}${provider.version ? ` ${provider.version}` : ""}): ${provider.ready ? "ready" : "not ready"} — ${provider.message}`,
+              `${provider.required ? "Required" : provider.routingCandidate ? "Routing candidate" : "Optional"} ${provider.agent} (${provider.provider}${provider.version ? ` ${provider.version}` : ""}): ${provider.ready ? "ready" : "not ready"} — ${provider.message}`,
+          ),
+          ...result.routing.map(
+            (route) =>
+              `Routing ${route.stepId}: ${route.ready ? `eligible ${route.decision?.selected}` : "blocked"} — ${route.message ?? route.decision?.attempts.map((attempt) => `${attempt.binding}: ${attempt.reason}`).join("; ")}`,
           ),
         ].join("\n"),
       );
@@ -141,7 +145,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       }
       let line = event.type;
       if ("stepId" in event && event.stepId) line += ` ${event.stepId}`;
-      if (event.type === "agent.selected")
+      if (event.type === "agent.routed")
+        line += `: ${event.decision.attempts.map((attempt) => `${attempt.binding} ${attempt.decision} (${attempt.reason})`).join("; ")}`;
+      else if (event.type === "agent.selected")
         line += `: ${event.binding} → ${event.agentId} (${event.provider}, role ${event.role})`;
       else if (event.type === "agent.completed")
         line += `: ${event.result.status} — ${event.result.summary.slice(0, 240)}`;

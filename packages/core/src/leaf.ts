@@ -16,6 +16,7 @@ import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { StateStoreError } from "./state.js";
 import { isStoredEvent } from "./state-events.js";
 import { selectAgent } from "./agents.js";
+import { selectAgentRoute } from "./agent-routing.js";
 
 export type RecordEvent = (
   event: VeyraEvent,
@@ -101,14 +102,35 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
   let outcome: string;
   let failureMessage: string | undefined;
   if (step.type === "agent") {
-    const key = step.agent as string;
-    const adapter = Object.hasOwn(agents, key) ? agents[key] : undefined;
+    const availableAgents = step.routing ? { ...agents } : agents;
+    let key = step.agent as string;
+    let routedSelection: ReturnType<typeof selectAgent> | undefined;
+    if (step.routing) {
+      const route = await selectAgentRoute({
+        primary: key,
+        policy: step.routing,
+        requirements: step.requires ?? {},
+        agents: availableAgents,
+        role: options.role,
+        controls,
+      });
+      await record({ type: "agent.routed", ...active, decision: route.decision, at: now() });
+      if (!route.decision.selected || !route.selection)
+        return {
+          outcome: "failure",
+          failureMessage:
+            "No provider was eligible under the explicit routing policy; inspect agent.routed for the blocking reason.",
+        };
+      key = route.decision.selected;
+      routedSelection = route.selection;
+    }
+    const adapter = Object.hasOwn(availableAgents, key) ? availableAgents[key] : undefined;
     if (!adapter)
       throw new ExecutionError(
         "missing_adapter",
         `Agent '${key}' for step '${stepId}' is not registered; inject its adapter before running.`,
       );
-    const selection = selectAgent(adapter, key, step.requires, options.role);
+    const selection = routedSelection ?? selectAgent(adapter, key, step.requires, options.role);
     const profile = getAgentRoleProfile(selection.role);
     const metadata = {
       ...active,

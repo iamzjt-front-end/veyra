@@ -28,6 +28,57 @@ function plugin(): VeyraPlugin {
 }
 
 describe("explicit plugin registry", () => {
+  it("exposes the plugin readiness hook on constructed adapters without losing class receivers or request snapshots", async () => {
+    const fixture = plugin();
+    const hook = vi.fn<NonNullable<VeyraPlugin["checkReadiness"]>>(async (config) => ({
+      status: "ready",
+      scope: "configuration",
+      message: config.model ?? "missing",
+    }));
+    fixture.checkReadiness = hook;
+    fixture.createAgent = (config) => {
+      class Adapter {
+        readonly id = config.id;
+        readonly provider = "example";
+        #model = config.model;
+        describe() {
+          return {
+            schemaVersion: 1 as const,
+            id: this.id,
+            provider: this.provider,
+            adapterVersion: "1.2.3",
+            model: this.#model,
+            roles: ["planner"],
+            capabilities: ["reasoning"],
+          };
+        }
+        async run() {
+          return { status: "success" as const, summary: this.#model ?? "missing" };
+        }
+        async checkReadiness(): Promise<AgentReadiness> {
+          throw new Error("The explicit plugin hook takes precedence");
+        }
+      }
+      const adapter = new Adapter();
+      config.model = "factory mutation";
+      return adapter;
+    };
+    const registry = new PluginRegistry();
+    registry.register(fixture);
+    const config = request();
+    const adapter = registry.createAgent("example", config);
+    config.model = "caller mutation";
+    expect(hook).not.toHaveBeenCalled();
+    expect(adapter.describe?.().model).toBe("configured");
+    expect(
+      await adapter.run({ runId: "run", stepId: "step", role: "planner", goal: "Plan" }),
+    ).toMatchObject({ summary: "configured" });
+    expect(await adapter.checkReadiness?.({ timeoutMs: 20 })).toMatchObject({
+      status: "ready",
+      message: "configured",
+    });
+    expect(hook).toHaveBeenCalledWith(request(), { options: {} }, { timeoutMs: 20 });
+  });
   it("registers without invocation, isolates options and metadata, and creates an adapter", async () => {
     const fixture = plugin();
     const create = vi.fn(fixture.createAgent);

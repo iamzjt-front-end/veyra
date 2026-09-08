@@ -91,3 +91,7 @@ Keep credentials in environment variables or native login. Config/namespace opti
 Config parsing now rejects nested credential-shaped option fields and environment snapshots before a plugin can load. The shared Runtime redactor is available to plugin authors; its input must include custom secret values/names. See [authentication and secret handling](AUTHENTICATION.md) for precedence and the limits of Veyra-managed redaction.
 
 Plugin definitions/configuration and trust flags are not persisted by Core. Saved workflows retain role/capability requirements; fresh adapters are checked again on resume and `agent.selected` records their advertised identity/version for each attempt. The current configuration selects and pins the plugin for the new process. General plugin upgrades/migrations and isolated plugin execution are not implemented here.
+
+## Readiness during provider routing
+
+Registry-created adapters expose the plugin readiness hook, when defined, with the same precedence and copied configuration as `PluginRegistry.checkReadiness`. Class receivers are preserved for descriptor and execution methods. Creating an adapter still does not probe it. This allows Core to use the registered hook during explicit [provider routing](PROVIDER-ROUTING.md). Without a plugin hook, the adapter's own probe is used; without either, readiness is unknown.

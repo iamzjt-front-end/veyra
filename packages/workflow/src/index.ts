@@ -33,6 +33,8 @@ export interface WorkflowStep {
   instructions?: string;
   /** Explicit requirements are checked against the selected adapter's descriptor. */
   requires?: AgentRequirements;
+  /** Opt-in ordered fallback before invocation; absence pins the agent binding. */
+  routing?: AgentRoutingPolicy;
   run?: string[];
   next?: string;
   on?: Record<string, string>;
@@ -101,4 +103,4 @@ export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";
 export { resolveRoute, RouterError, type RouteDecision } from "./router.js";
 export { buildWorkflowGraph, type ExecutionGraph, type WorkflowScope } from "./graph.js";
 export { aggregateReviews } from "./consensus.js";
-import type { AgentRequirements, BudgetLimits } from "@veyra/protocol";
+import type { AgentRequirements, AgentRoutingPolicy, BudgetLimits } from "@veyra/protocol";

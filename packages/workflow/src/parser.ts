@@ -6,7 +6,7 @@ import type {
   RetryBackoff,
 } from "./index.js";
 import { pointerSegments } from "./inputs.js";
-import { isAgentRequirements } from "@veyra/protocol";
+import { isAgentRequirements, isAgentRoutingBinding, isAgentRoutingPolicy } from "@veyra/protocol";
 
 export class WorkflowError extends Error {
   constructor(
@@ -102,7 +102,7 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
                           : "message",
                   ]),
           ...(type === "agent" || type === "human" || type === "subworkflow" ? ["inputs"] : []),
-          ...(type === "agent" ? ["instructions", "requires"] : []),
+          ...(type === "agent" ? ["instructions", "requires", "routing"] : []),
           ...(type === "agent" || type === "command" ? ["timeoutMs"] : []),
         ];
   object(raw, field, keys);
@@ -222,6 +222,19 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
     step.failurePolicy = (raw.failurePolicy as "wait-all" | "fail-fast" | undefined) ?? "wait-all";
   }
   if (type === "agent") step.agent = text(raw.agent, `${field}.agent`);
+  if (raw.routing !== undefined) {
+    if (!isAgentRoutingPolicy(raw.routing) || !isAgentRoutingBinding(step.agent, raw.routing))
+      throw new WorkflowError(
+        `${field}.routing`,
+        "expected explicit ordered fallbacks, permitted fallback reasons, and valid optional readiness/budget limits; estimates must name candidates",
+      );
+    if (!step.requires?.role)
+      throw new WorkflowError(
+        `${field}.requires.role`,
+        "routing requires an explicit role shared by all candidates",
+      );
+    step.routing = structuredClone(raw.routing);
+  }
   if (type === "router") {
     if (typeof raw.route === "string") {
       step.route = text(raw.route, `${field}.route`);

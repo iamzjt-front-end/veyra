@@ -19,5 +19,7 @@ export {
 
 export { RunControlError } from "./control-error.js";
 export { discoverAgents, type DiscoveredAgent, type DiscoveryOptions } from "./agents.js";
+export type { AgentCandidate } from "./agents.js";
+export { selectAgentRoute, type AgentRouteRequest } from "./agent-routing.js";
 export type { BudgetCheck, BudgetHook } from "./budget.js";
 export type { PendingApproval, ReadRunRequest, ResolveApprovalRequest } from "./approval.js";

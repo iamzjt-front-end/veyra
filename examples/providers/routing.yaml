@@ -1,0 +1,18 @@
+version: 1
+project:
+  name: explicit-provider-routing
+workflow:
+  use: ../workflows/v1/provider-routing.yaml
+agents:
+  preferred:
+    provider: openai
+    model: replace-with-accessible-openai-model
+    options:
+      role: planner
+  backup:
+    provider: openai-compatible
+    model: replace-with-installed-local-model
+    options:
+      role: planner
+      baseURL: http://127.0.0.1:11434/v1
+      responseFormat: json_object

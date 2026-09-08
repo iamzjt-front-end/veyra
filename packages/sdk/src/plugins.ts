@@ -165,6 +165,7 @@ export class PluginRegistry {
   createAgent(provider: string, config: PluginAgentConfig): AgentAdapter {
     const { plugin, options } = this.#registered(provider);
     const request = requestCopy(config);
+    const readinessRequest = requestCopy(config);
     let agent: AgentAdapter;
     try {
       agent = plugin.createAgent(request, { options: structuredClone(options) });
@@ -183,7 +184,15 @@ export class PluginRegistry {
         `Plugin '${provider}' could not create agent '${config.id}'; check agent and plugin options and adapter identity.`,
       );
     }
-    return agent;
+    if (!plugin.checkReadiness) return agent;
+    // Preserve class receivers and expose the same configured plugin probe to Core and doctor.
+    return {
+      id: agent.id,
+      provider: agent.provider,
+      ...(agent.describe ? { describe: agent.describe.bind(agent) } : {}),
+      run: agent.run.bind(agent),
+      checkReadiness: (controls) => this.checkReadiness(provider, readinessRequest, controls),
+    };
   }
 
   async checkReadiness(

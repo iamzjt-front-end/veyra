@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: explicit-provider-routing
+version: 1
+start: plan
+steps:
+  plan:
+    type: agent
+    agent: preferred
+    requires:
+      role: planner
+      capabilities: [reasoning]
+    routing:
+      fallbacks: [backup]
+      fallbackOn: [unavailable]
+      readinessTimeoutMs: 5000
+    instructions: Plan the supplied goal from available evidence without changing files.
+    next: inspect
+  inspect:
+    type: human
+    message: Inspect the selected provider and plan before continuing.
+    inputs:
+      plan: { from: plan, path: /summary }

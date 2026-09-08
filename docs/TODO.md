@@ -1245,18 +1245,24 @@ Verified all five baseline commands (1395 tests total). Seventeen Protocol tests
 
 ## M4.11 — Optional automatic provider routing
 
-- [ ] begin with explicit deterministic rules, not an opaque autonomous router
-- [ ] route by required capability, configured preference, availability, optional budget
-- [ ] record why a provider was selected
-- [ ] allow users to pin a provider/model
-- [ ] graceful fallback policy is explicit, never silent
+**Status:** [x] Complete and verified.
+
+Implementation decision: extend agent nodes with explicit ordered fallbacks and permitted pre-invocation failure categories. Core owns capability/readiness/optional user-estimate filtering and audited decisions; CLI diagnostics reuse that selector. No fallback replays an agent after execution starts. Existing bindings remain pinned by default, and the independent run budget hook is unchanged.
+
+- [x] begin with explicit deterministic rules, not an opaque autonomous router
+- [x] route by required capability, configured preference, availability, optional budget
+- [x] record why a provider was selected
+- [x] allow users to pin a provider/model
+- [x] graceful fallback policy is explicit, never silent
+
+Verified all five baseline commands (1453 tests total), the routing example workflow/configuration, its scoped doctor decision and root doctor. Added 26 Protocol cases, 24 Core routing cases, five CLI integration cases, one SDK receiver/snapshot regression and two workflow schema/example cases. Coverage includes ordered preferences, capability/role checks, explicit estimates, unknown readiness, cooperative timeout/drain and cancellation, fail-closed configuration errors, audited selection/exhaustion, failure gates, resume, nested/parallel/consensus leaves, secret-free evidence, and no fallback after invocation or budget-hook denial. CLI diagnostics use the same selector and registered readiness hook. `docs/PROVIDER-ROUTING.md` records configuration, pinning, estimates and readiness limits. No live inference was required or claimed.
 
 ### v0.4 exit criteria
 
 - [ ] at least two reasoning providers and two coding-agent executors work
-- [ ] workflows are provider-agnostic
-- [ ] third-party adapter path is documented/tested
-- [ ] provider choice can differ by workflow role
+- [x] workflows are provider-agnostic
+- [x] third-party adapter path is documented/tested
+- [x] provider choice can differ by workflow role
 
 ---
 
@@ -1636,4 +1642,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.11 — Optional automatic provider routing.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next candidate: M5.1 — Dashboard technical foundation; check the TUI-stability prerequisite before starting Dashboard implementation.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

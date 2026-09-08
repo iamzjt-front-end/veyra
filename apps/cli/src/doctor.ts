@@ -1,10 +1,15 @@
 import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import { loadConfig, type VeyraConfig } from "@veyra/config";
-import { discoverAgents } from "@veyra/core";
-import type { AgentDescriptor } from "@veyra/protocol";
+import { discoverAgents, selectAgentRoute, type AgentCandidate } from "@veyra/core";
+import type { AgentDescriptor, AgentReadiness, AgentRoutingDecision } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
-import { loadWorkflow } from "@veyra/workflow";
+import {
+  analyzeWorkflow,
+  buildWorkflowGraph,
+  loadWorkflow,
+  type WorkflowDefinition,
+} from "@veyra/workflow";
 import { redact, requiredAgents, secretValues } from "./providers.js";
 import { builtinPlugins, pluginAgent, registryForProviders } from "./plugins.js";
 
@@ -17,6 +22,10 @@ interface ProviderReadiness {
   version?: string;
   descriptor?: AgentDescriptor;
   scope?: "configuration" | "local" | "remote";
+  status?: AgentReadiness["status"];
+  routingCandidate?: boolean;
+  configurationError?: boolean;
+  probeFailed?: boolean;
 }
 
 export async function inspectEnvironment(
@@ -35,13 +44,26 @@ export async function inspectEnvironment(
     status: "missing",
   };
   let required = new Set<string>();
+  let pinned = new Set<string>();
+  const routed = new Set<string>();
+  let workflow: WorkflowDefinition | undefined;
   try {
     await access(configPath);
     configuration = { path: configPath, status: "invalid" };
     config = await loadConfig(configPath);
-    required = new Set(
-      requiredAgents(await loadWorkflow(workflowOverride ?? config.workflow.use, root)),
-    );
+    workflow = await loadWorkflow(workflowOverride ?? config.workflow.use, root);
+    required = new Set(requiredAgents(workflow));
+    pinned = new Set(required);
+    const graph = buildWorkflowGraph(workflow);
+    const pinnedBindings = new Set<string>();
+    for (const id of analyzeWorkflow(workflow).reachableSteps) {
+      const step = graph.steps[id];
+      if (step?.type !== "agent" || !step.agent) continue;
+      if (step.routing)
+        for (const binding of [step.agent, ...step.routing.fallbacks]) routed.add(binding);
+      else pinnedBindings.add(step.agent);
+    }
+    for (const binding of routed) if (!pinnedBindings.has(binding)) pinned.delete(binding);
     configuration.status = "valid";
   } catch (error) {
     if (!(error instanceof Error && "code" in error && error.code === "ENOENT"))
@@ -87,10 +109,11 @@ export async function inspectEnvironment(
   };
   const checkProvider = async (name: string, provider: string): Promise<ProviderReadiness> => {
     const agent = config?.agents[name];
-    const base: Pick<ProviderReadiness, "agent" | "provider" | "required" | "descriptor"> = {
+    const base: Pick<ProviderReadiness, "agent" | "provider" | "required" | "routingCandidate"> = {
       agent: name,
       provider,
-      required: required.has(name),
+      required: pinned.has(name),
+      ...(routed.has(name) ? { routingCandidate: true } : {}),
     };
     try {
       const registry = await registryForProviders(
@@ -114,16 +137,35 @@ export async function inspectEnvironment(
           model: "unconfigured",
         },
       );
-      const result = await registry.checkReadiness(provider, request, {
-        cwd: root,
-        timeoutMs: 5000,
-        signal,
-      });
+      let result: AgentReadiness;
+      let probeFailed = false;
+      try {
+        result = await registry.checkReadiness(provider, request, {
+          cwd: root,
+          timeoutMs: 5000,
+          signal,
+        });
+      } catch (error) {
+        if (!(
+          error instanceof Error &&
+          "code" in error &&
+          error.code === "plugin_readiness_failed"
+        ))
+          throw error;
+        probeFailed = true;
+        result = {
+          status: "unknown",
+          scope: "configuration",
+          message: "Provider readiness probe failed; no raw provider error is exposed.",
+        };
+      }
       const readiness: ProviderReadiness = {
         ...base,
         ready: result.status === "ready",
+        status: result.status,
         scope: result.scope,
         message: result.message,
+        ...(probeFailed ? { probeFailed: true } : {}),
         ...(result.version ? { version: result.version } : {}),
       };
       if (agent) {
@@ -134,6 +176,7 @@ export async function inspectEnvironment(
           if (discovered?.error) throw new Error(discovered.error.message);
           if (discovered?.descriptor) readiness.descriptor = discovered.descriptor;
         } catch (error) {
+          readiness.configurationError = true;
           // Preserve a plugin hook's setup diagnosis when an adapter cannot yet be constructed.
           if (readiness.ready)
             return {
@@ -149,6 +192,7 @@ export async function inspectEnvironment(
       return {
         ...base,
         ready: false,
+        configurationError: true,
         message: error instanceof Error ? error.message : "Provider readiness check failed.",
       };
     }
@@ -167,11 +211,89 @@ export async function inspectEnvironment(
       providers.push({
         agent: name,
         provider: "unconfigured",
-        required: true,
+        required: pinned.has(name),
+        ...(routed.has(name) ? { routingCandidate: true } : {}),
+        configurationError: true,
         ready: false,
         message: "Workflow agent has no config entry.",
       });
-  const safeProviders = redact(providers, secretValues(env, config)) as ProviderReadiness[];
+  const routing: {
+    stepId: string;
+    ready: boolean;
+    decision?: AgentRoutingDecision;
+    message?: string;
+  }[] = [];
+  if (workflow && routed.size) {
+    const candidates: Record<string, AgentCandidate> = Object.fromEntries(
+      providers.map((provider) => [
+        provider.agent,
+        {
+          id: provider.descriptor?.id ?? provider.agent,
+          provider: provider.provider,
+          ...(provider.descriptor
+            ? { describe: () => structuredClone(provider.descriptor as AgentDescriptor) }
+            : {}),
+          checkReadiness: async () => {
+            if (provider.probeFailed)
+              throw new Error("Previously collected readiness probe failed.");
+            return {
+              status: provider.status ?? "unknown",
+              scope: provider.scope ?? "configuration",
+              message: "Previously collected doctor readiness snapshot.",
+            };
+          },
+        },
+      ]),
+    );
+    const graph = buildWorkflowGraph(workflow);
+    for (const stepId of analyzeWorkflow(workflow).reachableSteps) {
+      const step = graph.steps[stepId];
+      if (!step?.routing || !step.agent) continue;
+      const bindings = [step.agent, ...step.routing.fallbacks];
+      if (
+        providers.some(
+          (provider) => bindings.includes(provider.agent) && provider.configurationError,
+        )
+      ) {
+        routing.push({
+          stepId,
+          ready: false,
+          message:
+            "Fix candidate configuration errors before routing; configuration failures do not permit fallback.",
+        });
+        continue;
+      }
+      const group = Object.values(graph.steps).find(
+        (candidate) =>
+          candidate.type === "consensus" &&
+          (candidate.reviewers?.includes(stepId) || candidate.judge === stepId),
+      );
+      try {
+        const result = await selectAgentRoute({
+          primary: step.agent,
+          policy: step.routing,
+          requirements: step.requires ?? {},
+          agents: candidates,
+          ...(group ? { role: group.judge === stepId ? "judge" : "reviewer" } : {}),
+          controls: { signal },
+        });
+        routing.push({
+          stepId,
+          ready: Boolean(result.decision.selected),
+          decision: result.decision,
+        });
+      } catch (error) {
+        routing.push({
+          stepId,
+          ready: false,
+          message:
+            error instanceof Error ? error.message : "Provider routing could not be checked.",
+        });
+      }
+    }
+  }
+  const secrets = secretValues(env, config);
+  const safeProviders = redact(providers, secrets) as ProviderReadiness[];
   const node = {
     version: process.version,
     ready: Number(process.versions.node.split(".")[0]) >= 20,
@@ -183,7 +305,8 @@ export async function inspectEnvironment(
       readable &&
       writable &&
       configuration.status !== "invalid" &&
-      providers.every((provider) => !provider.required || provider.ready),
+      providers.every((provider) => !provider.required || provider.ready) &&
+      routing.every((route) => route.ready),
     node,
     pnpm: packageManager,
     platform: `${process.platform}/${process.arch}`,
@@ -191,5 +314,6 @@ export async function inspectEnvironment(
     workingDirectory: { readable, writable },
     config: configuration,
     providers: safeProviders,
+    routing: redact(routing, secrets) as typeof routing,
   };
 }
