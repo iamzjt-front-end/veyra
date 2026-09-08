@@ -8,7 +8,12 @@ import {
   GeminiCliAdapter,
   type GeminiCliAdapterOptions,
 } from "@veyra/gemini";
-import { OpenAIAdapter, type OpenAIAdapterOptions } from "@veyra/openai";
+import {
+  OpenAIAdapter,
+  type OpenAIAdapterOptions,
+  OpenAICompatibleAdapter,
+  type OpenAICompatibleAdapterOptions,
+} from "@veyra/openai";
 import { OpenCodeAdapter, type OpenCodeAdapterOptions } from "@veyra/opencode";
 import type { JsonObject } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
@@ -54,6 +59,29 @@ export function builtinPlugins(services: PluginServices = {}): VeyraPlugin[] {
       runProcess: services.runProcess,
     });
   return [
+    {
+      apiVersion: 1,
+      provider: "openai-compatible",
+      version: "0.1.0",
+      createAgent: (agent, context) =>
+        new OpenAICompatibleAdapter(
+          adapterOptions(agent, context) as unknown as OpenAICompatibleAdapterOptions,
+          { env: services.env },
+        ),
+      checkReadiness: async (agent, context, controls) => {
+        const options = adapterOptions(agent, context);
+        if (!options.baseURL)
+          return {
+            status: "unavailable",
+            scope: "configuration",
+            message:
+              "Configure options.baseURL with the compatible server's API prefix and select a model.",
+          };
+        return new OpenAICompatibleAdapter(options as unknown as OpenAICompatibleAdapterOptions, {
+          env: services.env,
+        }).checkReadiness(controls);
+      },
+    },
     {
       apiVersion: 1,
       provider: "opencode",

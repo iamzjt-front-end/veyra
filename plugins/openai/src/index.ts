@@ -16,6 +16,7 @@ import type {
   ResponseCreateParamsNonStreaming,
 } from "openai/resources/responses/responses";
 import { outputFormat, parseOutput, roleInstructions } from "./output.js";
+export { OpenAICompatibleAdapter, type OpenAICompatibleAdapterOptions } from "./compatible.js";
 
 export interface OpenAIResponsesClient {
   responses: {

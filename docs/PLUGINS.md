@@ -39,6 +39,8 @@ Registration does not invoke factories or probes. Each registry owns its registr
 
 The CLI explicitly registers OpenAI, Codex, Claude, Claude Code, Gemini API, Gemini CLI and OpenCode through the same contract in `apps/cli/src/plugins.ts`. Those registrations compose the existing adapter implementations in `plugins/*`; the SDK itself has no vendor imports. Built-in adapter defaults are overridden by namespace options, then agent options, then the explicit agent `model`; the binding always supplies `id`. Third-party plugins own and document their option interpretation.
 
+`openai-compatible` is also built in through `@veyra/openai`. It uses a separate Chat Completions adapter with required `baseURL`, explicit response-format support and optional `apiKeyEnv`; the official `openai` Responses adapter is unchanged. See [compatible/local models](OPENAI-COMPATIBLE.md).
+
 ## Local modules and trust
 
 ```yaml

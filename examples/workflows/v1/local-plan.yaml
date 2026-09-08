@@ -1,0 +1,14 @@
+version: 1
+name: Local planning with human review
+start: plan
+steps:
+  plan:
+    type: agent
+    agent: planner
+    requires:
+      role: planner
+      capabilities: [reasoning]
+    next: inspect
+  inspect:
+    type: human
+    message: Inspect the generated plan and its acceptance criteria before accepting it.

@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { createServer } from "node:http";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -87,6 +88,140 @@ const invoke = async (path: string, args: string[], services: CliServices = {}) 
 };
 
 describe("CLI plugin composition", () => {
+  it("reports an unconfigured compatible endpoint without choosing an implicit server", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const result = await invoke(path, ["doctor"], {
+        runProcess: async () => {
+          throw new ProcessExecutionError("executable_not_found", "private");
+        },
+      });
+      expect(
+        result.records[0].providers.find(
+          (provider: { provider: string }) => provider.provider === "openai-compatible",
+        ),
+      ).toMatchObject({
+        ready: false,
+        scope: "configuration",
+        message: expect.stringContaining("options.baseURL"),
+      });
+    });
+  });
+  it("validates, discovers, runs and resumes a compatible binding through a loopback server", async () => {
+    const requests: { authorization?: string; body: string; path?: string }[] = [];
+    const server = createServer((req, res) => {
+      let body = "";
+      req.setEncoding("utf8");
+      req.on("data", (chunk) => {
+        body += chunk;
+      });
+      req.on("end", () => {
+        requests.push({ authorization: req.headers.authorization, body, path: req.url });
+        res.setHeader("Content-Type", "application/json");
+        res.end(
+          JSON.stringify({
+            choices: [
+              {
+                finish_reason: "stop",
+                message: {
+                  role: "assistant",
+                  content: JSON.stringify({
+                    summary: "Plan",
+                    instructions: "Run the fixture tests",
+                    acceptanceCriteria: ["Tests pass"],
+                    artifactIds: [],
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+      });
+    });
+    await new Promise<void>((resolve, reject) => {
+      server.once("error", reject);
+      server.listen(0, "127.0.0.1", resolve);
+    });
+    try {
+      const address = server.address();
+      if (!address || typeof address === "string") throw new Error("Missing fixture address");
+      const baseURL = `http://127.0.0.1:${address.port}/v1`;
+      await withFixtureWorkspace(async ({ path }) => {
+        await fixture(path);
+        await writeFile(
+          join(path, "veyra.yaml"),
+          JSON.stringify({
+            version: 1,
+            workflow: { use: "workflow.yaml" },
+            agents: {
+              analysis: {
+                provider: "openai-compatible",
+                model: "fixture-local-model",
+                options: { role: "planner" },
+              },
+            },
+            plugins: {
+              "openai-compatible": {
+                options: { baseURL, responseFormat: "json_schema", apiKeyEnv: "LOCAL_KEY" },
+              },
+            },
+          }),
+        );
+        expect(
+          (await invoke(path, ["workflow", "validate", "workflow.yaml", "--config", "veyra.yaml"]))
+            .code,
+        ).toBe(0);
+        const services: CliServices = {
+          env: { LOCAL_KEY: "fixture-compatible-key", OPENAI_API_KEY: "wrong-key" },
+          runProcess: async () => ({
+            exitCode: 0,
+            signal: null,
+            stdout: "10.15.1",
+            stderr: "",
+            stdoutTruncated: false,
+            stderrTruncated: false,
+            durationMs: 1,
+          }),
+        };
+        const doctor = await invoke(path, ["doctor"], services);
+        expect(doctor.code, doctor.stdout).toBe(0);
+        expect(doctor.records[0].providers[0]).toMatchObject({
+          provider: "openai-compatible",
+          ready: true,
+          scope: "configuration",
+          descriptor: {
+            model: "fixture-local-model",
+            roles: ["planner"],
+            capabilities: ["reasoning", "structured-output"],
+          },
+        });
+        expect(requests).toHaveLength(0);
+        const run = await invoke(path, ["run", "Plan this task"], services);
+        expect(run.code, run.stdout).toBe(3);
+        const resumed = await invoke(path, ["resume", "--approve"], services);
+        expect(resumed.code, resumed.stdout).toBe(0);
+        expect(`${doctor.stdout}${run.stdout}${resumed.stdout}`).not.toContain(
+          "fixture-compatible-key",
+        );
+      });
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) =>
+        server.close((error) => (error ? reject(error) : resolve())),
+      );
+    }
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request).toMatchObject({
+        path: "/v1/chat/completions",
+        authorization: "Bearer fixture-compatible-key",
+      });
+      expect(JSON.parse(request.body)).toMatchObject({
+        model: "fixture-local-model",
+        response_format: { type: "json_schema" },
+      });
+      expect(request.body).not.toContain("wrong-key");
+    }
+  });
   it("reports an absent OpenCode executable without requiring an unconfigured model", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const result = await invoke(path, ["doctor"], {

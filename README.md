@@ -99,7 +99,7 @@ The **architecture scaffold is intentionally stable** while implementation lands
 | Protocol    | ✓        | contracts and JSON guard          |
 | Config      | ✓        | YAML loader and validation        |
 | SDK         | ✓        | plugin registry and contracts     |
-| OpenAI      | ✓        | planner/reviewer adapter          |
+| OpenAI      | ✓        | Responses and compatible adapters |
 | Codex       | ✓        | CLI executor adapter              |
 | Claude      | ✓        | API adapter; live smoke blocked   |
 | Claude Code | ✓        | CLI adapter; live smoke blocked   |
@@ -168,6 +168,8 @@ The [Core reference](docs/CORE.md) describes programmatic execution, outcome rou
 The [approval reference](docs/APPROVALS.md) covers explicit human gates, decision auditing, and safe pause/resume through the Core API.
 
 The [OpenAI adapter reference](docs/OPENAI.md) covers planner/reviewer configuration, normalized results, and the optional live smoke test.
+
+The [OpenAI-compatible reference](docs/OPENAI-COMPATIBLE.md) covers explicit Chat Completions endpoints, output-mode selection and local Ollama/LM Studio examples.
 
 The [Codex adapter reference](docs/CODEX.md) covers CLI execution, permissions, readiness checks, and the disposable live smoke test.
 

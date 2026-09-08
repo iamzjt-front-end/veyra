@@ -37,6 +37,8 @@ The Claude API adapter also advertises planner/reviewer/judge roles and reasonin
 
 [OpenCode](OPENCODE.md) advertises the same executor capabilities through its own Runtime adapter and strict final-result parser. Local readiness establishes supported version/flags, with authentication and model access explicitly untested.
 
+[OpenAI-compatible](OPENAI-COMPATIBLE.md) advertises planner/reviewer/judge and reasoning. Only explicit `responseFormat: json_schema` adds structured-output; JSON object and prompt-only text modes make no server-schema claim. All modes still validate the final role contract locally. Readiness checks explicit endpoint configuration and optional credential presence without HTTP.
+
 ## Explicit workflow requirements
 
 ```yaml

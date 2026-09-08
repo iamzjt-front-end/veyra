@@ -1195,11 +1195,17 @@ Live blocker: the initial system-path smoke returned `OpenCode executable was no
 
 ## M4.8 — OpenAI-compatible/local-model adapter
 
-- [ ] support configurable base URL where appropriate
-- [ ] do not assume every OpenAI-compatible server supports every Responses feature
-- [ ] capability flags/fallback behavior
-- [ ] examples for local models
-- [ ] ensure local provider failures are actionable
+**Status:** [x] Complete and verified.
+
+Implementation decision: add a separate `OpenAICompatibleAdapter` and `openai-compatible` registration inside the existing `plugins/openai` package. It will use explicitly configured Chat Completions endpoints and response-format support, with separate credential selection and no change to the official OpenAI Responses adapter. This keeps provider-specific compatibility behavior within the scaffold's existing package boundary.
+
+- [x] support configurable base URL where appropriate
+- [x] do not assume every OpenAI-compatible server supports every Responses feature
+- [x] capability flags/fallback behavior
+- [x] examples for local models
+- [x] ensure local provider failures are actionable
+
+Verified frozen install and all five baseline commands (1334 tests total). The 75 compatible-adapter tests cover explicit/custom API prefixes, optional credential selection, three output modes, conservative capability declarations, strict role/evidence validation, safe HTTP errors, bounded bodies, deadline/cancellation and real loopback HTTP/redirect behavior. Two additional CLI integration cases cover missing-endpoint diagnostics and configuration/doctor/run/approval/resume with a real local test server. Both Ollama and LM Studio example workflows validate and their doctor checks pass with explicitly configuration-only readiness. No external model inference or model installation was performed or required for this item. The official OpenAI Responses behavior is unchanged.
 
 ---
 
@@ -1618,4 +1624,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.8 — OpenAI-compatible/local-model adapter.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.
+**Next eligible: M4.9 — Authentication and secret-handling policy.** M1.14, M4.3 and M4.5 have live checks blocked by missing API credentials; M4.4's live Claude Code smoke is blocked by native request timeouts; M4.7's OpenCode smoke is blocked by rejected native provider credentials. The dependent v0.1 exit/TUI tasks remain open; independent provider work can proceed.

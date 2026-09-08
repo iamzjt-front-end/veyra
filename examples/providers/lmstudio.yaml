@@ -1,0 +1,15 @@
+version: 1
+project:
+  name: lmstudio-planning
+workflow:
+  use: ../workflows/v1/local-plan.yaml
+agents:
+  planner:
+    provider: openai-compatible
+    model: replace-with-loaded-model
+    options:
+      role: planner
+      baseURL: http://127.0.0.1:1234/v1
+      responseFormat: json_schema
+      # If server authentication is enabled, set a variable and name it here:
+      # apiKeyEnv: LOCAL_MODEL_API_KEY

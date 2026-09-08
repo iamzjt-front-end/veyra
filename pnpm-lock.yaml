@@ -184,6 +184,9 @@ importers:
       '@veyra/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
+      '@veyra/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       openai:
         specifier: 6.49.0
         version: 6.49.0

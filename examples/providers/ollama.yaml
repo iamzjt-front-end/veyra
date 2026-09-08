@@ -1,0 +1,13 @@
+version: 1
+project:
+  name: ollama-planning
+workflow:
+  use: ../workflows/v1/local-plan.yaml
+agents:
+  planner:
+    provider: openai-compatible
+    model: replace-with-installed-model
+    options:
+      role: planner
+      baseURL: http://127.0.0.1:11434/v1
+      responseFormat: json_object
