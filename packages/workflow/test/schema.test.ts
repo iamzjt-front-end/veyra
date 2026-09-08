@@ -21,6 +21,42 @@ const minimal = () => ({
 });
 
 describe("published version 1 workflow schema", () => {
+  it("accepts explicit role/capability requirements and rejects malformed or non-agent declarations", () => {
+    const make = (requires: unknown) => ({
+      ...minimal(),
+      steps: { done: { type: "agent", agent: "analysis-binding", requires } },
+    });
+    expect(
+      validate(make({ role: "planner", capabilities: ["reasoning", "example:retrieval"] })),
+    ).toBe(true);
+    expect(parseWorkflow(make({ role: "planner" })).steps.done?.requires).toEqual({
+      role: "planner",
+    });
+    for (const requires of [
+      { role: "" },
+      { role: "x".repeat(129) },
+      { capabilities: ["*"] },
+      { capabilities: ["reasoning", "reasoning"] },
+      { capabilities: ["cap with spaces"] },
+      { optional: ["vision"] },
+      { capabilities: Array.from({ length: 65 }, (_, i) => `cap-${i}`) },
+    ]) {
+      expect(validate(make(requires))).toBe(false);
+      expect(() => parseWorkflow(make(requires))).toThrow("requires");
+    }
+    const command = {
+      ...minimal(),
+      steps: {
+        done: {
+          type: "command",
+          run: ["node --version"],
+          requires: { capabilities: ["reasoning"] },
+        },
+      },
+    };
+    expect(validate(command)).toBe(false);
+    expect(() => parseWorkflow(command)).toThrow("requires");
+  });
   it("accepts literal agent instructions and rejects invalid limits/types in both validators", () => {
     const make = (instructions: unknown) => ({
       ...minimal(),
@@ -162,6 +198,7 @@ describe("published version 1 workflow schema", () => {
     "subworkflow-child",
     "consensus",
     "policy",
+    "capabilities",
   ])("validates the documented %s example and editor schema path", async (name) => {
     const file = fileURLToPath(
       new URL(`../../../examples/workflows/v1/${name}.yaml`, import.meta.url),

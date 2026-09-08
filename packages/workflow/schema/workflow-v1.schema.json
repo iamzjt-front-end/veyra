@@ -56,6 +56,23 @@
     }
   },
   "definitions": {
+    "agentRequirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "role": { "type": "string", "pattern": "\\S", "maxLength": 128 },
+        "capabilities": {
+          "type": "array",
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(?:[._:-][a-z0-9]+)*$",
+            "maxLength": 128
+          }
+        }
+      }
+    },
     "text": {
       "type": "string",
       "pattern": "\\S"
@@ -104,6 +121,9 @@
           "type": "string",
           "pattern": "\\S",
           "maxLength": 16384
+        },
+        "requires": {
+          "$ref": "#/definitions/agentRequirements"
         },
         "next": {
           "$ref": "#/definitions/text"

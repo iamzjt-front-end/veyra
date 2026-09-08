@@ -88,7 +88,44 @@ export interface AgentRunOptions {
 export interface AgentAdapter {
   readonly id: string;
   readonly provider: string;
+  /** Synchronous, side-effect-free metadata for this configured adapter. */
+  describe?(): AgentDescriptor;
+  /** Opt-in readiness probe; never return credentials or raw authentication output. */
+  checkReadiness?(options?: AgentRunOptions): Promise<AgentReadiness>;
   run(input: AgentInput, options?: AgentRunOptions): Promise<AgentResult>;
+}
+
+export type AgentCapability =
+  | "reasoning"
+  | "code-execution"
+  | "vision"
+  | "web-research"
+  | "structured-output"
+  | "tool-use"
+  | "local-cli"
+  | (string & {});
+
+export interface AgentRequirements {
+  role?: AgentRole;
+  capabilities?: AgentCapability[];
+}
+
+export interface AgentDescriptor {
+  schemaVersion: 1;
+  id: string;
+  provider: string;
+  adapterVersion: string;
+  model?: string;
+  roles: AgentRole[];
+  capabilities: AgentCapability[];
+}
+
+export interface AgentReadiness {
+  status: "ready" | "unavailable" | "unknown";
+  /** Configuration presence, local CLI checks, or a real remote-service probe. */
+  scope: "configuration" | "local" | "remote";
+  message: string;
+  version?: string;
 }
 
 export interface VerificationResult {
@@ -268,6 +305,12 @@ export type VeyraEvent = EventMetadata &
         results: ParallelChildResult[];
       })
     | (StepEventMetadata & { type: "parallel.paused"; results: ParallelChildResult[] })
+    | (AgentEventMetadata & {
+        type: "agent.selected";
+        binding: string;
+        requirements: AgentRequirements;
+        descriptor?: AgentDescriptor;
+      })
     | (AgentEventMetadata & { type: "agent.started" })
     | (AgentEventMetadata & { type: "agent.input"; input: AgentInput })
     | (AgentEventMetadata & { type: "agent.completed"; result: AgentResult })
@@ -300,3 +343,4 @@ export type VeyraEvent = EventMetadata &
 
 export type EventSink = (event: VeyraEvent) => void | Promise<void>;
 export { isJsonValue } from "./json.js";
+export { isAgentDescriptor, isAgentReadiness, isAgentRequirements } from "./capabilities.js";

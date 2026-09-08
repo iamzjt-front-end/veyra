@@ -6,6 +6,7 @@ import type {
   RetryBackoff,
 } from "./index.js";
 import { pointerSegments } from "./inputs.js";
+import { isAgentRequirements } from "@veyra/protocol";
 
 export class WorkflowError extends Error {
   constructor(
@@ -101,11 +102,19 @@ function parseStep(value: unknown, field: string, depth: number): WorkflowStep {
                           : "message",
                   ]),
           ...(type === "agent" || type === "human" || type === "subworkflow" ? ["inputs"] : []),
-          ...(type === "agent" ? ["instructions"] : []),
+          ...(type === "agent" ? ["instructions", "requires"] : []),
           ...(type === "agent" || type === "command" ? ["timeoutMs"] : []),
         ];
   object(raw, field, keys);
   const step: WorkflowStep = { type };
+  if (raw.requires !== undefined) {
+    if (!isAgentRequirements(raw.requires))
+      throw new WorkflowError(
+        `${field}.requires`,
+        "expected an optional role and up to 64 unique capability identifiers",
+      );
+    step.requires = structuredClone(raw.requires);
+  }
   if (raw.instructions !== undefined) {
     step.instructions = text(raw.instructions, `${field}.instructions`);
     if ([...step.instructions].length > 16384)

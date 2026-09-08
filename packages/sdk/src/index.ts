@@ -1,5 +1,9 @@
 export type {
   AgentAdapter,
+  AgentCapability,
+  AgentDescriptor,
+  AgentReadiness,
+  AgentRequirements,
   AgentInput,
   AgentResult,
   AgentRole,
@@ -27,4 +31,9 @@ export type {
   WorkflowDefinition,
   WorkflowStep,
 } from "@veyra/workflow";
-export { isJsonValue } from "@veyra/protocol";
+export {
+  isJsonValue,
+  isAgentDescriptor,
+  isAgentReadiness,
+  isAgentRequirements,
+} from "@veyra/protocol";

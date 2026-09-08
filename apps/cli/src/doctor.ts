@@ -2,6 +2,7 @@ import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import { CodexAdapter, type CodexAdapterOptions } from "@veyra/codex";
 import { loadConfig, type VeyraConfig } from "@veyra/config";
+import type { AgentDescriptor } from "@veyra/protocol";
 import type { ProcessRunner } from "@veyra/runtime";
 import { loadWorkflow } from "@veyra/workflow";
 import { createAgent, requiredAgents } from "./providers.js";
@@ -13,6 +14,7 @@ interface ProviderReadiness {
   ready: boolean;
   message: string;
   version?: string;
+  descriptor?: AgentDescriptor;
 }
 
 export async function inspectEnvironment(
@@ -80,9 +82,13 @@ export async function inspectEnvironment(
   };
   const checkProvider = async (name: string, provider: string): Promise<ProviderReadiness> => {
     const agent = config?.agents[name];
-    const base = { agent: name, provider, required: required.has(name) };
+    const base: Pick<ProviderReadiness, "agent" | "provider" | "required" | "descriptor"> = {
+      agent: name,
+      provider,
+      required: required.has(name),
+    };
     try {
-      if (agent) createAgent(name, agent);
+      if (agent) base.descriptor = createAgent(name, agent).describe?.();
       if (provider === "openai") {
         const keyName =
           typeof agent?.options.apiKeyEnv === "string" ? agent.options.apiKeyEnv : "OPENAI_API_KEY";

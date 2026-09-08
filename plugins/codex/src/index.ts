@@ -3,6 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   type AgentAdapter,
+  type AgentDescriptor,
+  type AgentReadiness,
   type AgentInput,
   type AgentResult,
   type AgentRunOptions,
@@ -87,6 +89,41 @@ export class CodexAdapter implements AgentAdapter {
     this.id = options.id ?? "codex";
     this.#options = Object.freeze({ ...options });
     this.#runProcess = dependencies.runProcess ?? runProcess;
+  }
+
+  describe(): AgentDescriptor {
+    return {
+      schemaVersion: 1,
+      id: this.id,
+      provider: this.provider,
+      adapterVersion: "0.1.0",
+      ...(this.#options.model ? { model: this.#options.model } : {}),
+      roles: this.#options.mode === "sdk" ? [] : ["executor"],
+      capabilities:
+        this.#options.mode === "sdk"
+          ? []
+          : ["code-execution", "tool-use", "local-cli", "structured-output"],
+    };
+  }
+
+  async checkReadiness(options: AgentRunOptions = {}): Promise<AgentReadiness> {
+    if (this.#options.mode === "sdk")
+      return {
+        status: "unavailable",
+        scope: "configuration",
+        message: "Codex SDK mode is planned; select CLI mode.",
+      };
+    const result = await this.doctor(options);
+    return {
+      status: result.ready
+        ? "ready"
+        : result.available === false || result.authentication === "not_authenticated"
+          ? "unavailable"
+          : "unknown",
+      scope: "local",
+      message: result.message,
+      ...(result.version ? { version: result.version } : {}),
+    };
   }
 
   async run(input: AgentInput, options: AgentRunOptions = {}): Promise<AgentResult> {

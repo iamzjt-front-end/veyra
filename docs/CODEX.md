@@ -42,6 +42,8 @@ Known credential values from `OPENAI_API_KEY`, `CODEX_API_KEY`, and `CODEX_ACCES
 
 ## Authentication and readiness
 
+`describe()` advertises the CLI executor role with code-execution, tool-use, local-cli and structured-output capabilities. The optional `checkReadiness()` contract wraps `doctor()` as a scoped local readiness result. Planned SDK mode advertises no capabilities and reports unavailable. See [capabilities](CAPABILITIES.md).
+
 The adapter relies on the installed CLI's existing authentication. It does not read, copy, or manage login token files, perform login, or persist credentials. `doctor()` runs `--version` and the read-only `login status` command with bounded output and a five-second timeout each. It reports executable/version/authentication readiness without exposing raw authentication output. A successful login check does not guarantee network availability or model access. A missing executable is distinct from an inconclusive readiness check.
 
 ## Verification

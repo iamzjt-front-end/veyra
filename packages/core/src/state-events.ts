@@ -1,4 +1,9 @@
-import { isJsonValue, type VeyraEvent } from "@veyra/protocol";
+import {
+  isAgentDescriptor,
+  isAgentRequirements,
+  isJsonValue,
+  type VeyraEvent,
+} from "@veyra/protocol";
 
 type RecordValue = Record<string, unknown>;
 const record = (value: unknown): value is RecordValue =>
@@ -371,6 +376,21 @@ export function isStoredEvent(value: unknown): value is VeyraEvent {
             : value.type === "agent.completed"
               ? agentResult(value.result)
               : error(value.error)))
+      );
+    case "agent.selected":
+      return (
+        string(value.agentId) &&
+        string(value.binding) &&
+        optional(value.provider, string) &&
+        optional(value.role, string) &&
+        isAgentRequirements(value.requirements) &&
+        optional(
+          value.descriptor,
+          (descriptor) =>
+            isAgentDescriptor(descriptor) &&
+            descriptor.id === value.agentId &&
+            descriptor.provider === value.provider,
+        )
       );
     case "verification.started":
       return array(value.commands, string);

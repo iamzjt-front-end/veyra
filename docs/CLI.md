@@ -66,6 +66,8 @@ After confirming that the previous owner process has stopped, `resume --recover-
 
 Doctor reports Node/pnpm versions, platform, working-directory access, config/workflow validity, and provider readiness. Referenced workflow agents are required; other configured agents are optional. With no project config, provider checks are optional. An explicitly selected missing config fails the check. OpenAI readiness checks only environment-variable presence; it does not validate account/model access or make an API call. Codex readiness uses the installed CLI's bounded version/login-status checks. Secrets and login tokens are never printed.
 
+For configured native agents, `doctor --json` also returns a `descriptor` with the adapter's version, model when configured, roles and advertised capabilities. These are declarations of implemented adapter behavior, not live model capability tests. `workflow validate` checks the syntax of explicit `requires` constraints; Core matches descriptors before each invocation. See [capability discovery and requirements](CAPABILITIES.md).
+
 Output is readable plain text by default, without ANSI styling. `--json` produces one JSON object for inspection/doctor/init/errors; run/resume produce JSON Lines containing persisted events and a final `type: "result"` record. Known credential values are redacted before output and supplied to Core's store. `--non-interactive` explicitly selects the existing prompt-free behavior: human gates pause and never auto-approve. With no arguments, `ve` currently prints help; TUI mode remains planned.
 
 | Exit code     | Meaning                                                                                |

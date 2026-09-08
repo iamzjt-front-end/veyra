@@ -47,6 +47,41 @@ const completed = (overrides: Partial<ProcessResult> = {}): ProcessResult => ({
 afterEach(() => vi.unstubAllEnvs());
 
 describe("Codex CLI adapter", () => {
+  it("exposes only implemented CLI capabilities and probes native readiness on request", async () => {
+    const runner = vi.fn<ProcessRunner>(async (request) =>
+      completed({ stdout: request.args?.[0] === "--version" ? "codex-cli 1.2.3" : "Logged in" }),
+    );
+    const adapter = new CodexAdapter({ model: "fixture-model" }, { runProcess: runner });
+    expect(adapter.describe()).toMatchObject({
+      provider: "codex",
+      adapterVersion: "0.1.0",
+      model: "fixture-model",
+      roles: ["executor"],
+      capabilities: ["code-execution", "tool-use", "local-cli", "structured-output"],
+    });
+    expect(runner).not.toHaveBeenCalled();
+    const signal = new AbortController().signal;
+    expect(await adapter.checkReadiness({ cwd: "/fixture", signal })).toMatchObject({
+      status: "ready",
+      scope: "local",
+      version: "1.2.3",
+    });
+    expect(runner.mock.calls.map(([request]) => request.args)).toEqual([
+      ["--version"],
+      ["login", "status"],
+    ]);
+    expect(runner.mock.calls[0]?.[0]).toMatchObject({ cwd: "/fixture", signal });
+  });
+  it("does not advertise planned SDK mode as executable or launch a readiness process for it", async () => {
+    const runner = vi.fn<ProcessRunner>();
+    const adapter = new CodexAdapter({ mode: "sdk" }, { runProcess: runner });
+    expect(adapter.describe()).toMatchObject({ roles: [], capabilities: [] });
+    expect(await adapter.checkReadiness()).toMatchObject({
+      status: "unavailable",
+      scope: "configuration",
+    });
+    expect(runner).not.toHaveBeenCalled();
+  });
   it("uses runtime, stdin, a restrictive structured invocation, and cleans its schema", async () => {
     let schemaPath = "";
     const runner = vi.fn<ProcessRunner>(async (request) => {

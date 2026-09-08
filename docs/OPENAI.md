@@ -16,6 +16,8 @@ const result = await planner.run({
 
 ## Configuration and execution
 
+`describe()` advertises the implemented text reasoning and structured-output path, with planner/reviewer/judge roles or the configured fixed role. `checkReadiness()` reports credential-variable presence with scope `configuration`; it never calls the API. Injected clients report unknown authentication. No vision, web research or tool-use support is inferred from the model name. See [capabilities](CAPABILITIES.md).
+
 Options are `model` (required), optional `id`, `role` (`planner`, `reviewer`, or `judge`), `apiKeyEnv`, `timeoutMs`, and `maxOutputTokens`. By default the role comes from `AgentInput.role`; set a fixed role when an agent has another configured name. Consensus supplies semantic reviewer/judge roles, so differently named OpenAI agents need no role override. The default credential variable is `OPENAI_API_KEY`; `apiKeyEnv` names an alternative environment variable and never contains the key itself.
 
 The adapter uses the official API endpoint. It does not inherit `OPENAI_BASE_URL`; OpenAI-compatible provider support is separate roadmap work. Requests use `store: false`, disable SDK logging and automatic retries, and default to a 120-second timeout and 8192 output tokens. The ephemeral `AgentRunOptions` signal and timeout override are forwarded to the SDK. Input and returned text are each capped at 256 KiB. Include relevant excerpts and artifact references; this adapter does not read artifact files or execute tools.

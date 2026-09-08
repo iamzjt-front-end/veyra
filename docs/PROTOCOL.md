@@ -1,6 +1,8 @@
 # Provider-neutral protocol
 
-`@veyra/protocol` defines the contracts shared by adapters, runtime, verifier, Core, and interfaces. `@veyra/sdk` re-exports these public contracts and the JSON guard. No provider SDK types appear in them.
+`@veyra/protocol` defines the contracts shared by adapters, runtime, verifier, Core, and interfaces. `@veyra/sdk` re-exports these public contracts and runtime guards. No provider SDK types appear in them.
+
+`AgentAdapter.describe()` optionally exposes versioned `AgentDescriptor` metadata, roles and capabilities. `checkReadiness()` is an optional, explicitly requested probe with a scoped `AgentReadiness` result. `AgentRequirements` expresses exact role/capability constraints. The `isAgentDescriptor`, `isAgentReadiness`, and `isAgentRequirements` guards reject malformed/non-JSON data. See [capability discovery](CAPABILITIES.md) for bounds, compatibility and readiness semantics.
 
 ## Persisted data and execution controls
 
@@ -35,7 +37,7 @@ All events carry a run ID and ISO timestamp. Persistence can add an event ID and
 - Subworkflow started/paused/completed: workflow name, qualified child start, and mapped inputs at entry; current child step/reason at pause; mapped outputs or normalized error at completion. All records use the containing run ID. The call's normalized `StepOutput` has type `subworkflow`, outcome `success/failure` and outputs/error; child agents receive mapped parameters in `context.workflowInputs`.
 - Parallel started/paused/completed and independently persisted `parallel.child.completed`. Start records child IDs, concurrency and failure policy; joins record ordered child states. Child events include `parentStepId` so surfaces can track active children while the run's current step stays the group.
 - Consensus started/paused/completed records reviewer IDs, mode, threshold or judge, required verifier evidence, pause phase, and final `pass`/`fail` decision. `ReviewVote` references a separately persisted agent event and carries an explicit `pass`, `fail`, or technical `error` verdict. `VerificationEvidence` independently references a command result and its success; it is never a vote. Consensus `StepOutput` exposes the ordered votes, optional judge vote, mode/threshold, verification references and failure reason. Reviewer collection also emits the existing parallel scheduling events; reviewer/judge agent events carry `parentStepId`.
-- Agent input/started/completed/failed. `agent.input` records the resolved redacted `AgentInput` before invocation, with matching run/step/attempt identity and no ephemeral execution controls. Result/error events retain their existing meaning.
+- Agent selected/input/started/completed/failed. `agent.selected` records the explicit binding, resolved role, requirements and optional descriptor when metadata or requirements are present. `agent.input` records the resolved redacted `AgentInput` before invocation, with matching run/step/attempt identity and no ephemeral execution controls. Result/error events retain their existing meaning.
 - Verification started/completed, with deterministic command results.
 - Approval required/resolved, with explicit `approved`/`rejected` decisions.
 - Process output, referencing a stdout/stderr artifact and an optional bounded preview.

@@ -1,5 +1,7 @@
 import {
   type AgentAdapter,
+  type AgentDescriptor,
+  type AgentReadiness,
   type AgentInput,
   type AgentResult,
   type AgentRunOptions,
@@ -71,6 +73,43 @@ export class OpenAIAdapter implements AgentAdapter {
     this.id = options.id ?? "openai";
     this.#options = Object.freeze({ ...options });
     this.#client = dependencies.client;
+  }
+
+  describe(): AgentDescriptor {
+    return {
+      schemaVersion: 1,
+      id: this.id,
+      provider: this.provider,
+      adapterVersion: "0.1.0",
+      model: this.#options.model,
+      roles: this.#options.role ? [this.#options.role] : ["planner", "reviewer", "judge"],
+      capabilities: ["reasoning", "structured-output"],
+    };
+  }
+
+  async checkReadiness(options: AgentRunOptions = {}): Promise<AgentReadiness> {
+    if (options.signal?.aborted)
+      return {
+        status: "unknown",
+        scope: "configuration",
+        message: "OpenAI readiness check was cancelled.",
+      };
+    if (this.#client)
+      return {
+        status: "unknown",
+        scope: "configuration",
+        message:
+          "An injected client is configured; its authentication and API access were not probed.",
+      };
+    const key = this.#options.apiKeyEnv ?? "OPENAI_API_KEY";
+    const present = Boolean(process.env[key]?.trim());
+    return {
+      status: present ? "ready" : "unavailable",
+      scope: "configuration",
+      message: present
+        ? `${key} is present; API access and model capabilities were not tested.`
+        : `Set ${key} before using this adapter.`,
+    };
   }
 
   async run(input: AgentInput, options: AgentRunOptions = {}): Promise<AgentResult> {

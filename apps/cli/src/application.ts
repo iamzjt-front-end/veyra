@@ -132,7 +132,9 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       }
       let line = event.type;
       if ("stepId" in event && event.stepId) line += ` ${event.stepId}`;
-      if (event.type === "agent.completed")
+      if (event.type === "agent.selected")
+        line += `: ${event.binding} → ${event.agentId} (${event.provider}, role ${event.role})`;
+      else if (event.type === "agent.completed")
         line += `: ${event.result.status} — ${event.result.summary.slice(0, 240)}`;
       else if (event.type === "verification.completed")
         line += `: ${event.success ? "passed" : "failed"}`;

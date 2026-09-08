@@ -31,6 +31,23 @@ const consensus = {
   verification: [{ stepId: "verify", success: true, outputEventId: "check-result" }],
 };
 const events: VeyraEvent[] = [
+  {
+    ...metadata,
+    type: "agent.selected",
+    agentId: "fake",
+    provider: "fixture",
+    role: "planner",
+    binding: "plan",
+    requirements: { role: "planner", capabilities: ["reasoning"] },
+    descriptor: {
+      schemaVersion: 1,
+      id: "fake",
+      provider: "fixture",
+      adapterVersion: "0.1.0",
+      roles: ["planner"],
+      capabilities: ["reasoning"],
+    },
+  },
   { ...metadata, type: "step.retrying", retryCount: 2, maxRetries: 3, delayMs: 1000 },
   { ...metadata, type: "budget.checked", phase: "before", allowed: true },
   {
@@ -201,6 +218,29 @@ describe("persisted event validation", () => {
     },
     { ...metadata, type: "consensus.paused", phase: "command" },
     { ...metadata, type: "future.unsupported" },
+    {
+      ...metadata,
+      type: "agent.selected",
+      agentId: "fake",
+      binding: "plan",
+      requirements: { capabilities: ["*"] },
+    },
+    {
+      ...metadata,
+      type: "agent.selected",
+      agentId: "fake",
+      provider: "fixture",
+      binding: "plan",
+      requirements: {},
+      descriptor: {
+        schemaVersion: 1,
+        id: "foreign",
+        provider: "fixture",
+        adapterVersion: "0.1.0",
+        roles: [],
+        capabilities: [],
+      },
+    },
     {
       ...metadata,
       type: "subworkflow.started",

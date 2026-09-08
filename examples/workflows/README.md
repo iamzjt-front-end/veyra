@@ -10,17 +10,18 @@ pnpm ve -- workflow validate examples/workflows/v1/parallel.yaml --json
 
 Validation only reads files. Add `--config /absolute/project/veyra.yaml` to also check required bindings; with that flag, relative workflow paths resolve from the config directory, so use an absolute workflow path for examples in another checkout.
 
-| Example                            | Concepts                                                    | Execution prerequisites                                          |
-| ---------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------------- |
-| [minimal](v1/minimal.yaml)         | Simple command sequence                                     | Node.js; no agents.                                              |
-| [approval](v1/approval.yaml)       | Explicit approved/rejected branches                         | Node.js; a human decision before continuing.                     |
-| [review loop](v1/review-loop.yaml) | Verification/review branching and one repair                | Executor/reviewer bindings and the target project's test script. |
-| [inputs](v1/inputs.yaml)           | Select typed command evidence at a human gate               | Node.js; no agents.                                              |
-| [parallel](v1/parallel.yaml)       | Independent command children and bounded join               | The disposable `test/fixtures/minimal-project` layout.           |
-| [router](v1/router.yaml)           | Route a saved verification result                           | Node.js; no agents.                                              |
-| [subworkflow](v1/subworkflow.yaml) | Load a child file and map its result                        | Keep [its child](v1/subworkflow-child.yaml) beside the parent.   |
-| [consensus](v1/consensus.yaml)     | Independent reviews, required checks and judge              | The agent bindings and check commands declared in that file.     |
-| [policy](v1/policy.yaml)           | Approval, deadlines, retry, concurrency and lifetime limits | The disposable fixture layout plus a human decision.             |
+| Example                              | Concepts                                                    | Execution prerequisites                                                             |
+| ------------------------------------ | ----------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| [minimal](v1/minimal.yaml)           | Simple command sequence                                     | Node.js; no agents.                                                                 |
+| [approval](v1/approval.yaml)         | Explicit approved/rejected branches                         | Node.js; a human decision before continuing.                                        |
+| [review loop](v1/review-loop.yaml)   | Verification/review branching and one repair                | Executor/reviewer bindings and the target project's test script.                    |
+| [inputs](v1/inputs.yaml)             | Select typed command evidence at a human gate               | Node.js; no agents.                                                                 |
+| [parallel](v1/parallel.yaml)         | Independent command children and bounded join               | The disposable `test/fixtures/minimal-project` layout.                              |
+| [router](v1/router.yaml)             | Route a saved verification result                           | Node.js; no agents.                                                                 |
+| [subworkflow](v1/subworkflow.yaml)   | Load a child file and map its result                        | Keep [its child](v1/subworkflow-child.yaml) beside the parent.                      |
+| [consensus](v1/consensus.yaml)       | Independent reviews, required checks and judge              | The agent bindings and check commands declared in that file.                        |
+| [policy](v1/policy.yaml)             | Approval, deadlines, retry, concurrency and lifetime limits | The disposable fixture layout plus a human decision.                                |
+| [capabilities](v1/capabilities.yaml) | Explicit role/capability requirements and a plan gate       | An `analysis` binding advertising planner, reasoning and structured-output support. |
 
 To run an example, provide a version 1 `veyra.yaml` in a disposable project. Command-only examples can use `agents: {}`; `workflow.use` may name the chosen file, or use `--workflow` to override it. For example, after replacing the absolute paths with your project and this checkout:
 

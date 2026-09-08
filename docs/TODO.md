@@ -1076,12 +1076,16 @@ Goal: make Veyra genuinely heterogeneous instead of an OpenAI/Codex wrapper.
 
 ## M4.1 — Provider capability model
 
+**Status:** [x] Complete and verified.
+
 **Primary areas:** `packages/protocol`, `packages/sdk`, `packages/core`
 
-- [ ] define provider/agent capabilities (reasoning, code execution, vision, web/research if supported, structured output, tool use, local CLI, etc.)
-- [ ] capability discovery API
-- [ ] provider metadata/version/readiness
-- [ ] Core routes by role/capability, not hard-coded provider names
+- [x] define provider/agent capabilities (reasoning, code execution, vision, web/research if supported, structured output, tool use, local CLI, etc.)
+- [x] capability discovery API
+- [x] provider metadata/version/readiness
+- [x] Core routes by role/capability, not hard-coded provider names
+
+Verified all five baseline commands (811 tests) and the capability example through `pnpm ve -- workflow validate examples/workflows/v1/capabilities.yaml --json`. Twenty-one protocol tests validate bounded JSON metadata, namespaced capabilities, requirements and scoped readiness. Eleven Core cases cover discovery without execution, opt-in probes, safe errors, identical requirements across two custom providers, recorded selection, incompatible/missing metadata, no silent fallback and saved requirements on resume. SDK, workflow schema/example, state-event and native adapter tests plus CLI doctor assertions pass without live credentials. Optional `requires` constraints are enforced against the explicitly configured binding before each invocation; unconstrained legacy adapters remain compatible. Built-in preset metadata annotations remain advisory. OpenAI advertises only its implemented text/structured path and checks credential presence; Codex advertises its CLI executor path and wraps native readiness checks. `docs/CAPABILITIES.md` documents the public contracts, limits and actual support. Plugin loading and automatic selection remain their own TODOs.
 
 ---
 
@@ -1580,4 +1584,4 @@ When finished:
 
 ## Next task
 
-**Next eligible: M4.1 — Provider capability model.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.
+**Next eligible: M4.2 — Plugin registry and loading.** M1.14 is blocked on the missing OpenAI API credential; its dependent v0.1 exit/TUI tasks remain open.

@@ -352,7 +352,17 @@ describe("CLI application commands", () => {
       const required = await ve(["doctor", "--json"]);
       expect(required.code).toBe(1);
       expect(required.records()[0].providers).toContainEqual(
-        expect.objectContaining({ provider: "codex", required: true, ready: false }),
+        expect.objectContaining({
+          provider: "codex",
+          required: true,
+          ready: false,
+          descriptor: expect.objectContaining({
+            schemaVersion: 1,
+            adapterVersion: "0.1.0",
+            roles: ["executor"],
+            capabilities: expect.arrayContaining(["code-execution", "local-cli"]),
+          }),
+        }),
       );
       expect(required.stdout).not.toContain("fixture-doctor-secret");
     });

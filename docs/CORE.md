@@ -22,6 +22,8 @@ const saved = await store.loadRun(result.runId);
 
 `agents` is keyed by workflow agent references. Custom names and providers work through the same protocol. The default runtime is `LocalAgentRuntime`; the default verifier is `ShellVerifier`. Both can be injected for deterministic tests or alternate implementations. When no store is supplied, Core resolves `config.runtime.stateDir` relative to the run's `cwd`. Callers loading config from another directory should resolve its paths first. Config and provider objects are never persisted.
 
+`discoverAgents(agents, options?)` reads configured capability descriptors and optionally probes readiness. Agent nodes may declare `requires.role` and `requires.capabilities`; Core verifies these against the pinned adapter before invocation and audits the choice with `agent.selected`. Saved requirements are rechecked on resume. Existing adapters without discovery remain supported for unconstrained workflows. See [capabilities](CAPABILITIES.md) for the public API, scoped readiness results and explicit matching rules.
+
 ## Execution and outcomes
 
 Core saves the goal, working directory, and workflow snapshot before starting. Each step has an attempt ID/number on its events and execution input. The current step and `step.started` event are persisted before invoking an adapter or verifier. Results, outcomes, and the next step are saved as execution proceeds.

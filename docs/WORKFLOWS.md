@@ -27,7 +27,9 @@ Non-terminal nodes may have `next`, `on`, and `retry: { max: <non-negative safe 
 
 Agent, human and subworkflow nodes support named `inputs` references as described below. Command strings remain explicitly configured shell commands; they do not accept these bindings or interpolate agent output.
 
-M3.9 adds optional agent `instructions`, a non-blank literal string of at most 16,384 characters. Core appends this guidance to the normal context/project instructions and any consensus reviewer/judge instructions, persists it in `agent.input`, and passes that saved envelope to the adapter. There is no template evaluation or shell interpolation. Existing workflows keep their default guidance. This small field makes [built-in preset behavior](PRESETS.md) executable; provider capability discovery and reusable role profiles remain later milestones.
+M3.9 adds optional agent `instructions`, a non-blank literal string of at most 16,384 characters. Core appends this guidance to the normal context/project instructions and any consensus reviewer/judge instructions, persists it in `agent.input`, and passes that saved envelope to the adapter. There is no template evaluation or shell interpolation. Existing workflows keep their default guidance. This small field makes [built-in preset behavior](PRESETS.md) executable; reusable role profiles remain a later milestone.
+
+M4.1 adds optional agent-only `requires: { role, capabilities }` in this `0.1.0` development checkout. Either property may be omitted. The role is a non-blank string of at most 128 characters; capabilities contain up to 64 unique lowercase identifiers of at most 128 characters each. At invocation, Core checks the pinned adapter's descriptor and every explicit requirement, records `agent.selected`, and uses the required role in the input. Saved requirements remain authoritative on resume. Missing or incompatible metadata fails before invocation. Existing workflows keep their binding semantics, and no fallback provider is selected. See the [capability reference](CAPABILITIES.md) and [complete example](../examples/workflows/v1/capabilities.yaml).
 
 ## JSON Schema and compatibility
 

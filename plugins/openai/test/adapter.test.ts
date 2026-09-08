@@ -53,6 +53,40 @@ afterEach(() => {
 });
 
 describe("OpenAI reasoning adapter", () => {
+  it("describes only implemented text/structured capabilities without probing the API", async () => {
+    const { adapter: instance, create } = adapter();
+    const description = instance.describe();
+    expect(description).toMatchObject({
+      schemaVersion: 1,
+      provider: "openai",
+      adapterVersion: "0.1.0",
+      model: "fixture-model",
+      roles: ["planner", "reviewer", "judge"],
+      capabilities: ["reasoning", "structured-output"],
+    });
+    description.capabilities.push("vision");
+    expect(instance.describe().capabilities).not.toContain("vision");
+    expect(adapter(fixture(), { role: "judge" }).adapter.describe().roles).toEqual(["judge"]);
+    expect(await instance.checkReadiness()).toMatchObject({
+      status: "unknown",
+      scope: "configuration",
+    });
+    expect(create).not.toHaveBeenCalled();
+  });
+  it("reports credential presence without exposing its value or claiming remote readiness", async () => {
+    const instance = new OpenAIAdapter({ model: "fixture-model", apiKeyEnv: "VEYRA_TEST_API_KEY" });
+    vi.stubEnv("VEYRA_TEST_API_KEY", "");
+    expect(await instance.checkReadiness()).toMatchObject({
+      status: "unavailable",
+      scope: "configuration",
+    });
+    vi.stubEnv("VEYRA_TEST_API_KEY", "fixture-secret-value");
+    const result = await instance.checkReadiness();
+    expect(result).toMatchObject({ status: "ready", scope: "configuration" });
+    expect(result.message).toContain("were not tested");
+    expect(JSON.stringify(result)).not.toContain("fixture-secret-value");
+    expect((await instance.checkReadiness({ signal: AbortSignal.abort() })).status).toBe("unknown");
+  });
   it.each([
     { model: "" },
     { model: "fixture", id: " " },

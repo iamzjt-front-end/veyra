@@ -15,6 +15,7 @@ import type { RunContext } from "./context.js";
 import { ExecutionError, fatalExecutionCodes } from "./execution-error.js";
 import { StateStoreError } from "./state.js";
 import { isStoredEvent } from "./state-events.js";
+import { selectAgent } from "./agents.js";
 
 export type RecordEvent = (
   event: VeyraEvent,
@@ -107,16 +108,26 @@ async function executeLeafWithinDeadline(options: LeafOptions): Promise<LeafResu
         "missing_adapter",
         `Agent '${key}' for step '${stepId}' is not registered; inject its adapter before running.`,
       );
+    const selection = selectAgent(adapter, key, step.requires, options.role);
     const metadata = {
       ...active,
       agentId: adapter.id,
       provider: adapter.provider,
-      role: options.role ?? key,
+      role: selection.role,
     };
+    if (selection.descriptor || step.requires)
+      await record({
+        type: "agent.selected",
+        ...metadata,
+        binding: key,
+        requirements: selection.requirements,
+        ...(selection.descriptor ? { descriptor: selection.descriptor } : {}),
+        at: now(),
+      });
     const resolved = context.input(step.inputs);
     const input = {
       ...active,
-      role: options.role ?? key,
+      role: selection.role,
       goal,
       instructions: [
         `Complete workflow step '${stepId}'. Use the relevant earlier outputs and deterministic evidence in context.steps, explicitly selected values in context.inputs, and any subworkflow parameters in context.workflowInputs. Preserve project instructions.`,

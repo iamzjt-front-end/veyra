@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=../../../packages/workflow/schema/workflow-v1.schema.json
+name: explicit-capability-binding
+version: 1
+start: plan
+steps:
+  plan:
+    type: agent
+    agent: analysis
+    requires:
+      role: planner
+      capabilities: [reasoning, structured-output]
+    instructions: Plan the supplied goal without modifying files. Use only available evidence.
+    next: inspect
+  inspect:
+    type: human
+    message: Inspect the selected agent's plan before continuing.
+    inputs:
+      plan: { from: plan, path: /summary }

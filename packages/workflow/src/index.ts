@@ -31,6 +31,8 @@ export interface WorkflowStep {
   agent?: string;
   /** Literal task guidance, appended to the provider-neutral input instructions. */
   instructions?: string;
+  /** Explicit requirements are checked against the selected adapter's descriptor. */
+  requires?: AgentRequirements;
   run?: string[];
   next?: string;
   on?: Record<string, string>;
@@ -99,4 +101,4 @@ export { analyzeWorkflow, type WorkflowAnalysis } from "./analysis.js";
 export { resolveRoute, RouterError, type RouteDecision } from "./router.js";
 export { buildWorkflowGraph, type ExecutionGraph, type WorkflowScope } from "./graph.js";
 export { aggregateReviews } from "./consensus.js";
-import type { BudgetLimits } from "@veyra/protocol";
+import type { AgentRequirements, BudgetLimits } from "@veyra/protocol";
