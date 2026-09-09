@@ -59,8 +59,12 @@ export async function startLoopback(
     );
   const allowed = new Set(options.projectIds);
   const token = randomBytes(32).toString("hex");
-  const expiresAt = Date.now() + 8 * 60 * 60 * 1000;
-  const redactor = createSecretRedactor({ env, values: [token] });
+  const code = randomBytes(32).toString("hex");
+  const pairingExpiresAt = Date.now() + 10 * 60 * 1000;
+  let expiresAt = 0;
+  let paired = false;
+  let revoked = false;
+  const redactor = createSecretRedactor({ env, values: [token, code] });
   const pairingFile = join(directory, `loopback-${randomUUID()}.json`);
   let url = "";
   let active = 0;
@@ -74,11 +78,12 @@ export async function startLoopback(
       throw new DaemonError("project_stale", "Repair this Project's location locally.");
     return entry.project;
   };
-  const authenticated = (request: IncomingMessage) => {
+  const authenticated = (request: IncomingMessage, revocationOnly = false) => {
     const received = Buffer.from(request.headers.authorization ?? "");
     const expected = Buffer.from(`Bearer ${token}`);
     return (
-      Date.now() < expiresAt &&
+      paired &&
+      (revocationOnly || (!revoked && Date.now() < expiresAt)) &&
       received.length === expected.length &&
       timingSafeEqual(received, expected)
     );
@@ -132,12 +137,13 @@ export async function startLoopback(
       reply(200, { service: "veyra-daemon", version: 1 });
       return;
     }
-    if (!authenticated(request)) {
+    if (request.url !== "/pair" && !authenticated(request, request.url === "/grant/revoke")) {
       reply(401, {
         ok: false,
         error: {
           code: "pairing_required",
-          message: "Pair with this daemon locally; grants expire after eight hours or restart.",
+          message:
+            "Pair locally; the grant is absent, expired or revoked. Restart the daemon to pair again.",
         },
       });
       return;
@@ -151,11 +157,68 @@ export async function startLoopback(
       try {
         if (
           request.method !== "POST" ||
-          request.url !== "/rpc" ||
+          !["/rpc", "/pair", "/grant/revoke"].includes(request.url ?? "") ||
           request.headers["content-type"] !== "application/json"
         )
           throw new DaemonError("invalid_request", "Use the versioned local JSON tool API.");
         const body = await readBody(request);
+        if (request.url === "/pair") {
+          const value = body as { version?: unknown; code?: unknown } | null;
+          if (
+            !value ||
+            typeof value !== "object" ||
+            value.version !== 1 ||
+            Object.keys(value).some((key) => !["version", "code"].includes(key)) ||
+            typeof value.code !== "string" ||
+            !/^[a-f0-9]{64}$/.test(value.code) ||
+            paired ||
+            revoked ||
+            stopped ||
+            Date.now() >= pairingExpiresAt ||
+            !timingSafeEqual(Buffer.from(value.code), Buffer.from(code))
+          )
+            throw new DaemonError(
+              "pairing_invalid",
+              "Pairing invitation is invalid, expired or already used.",
+            );
+          // Consume before awaiting I/O so simultaneous requests cannot exchange the code twice.
+          paired = true;
+          expiresAt = Date.now() + 8 * 60 * 60 * 1000;
+          await unlink(pairingFile);
+          // The grant is returned only here; normal responses must continue redacting it.
+          response.writeHead(200, { "Content-Type": "application/json" });
+          response.end(
+            JSON.stringify({
+              ok: true,
+              data: {
+                version: 1,
+                url,
+                origin: options.origin,
+                token,
+                expiresAt,
+                projectIds: [...allowed],
+              },
+            }),
+          );
+          return;
+        }
+        const requireGrant = () => {
+          if (stopped || !authenticated(request))
+            throw new DaemonError("grant_unavailable", "Local grant expired or was revoked.");
+        };
+        if (request.url === "/grant/revoke") {
+          if (
+            !body ||
+            typeof body !== "object" ||
+            Object.keys(body).length !== 1 ||
+            (body as { version?: unknown }).version !== 1
+          )
+            throw new DaemonError("invalid_request", "Use a versioned grant revocation request.");
+          revoked = true;
+          reply(200, { ok: true, data: { revoked: true } });
+          return;
+        }
+        requireGrant();
         if (!isDaemonRequest(body) || ["stop", "health", "projects.register"].includes(body.method))
           throw new DaemonError(
             "invalid_request",
@@ -163,16 +226,18 @@ export async function startLoopback(
           );
         if (body.method === "projects.list") {
           const entries = await client.call("projects.list", undefined);
+          requireGrant();
           reply(200, { ok: true, data: entries.filter((entry) => allowed.has(entry.project.id)) });
           return;
         }
         if (!body.params || !("projectId" in body.params))
           throw new DaemonError("invalid_request", "Project identity required.");
         const selected = await project(body.params.projectId);
+        requireGrant();
         let data: unknown;
         if (body.method === "projects.get") {
           data = {
-            project: { id: selected.id, name: selected.name },
+            project: { id: selected.id, name: selected.name, root: selected.root },
             readiness: options.inspectProject
               ? await options.inspectProject(selected)
               : {
@@ -189,8 +254,41 @@ export async function startLoopback(
               "native_not_ready",
               readiness?.message ?? "Configure native execution locally before dispatch.",
             );
-          if (stopped) throw new DaemonError("daemon_unavailable", "Daemon is stopping.");
+          requireGrant();
           data = await client.call("runs.dispatch", body.params);
+        } else if (body.method === "runs.get") {
+          const run = await client.call("runs.get", body.params);
+          const events = await new LocalRunStore({
+            stateDir: projectPaths(selected).directory,
+          })
+            .readEvents(body.params.runId)
+            .catch((error: unknown) => {
+              // A queued run can precede Core's first persisted event; corrupt evidence still fails.
+              if (error instanceof Error && "code" in error && error.code === "not_found")
+                return [];
+              throw error;
+            });
+          const event = [...events]
+            .reverse()
+            .find((event) =>
+              ["agent.started", "agent.completed", "agent.failed"].includes(event.type),
+            );
+          data = {
+            ...run,
+            execution: {
+              agentStatus:
+                run.status === "cancelled"
+                  ? "cancelled"
+                  : event?.type === "agent.completed"
+                    ? event.result.status
+                    : event?.type === "agent.failed"
+                      ? "failed"
+                      : event?.type === "agent.started" && run.status === "running"
+                        ? "running"
+                        : "unknown",
+              observedAt: new Date().toISOString(),
+            },
+          };
         } else if (body.method === "results.get") {
           const locator = body.params;
           const result = await client.call("results.get", locator);
@@ -241,9 +339,6 @@ export async function startLoopback(
           };
         } else {
           switch (body.method) {
-            case "runs.get":
-              data = await client.call(body.method, body.params);
-              break;
             case "runs.wait":
               data = await client.call(body.method, body.params);
               break;
@@ -257,6 +352,7 @@ export async function startLoopback(
               throw new DaemonError("invalid_request", "Unsupported operation.");
           }
         }
+        requireGrant();
         reply(200, { ok: true, data });
       } catch (error) {
         reply(400, {
@@ -304,7 +400,14 @@ export async function startLoopback(
     url = `http://127.0.0.1:${address.port}`;
     await writePrivate(
       pairingFile,
-      JSON.stringify({ version: 1, url, origin: options.origin, token, expiresAt }),
+      JSON.stringify({
+        version: 1,
+        url,
+        origin: options.origin,
+        code,
+        expiresAt: pairingExpiresAt,
+        projectIds: [...allowed],
+      }),
     );
     return { url, pairingFile, stop };
   } catch (error) {
