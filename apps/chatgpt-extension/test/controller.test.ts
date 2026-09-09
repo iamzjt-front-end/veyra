@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 import { BridgeController, type ExtensionHost, type SessionState } from "../src/controller.js";
-import { EXTENSION_ORIGIN, handoffTemplate } from "../src/contracts.js";
+import { EXTENSION_ORIGIN, frameHandoff, handoffTemplate } from "../src/contracts.js";
 import type { ProjectId } from "@veyraoss/protocol";
 
 const projectId = "62bf60b0-5646-4195-9f47-a4ea70140859" as ProjectId;
@@ -15,6 +15,7 @@ function fixture() {
       origin: EXTENSION_ORIGIN,
       token: "f".repeat(64),
       expiresAt: Date.now() + 100000,
+      projectIds: [projectId],
     },
   };
   let url = conversation;
@@ -43,7 +44,7 @@ function fixture() {
     let data: unknown;
     if (body.method === "projects.get")
       data = {
-        project: { id: projectId, name: "Fixture" },
+        project: { id: projectId, name: "Fixture", root: "/disposable/fixture" },
         readiness: { ready: true, message: "Native ready", checks: [] },
         sharedState: null,
       };
@@ -93,7 +94,7 @@ function fixture() {
   ) => controller.handle({ type, epoch: "epoch", bindingId: state.binding?.id, ...extra }, sender);
   const dispatch = () => {
     if (!state.binding) throw new Error("Missing binding");
-    return message("dispatch", { source: JSON.stringify(handoffTemplate(state.binding)) });
+    return message("dispatch", { source: frameHandoff(handoffTemplate(state.binding)) });
   };
   return {
     controller,
@@ -114,6 +115,68 @@ function fixture() {
 }
 
 describe("session-local extension coordination", () => {
+  it("shows current Project path, daemon/native/run status and never presents another conversation as bound", async () => {
+    const f = fixture();
+    await f.bind();
+    await f.dispatch();
+    const current = await f.controller.handle({ type: "status" }, popup);
+    expect(current).toMatchObject({
+      currentBound: true,
+      enabled: true,
+      connectivity: { status: "connected" },
+      selected: { readiness: { ready: true } },
+      binding: {
+        projectName: "Fixture",
+        projectRoot: "/disposable/fixture",
+        runStatus: "completed",
+      },
+    });
+    expect(JSON.stringify(current)).not.toContain("f".repeat(64));
+    f.navigate();
+    expect(await f.controller.handle({ type: "status" }, popup)).toMatchObject({
+      currentBound: false,
+      enabled: false,
+    });
+    f.request.mockRejectedValueOnce(new Error("Daemon unavailable"));
+    expect(await f.controller.handle({ type: "status" }, popup)).toMatchObject({
+      connectivity: { status: "unavailable" },
+    });
+  });
+  it("requires markers even at the worker boundary and disables bridging without pretending to cancel", async () => {
+    const f = fixture();
+    await f.bind();
+    const binding = f.state().binding;
+    if (!binding) throw new Error("Missing binding");
+    await expect(
+      f.message("dispatch", { source: JSON.stringify(handoffTemplate(binding)) }),
+    ).rejects.toThrow("边界");
+    await f.dispatch();
+    await f.controller.handle({ type: "disable" }, popup);
+    expect(f.state().binding).toMatchObject({ phase: "stopped" });
+    expect(f.calls).not.toContain("runs.cancel");
+    expect(f.state().binding?.message).toContain("继续执行");
+  });
+  it("pairs only through the popup, revokes before dropping the grant and preserves it on uncertain revocation", async () => {
+    const f = fixture();
+    const grant = f.state().pairing;
+    if (!grant) throw new Error("Missing grant");
+    f.request.mockImplementationOnce(async (url) => {
+      expect(String(url).endsWith("/pair")).toBe(true);
+      return new Response(JSON.stringify({ ok: true, data: grant }));
+    });
+    const { token, ...base } = grant;
+    await f.controller.handle({ type: "pair", pairing: { ...base, code: token } }, popup);
+    f.request.mockRejectedValueOnce(new Error("Connection uncertain"));
+    await expect(f.controller.handle({ type: "unpair" }, popup)).rejects.toThrow("uncertain");
+    expect(f.state().pairing).toEqual(grant);
+    f.request.mockImplementationOnce(async (url, options) => {
+      expect(String(url).endsWith("/grant/revoke")).toBe(true);
+      expect(options?.headers).toMatchObject({ Authorization: `Bearer ${token}` });
+      return new Response(JSON.stringify({ ok: true, data: { revoked: true } }));
+    });
+    await f.controller.handle({ type: "unpair" }, popup);
+    expect(f.state().pairing).toBeUndefined();
+  });
   it("requires explicit popup binding and rejects another tab, epoch, Project or stale lease", async () => {
     const f = fixture();
     await expect(f.message("dispatch", { source: "{}" })).rejects.toThrow("绑定权限");
@@ -127,7 +190,7 @@ describe("session-local extension coordination", () => {
     for (const change of [{ projectId: randomUUID() }, { runId: randomUUID() }])
       await expect(
         f.message("dispatch", {
-          source: JSON.stringify({ ...handoffTemplate(binding), ...change }),
+          source: frameHandoff({ ...handoffTemplate(binding), ...change }),
         }),
       ).rejects.toThrow("不匹配");
     expect(f.calls).not.toContain("runs.dispatch");
@@ -146,6 +209,11 @@ describe("session-local extension coordination", () => {
       const claim = (await f.message("claim")) as { delivery: { id: string; text: string } };
       expect(claim.delivery.text).toContain('"exitCode":1');
       expect(claim.delivery.text).toContain('"status":"failed"');
+      expect(claim.delivery.text).toContain("VEYRA_RESULT_BEGIN\n");
+      expect(claim.delivery.text).toContain("\nVEYRA_RESULT_END");
+      expect(claim.delivery.text).toContain("请作为 Reviewer");
+      expect(claim.delivery.text).toContain("VEYRA_REVIEW_BEGIN");
+      expect(claim.delivery.text).toContain("不是用户的新任务");
       expect(claim.delivery.text).not.toContain("f".repeat(64));
       expect(await f.message("claim")).not.toHaveProperty("delivery");
       await f.message("ack", { deliveryId: "wrong" });
@@ -153,6 +221,11 @@ describe("session-local extension coordination", () => {
       await f.message("ack", { deliveryId: claim.delivery.id });
     }
     expect(f.state().binding?.phase).toBe("stopped");
+    expect(f.state().binding?.lastResult).toMatchObject({
+      status: "failed",
+      delivery: "confirmed",
+    });
+    expect(f.state().binding?.runId).toBeTruthy();
     expect(f.calls.filter((method) => method === "runs.dispatch")).toHaveLength(2);
     await f.dispatch();
     expect(f.calls.filter((method) => method === "runs.dispatch")).toHaveLength(2);
@@ -205,6 +278,18 @@ describe("session-local extension coordination", () => {
     expect(f.calls.at(-1)).toBe("runs.cancel");
     await f.message("poll");
     expect(f.calls.at(-1)).toBe("runs.cancel");
+  });
+  it("does not replace a disabled binding while its native run is still active", async () => {
+    const f = fixture();
+    await f.bind();
+    await f.dispatch();
+    f.status("running");
+    await f.controller.handle({ type: "disable" }, popup);
+    await expect(f.bind()).rejects.toThrow("尚未结束");
+    f.status("cancelled");
+    await f.controller.handle({ type: "stop" }, popup);
+    await f.bind();
+    expect(f.state().binding?.phase).toBe("armed");
   });
   it("requires supported saved conversations, bounded settings and native readiness before enabling", async () => {
     const f = fixture();

@@ -1,5 +1,5 @@
 import { isDaemonRunView, isProjectExecutionResult, isProjectId } from "@veyraoss/protocol";
-import { LocalClient } from "./client.js";
+import { exchangePairing, LocalClient } from "./client.js";
 import {
   EXTENSION_ORIGIN,
   conversationUrl,
@@ -7,6 +7,7 @@ import {
   object,
   parseHandoff,
   parsePairing,
+  parseInvitation,
   resultMessage,
   type Binding,
   type Pairing,
@@ -31,6 +32,7 @@ export interface ExtensionHost {
 
 /** Session-local bridge coordination only; all execution stays in the daemon. */
 export class BridgeController {
+  private readiness?: { projectId: string; at: number; view: ProjectView };
   constructor(
     private readonly host: ExtensionHost,
     private readonly request: typeof fetch = (...args) => globalThis.fetch(...args),
@@ -44,45 +46,72 @@ export class BridgeController {
       return new LocalClient(parsePairing(state.pairing), this.request);
     };
     if (popup) {
-      if (value.type === "status")
-        return {
-          paired: !!state.pairing && state.pairing.expiresAt > Date.now(),
-          binding: state.binding,
-        };
+      if (value.type === "status") return this.status(state, value.projectId);
+      if (value.type === "inspect") {
+        if (!isProjectId(value.projectId)) throw new Error("请选择 Project。");
+        this.readiness = undefined;
+        return this.status(state, value.projectId);
+      }
       if (value.type === "pair") {
         if (state.binding && !["paused", "stopped"].includes(state.binding.phase))
           throw new Error("请先停止当前绑定。");
-        const pairing = parsePairing(value.pairing);
-        await new LocalClient(pairing, this.request).call("projects.list", undefined);
+        const pairing = await exchangePairing(parseInvitation(value.pairing), this.request);
+        this.readiness = undefined;
         await this.host.save({ pairing });
         return { paired: true };
       }
       if (value.type === "projects") return client().call("projects.list", undefined);
-      if (value.type === "stop") {
+      if (["stop", "disable", "unpair"].includes(value.type)) {
         const binding = state.binding;
         if (binding) {
           binding.phase = "stopped";
           binding.delivery = undefined;
-          binding.message = "自动派发和回传已停止。";
+          if (binding.lastResult?.delivery === "pending") binding.lastResult.delivery = "stopped";
+          binding.message = "Disabled：自动派发和回传已停止。";
           await this.host.save(state);
           await this.host.send(binding.tabId, { type: "disarm" }).catch(() => {});
-          if (binding.runId) {
+          if (binding.runId && value.type !== "disable") {
             try {
-              await client().call("runs.cancel", {
+              const run = await client().call("runs.cancel", {
                 projectId: binding.projectId,
                 runId: binding.runId,
               });
+              this.observeRun(binding, run);
             } catch {
               binding.message = "回传已停止，但取消请求未确认；请在本机检查该 run。";
               await this.host.save(state);
             }
           }
+          if (binding.runId && value.type === "disable") {
+            binding.message =
+              "Disabled：已停止自动桥接，已派发的 run 继续执行；需要时点击 Cancel Run。";
+          }
+          await this.host.save(state);
+        }
+        if (value.type === "unpair") {
+          // Keep the grant locally on an ambiguous response so the user can retry or stop the daemon.
+          await client().revoke();
+          await this.host.save({ binding });
+          this.readiness = undefined;
         }
         return { binding };
       }
       if (value.type === "bind") {
         if (state.binding && !["paused", "stopped"].includes(state.binding.phase))
           throw new Error("请先停止当前绑定。");
+        if (state.binding?.runId) {
+          this.observeRun(
+            state.binding,
+            await client().call("runs.get", {
+              projectId: state.binding.projectId,
+              runId: state.binding.runId,
+            }),
+          );
+          if (!["completed", "failed", "cancelled"].includes(state.binding.runStatus ?? ""))
+            throw new Error(
+              "之前的 Run 尚未结束；请先 Cancel Run 或在本地完成审批/恢复，再更换绑定。",
+            );
+        }
         if (
           !isProjectId(value.projectId) ||
           !Number.isInteger(value.maxRuns) ||
@@ -110,12 +139,23 @@ export class BridgeController {
               ? view.readiness.message
               : "原生执行器尚未就绪。",
           );
+        if (
+          !object(view.project) ||
+          view.project.id !== value.projectId ||
+          typeof view.project.name !== "string" ||
+          typeof view.project.root !== "string" ||
+          !view.project.root.startsWith("/")
+        )
+          throw new Error("Project 返回身份或路径无效。");
+        this.readiness = { projectId: value.projectId, at: Date.now(), view };
         const binding: Binding = {
           id: crypto.randomUUID(),
           tabId: tab.id,
           epoch: prepared.epoch,
           conversation,
           projectId: value.projectId,
+          projectName: view.project.name,
+          projectRoot: view.project.root,
           nextRunId: crypto.randomUUID(),
           count: 0,
           maxRuns: Number(value.maxRuns),
@@ -172,12 +212,15 @@ export class BridgeController {
       const handoff = parseHandoff(value.source, binding.projectId, binding.nextRunId);
       binding.phase = "dispatching";
       binding.runId = handoff.runId;
+      binding.runStatus = "dispatching";
+      binding.agentStatus = "unknown";
       binding.count++;
       binding.message = "正在派发原生执行器。";
       // Persist the intent before crossing the network; ambiguous responses are never replayed.
       await this.host.save(state);
       try {
-        await client().call("runs.dispatch", { projectId: binding.projectId, handoff });
+        const run = await client().call("runs.dispatch", { projectId: binding.projectId, handoff });
+        this.observeRun(binding, run);
         binding.phase = "running";
         binding.message = "原生执行中；可随时停止。";
       } catch (error) {
@@ -187,14 +230,9 @@ export class BridgeController {
     } else if (value.type === "poll" && binding.phase === "running" && binding.runId) {
       const locator = { projectId: binding.projectId, runId: binding.runId };
       const run = await client().call("runs.get", locator);
-      if (
-        !isDaemonRunView(run) ||
-        run.projectId !== locator.projectId ||
-        run.runId !== locator.runId
-      )
-        throw new Error("Run 身份不匹配。");
-      if (!["queued", "running"].includes(run.status)) {
-        if (["paused", "interrupted"].includes(run.status)) {
+      this.observeRun(binding, run);
+      if (!["queued", "running"].includes(binding.runStatus ?? "")) {
+        if (["paused", "interrupted"].includes(binding.runStatus ?? "")) {
           binding.phase = "paused";
           binding.message = "Run 需要本地审批或恢复；扩展不能代替审批。";
         } else {
@@ -209,6 +247,12 @@ export class BridgeController {
           binding.nextRunId = crypto.randomUUID();
           const id = crypto.randomUUID();
           binding.delivery = { id, text: resultMessage(binding, data, id) };
+          binding.lastResult = {
+            runId: data.result.runId,
+            status: data.result.status,
+            summary: data.result.summary.slice(0, 1024),
+            delivery: "pending",
+          };
           binding.phase = "ready_to_deliver";
           binding.message = "等待当前会话输入框空闲后自动回传。";
         }
@@ -230,7 +274,7 @@ export class BridgeController {
       value.deliveryId === binding.delivery?.id
     ) {
       binding.delivery = undefined;
-      binding.runId = undefined;
+      if (binding.lastResult) binding.lastResult.delivery = "confirmed";
       binding.phase = binding.count >= binding.maxRuns ? "stopped" : "armed";
       binding.message =
         binding.phase === "stopped"
@@ -241,11 +285,91 @@ export class BridgeController {
     // Pending result bodies are available only through an explicit one-time claim.
     return { binding: { ...binding, delivery: undefined } };
   }
+  private observeRun(binding: Binding, value: unknown) {
+    if (!object(value)) throw new Error("Run 响应无效。");
+    const { execution, ...run } = value;
+    if (!isDaemonRunView(run) || run.projectId !== binding.projectId || run.runId !== binding.runId)
+      throw new Error("Run 身份不匹配。");
+    binding.runStatus = run.status;
+    if (object(execution) && typeof execution.agentStatus === "string")
+      binding.agentStatus = execution.agentStatus.slice(0, 128);
+  }
+  private async status(state: SessionState, selectedId: unknown) {
+    const tab = await this.host.activeTab();
+    const conversation = conversationUrl(tab.url ?? "");
+    const currentBound =
+      !!state.binding &&
+      tab.id === state.binding.tabId &&
+      conversation === state.binding.conversation;
+    const paired = !!state.pairing && state.pairing.expiresAt > Date.now();
+    let connectivity = { status: "disconnected", message: "未配对或授权已过期。" };
+    let selected: ProjectView | undefined;
+    let readinessAt: number | undefined;
+    if (paired && state.pairing) {
+      try {
+        const client = new LocalClient(parsePairing(state.pairing), this.request);
+        await client.call("projects.list", undefined);
+        connectivity = { status: "connected", message: "本机 Daemon 已连接且授权有效。" };
+        const activeBinding =
+          currentBound && !["paused", "stopped"].includes(state.binding?.phase ?? "stopped");
+        const projectId = activeBinding
+          ? state.binding?.projectId
+          : isProjectId(selectedId)
+            ? selectedId
+            : currentBound
+              ? state.binding?.projectId
+              : undefined;
+        if (isProjectId(projectId)) {
+          if (this.readiness?.projectId !== projectId || Date.now() - this.readiness.at > 30000) {
+            const view = (await client.call("projects.get", { projectId })) as ProjectView;
+            if (
+              !object(view) ||
+              !object(view.project) ||
+              view.project.id !== projectId ||
+              typeof view.project.root !== "string" ||
+              !object(view.readiness) ||
+              typeof view.readiness.ready !== "boolean"
+            )
+              throw new Error("Project readiness 响应无效。");
+            this.readiness = { projectId, at: Date.now(), view };
+          }
+          selected = this.readiness.view;
+          readinessAt = this.readiness.at;
+        }
+        if (state.binding?.runId) {
+          const run = await client.call("runs.get", {
+            projectId: state.binding.projectId,
+            runId: state.binding.runId,
+          });
+          this.observeRun(state.binding, run);
+          await this.host.save(state);
+        }
+      } catch (error) {
+        connectivity = {
+          status: "unavailable",
+          message: error instanceof Error ? error.message : "本机请求失败。",
+        };
+      }
+    }
+    return {
+      paired,
+      expiresAt: state.pairing?.expiresAt,
+      connectivity,
+      conversation,
+      currentBound,
+      enabled: currentBound && !["paused", "stopped"].includes(state.binding?.phase ?? "stopped"),
+      binding: state.binding ? { ...state.binding, delivery: undefined } : undefined,
+      selected: selected ? { project: selected.project, readiness: selected.readiness } : undefined,
+      readinessAt,
+    };
+  }
   async detached(tabId: number) {
     const state = await this.host.read();
     if (state.binding?.tabId === tabId) {
       state.binding.phase = "paused";
       state.binding.delivery = undefined;
+      if (state.binding.lastResult?.delivery === "pending")
+        state.binding.lastResult.delivery = "stopped";
       state.binding.message = "页面已关闭、刷新或切换；自动回传已暂停，运行证据保留在 Project。";
       await this.host.save(state);
     }

@@ -1,4 +1,4 @@
-import { conversationUrl } from "./contracts.js";
+import { conversationUrl, extractHandoffBlock } from "./contracts.js";
 
 const assistantSelector = '[data-message-author-role="assistant"]';
 export function assistantId(message: Element): string | undefined {
@@ -33,20 +33,27 @@ export function latestHandoff(
   const turn = message.closest("article") ?? message.parentElement;
   // A finished assistant turn needs its normal completion toolbar. Unknown DOM fails closed.
   if (!turn?.querySelector('[data-testid="copy-turn-action-button"]')) return;
-  const sources: string[] = [];
-  for (const pre of message.querySelectorAll("pre")) {
-    const code = pre.querySelector("code");
-    if (!code) continue;
-    const explicit =
-      code.classList.contains("language-veyra-handoff") ||
-      code.getAttribute("data-language") === "veyra-handoff" ||
-      [...pre.querySelectorAll("div, span")].some(
-        (label) => label.children.length === 0 && label.textContent?.trim() === "veyra-handoff",
-      );
-    if (explicit) sources.push(code.textContent ?? "");
-  }
-  if (sources.length > 1) throw new Error("同一 GPT 输出含多个 handoff，已暂停，避免误派发。");
-  return sources[0] === undefined ? undefined : { id, source: sources[0] };
+  // Inspect only this new completed assistant turn; forward only its delimited engineering data.
+  const text = turnText(message);
+  const source = extractHandoffBlock(text);
+  return source === undefined ? undefined : { id, source };
+}
+function turnText(message: Element): string {
+  let text = "";
+  const visit = (node: Node, depth: number) => {
+    if (depth > 80 || text.length > 192 * 1024)
+      throw new Error("新的 GPT 输出超出桥接读取上限，已暂停。");
+    if (node.nodeType === 3) text += node.textContent ?? "";
+    else if (node.nodeType === 1) {
+      const element = node as Element;
+      if (["SCRIPT", "STYLE", "BUTTON"].includes(element.tagName)) return;
+      for (const child of element.childNodes) visit(child, depth + 1);
+      if (["P", "DIV", "PRE", "BR", "LI"].includes(element.tagName)) text += "\n";
+    }
+  };
+  visit(message, 0);
+  if (text.length > 192 * 1024) throw new Error("新的 GPT 输出超出桥接读取上限，已暂停。");
+  return text;
 }
 function composer(document: Document): HTMLElement | undefined {
   const candidates = document.querySelectorAll<HTMLElement>(

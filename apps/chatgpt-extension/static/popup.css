@@ -52,3 +52,31 @@ button:disabled {
   font-size: 12px;
   color: #536172;
 }
+dd {
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+dt {
+  font-weight: 600;
+}
+#pairing-scope,
+#previous-binding {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.controls {
+  position: sticky;
+  top: 0;
+  background: #f8fafc;
+  padding-bottom: 8px;
+}
+#last-result {
+  max-height: 140px;
+  overflow: auto;
+}
+#error {
+  color: #9c2424;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

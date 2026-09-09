@@ -7,15 +7,43 @@
   </head>
   <body>
     <h1>Veyra <small>Experimental</small></h1>
-    <p>连接本机项目，在当前 ChatGPT 会话自动派发并回传结果。</p>
-    <label for="pairing">1. 导入 daemon 配对文件（本次浏览器会话有效）</label>
+    <div class="controls">
+      <button id="disable" type="button">Disable：停止派发和回传（Run 继续）</button>
+      <button id="stop" type="button">Stop / Cancel Run：停止桥接并取消运行</button>
+    </div>
+    <dl aria-label="当前桥接状态">
+      <dt>Status</dt>
+      <dd id="enabled">Disabled</dd>
+      <dt>Conversation</dt>
+      <dd id="conversation">尚未绑定</dd>
+      <dt>Bound Project</dt>
+      <dd id="bound-project">当前对话未绑定任何 Project</dd>
+      <dt>Daemon</dt>
+      <dd id="daemon">disconnected</dd>
+      <dt>Native readiness</dt>
+      <dd id="native">Codex — 未检查</dd>
+      <dt>Run ID / status</dt>
+      <dd id="run">尚无 Run</dd>
+      <dt>Agent status</dt>
+      <dd id="agent">Codex — idle</dd>
+      <dt>Last Result</dt>
+      <dd id="last-result">尚无 Result</dd>
+    </dl>
+    <p id="previous-binding" class="note"></p>
+    <p id="error" role="alert"></p>
+    <p id="status" role="status" aria-live="polite">尚未连接</p>
+    <label for="pairing">1. 选择本机 daemon 的短期配对文件</label>
     <input id="pairing" type="file" accept="application/json,.json" />
-    <button id="detect" type="button">检测 daemon / 刷新项目</button>
-    <label for="project">2. 选择已在本机授权的 Project</label>
+    <p id="pairing-scope" class="note"></p>
+    <button id="pair" type="button" disabled>确认所列 Project 范围并配对</button>
+    <p id="grant" class="note">未授权</p>
+    <button id="unpair" type="button">取消运行并撤销本地授权 / Unpair</button>
+    <button id="detect" type="button">检测 daemon / 刷新项目与 readiness</button>
+    <label for="project">2. 选择 / Change Project（先停止当前绑定）</label>
     <select id="project">
       <option value="">先检测 daemon</option>
     </select>
-    <label for="limit">3. 本次绑定最多自动执行次数（含修复）</label>
+    <label for="limit">3. 本次最多执行次数（含初次执行和修复）</label>
     <select id="limit">
       <option>1</option>
       <option>2</option>
@@ -24,15 +52,13 @@
       <option>5</option>
     </select>
     <p>
-      绑定会发送项目状态到当前会话；新的显式 handoff 会修改本地代码。先清空输入框并等待 GPT
-      生成结束。
+      绑定将发送项目工程状态到当前对话。只有新的完整 VEYRA_HANDOFF_BEGIN/END
+      区块可以执行。先清空输入框并等待 GPT 生成结束。
     </p>
     <button id="bind" type="button">绑定当前会话并启用自动执行</button>
-    <button id="stop" type="button">停止自动桥接 / 取消当前 run</button>
-    <p id="status" role="status" aria-live="polite">尚未连接</p>
     <p class="note">
-      仅 Chrome/Chromium + chatgpt.com。切换、刷新或关闭页面会暂停回传；工程证据保留在
-      .veyra/。不读取其他会话和登录凭证。
+      仅 Chrome/Chromium + chatgpt.com。切换、刷新或关闭页面会暂停回传。工程状态保留在
+      .veyra/；不读取其他会话或登录凭证。
     </p>
     <script src="popup.js"></script>
   </body>
