@@ -722,31 +722,32 @@ This supporting work follows [UX-FLOW](UX-FLOW.md). It does not complete the rea
 - `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,974 passed**) and `pnpm build`: **all passed**. Both source and CLI-packaged extension directories are built.
 - `env -u OPENAI_API_KEY pnpm ve -- doctor --json`: native **Codex 0.153.4**, available/authenticated/Ready on macOS arm64 and Node 22.22.0. This is a supported non-secret readiness probe, not a live model request.
 
-**Real-account acceptance remains blocked.** The user explicitly confirmed re-testing has not happened. Follow the [installed-user re-acceptance guide](../apps/chatgpt-extension/README.md#已安装用户本次真实复验从这里开始). No fixture or native readiness result completes P0.12 or unlocks GUI Phase 2 by itself.
+**Real-account acceptance remains blocked.** The user explicitly confirmed re-testing has not happened. Follow the [installed-user re-acceptance guide](../apps/chatgpt-extension/README.md#已安装用户本次真实复验从这里开始). No fixture or native readiness result completes P0.12 or substitutes for real-account acceptance. The later explicit GUI-first decision below removes this as a GUI implementation prerequisite.
 
 ### GUI productization phases — user decision, 2026-09-09
 
-The user explicitly confirmed that the repaired real ChatGPT Pro bridge **has not been re-tested**. Phase 1 is therefore blocked on real browser acceptance, not an implementation or API-key blocker. Do not claim subsequent phases are complete from the supporting onboarding code, and do not begin them before this prerequisite passes.
+The latest explicit product decision starts GUI productization **before** real P0.12 re-acceptance. This supersedes the earlier Phase 1 prerequisite. P0.12 remains [!] pending real ChatGPT Pro re-testing; fixtures/screenshots do not complete it. Complete GUI-1 through GUI-6, push focused commits, then stop for the user's first visual review. Do not start P0.13–P0.15 in this implementation run.
 
-| Phase | Status | Work / acceptance                                                                                                                                                                                                                                                                  | Depends on                    |
-| ----- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
-| 1     | [!]    | Finish real P0.12: binding remains enabled, native Codex runs, Verifier evidence returns automatically to the same real Pro conversation; failure/cancel/idle behavior checked. Reload/page refresh and user re-acceptance are pending.                                            | P0.11                         |
-| 2     | [ ]    | `packages/ui`: semantic light/dark color, typography, spacing, radius, elevation, status and motion tokens; shared accessible primitives/components/icons/styles.                                                                                                                  | 1                             |
-| 3     | [ ]    | Chrome Side Panel on `chatgpt.com` only, persistent/open-close, exact-conversation Project and active-run restoration; no overlay or idle polling.                                                                                                                                 | 2                             |
-| 4     | [ ]    | Tiny popup with status, Open Side Panel and Diagnostics.                                                                                                                                                                                                                           | 3                             |
-| 5     | [ ]    | Project/Run UI and Plan → Execute → Verify → Review timeline; real evidence only, actionable error/empty/loading/success/paused states.                                                                                                                                            | 4                             |
-| 6     | [ ]    | Integrate reversible machine-payload folding with compact progress rows and Show raw payload, preserving marker/schema/delivery security. Supporting folding exists but polished GUI acceptance is pending.                                                                        | 5                             |
-| 7     | [ ]    | Validate `ve setup` + native host, persistent Project authorization, lazy coordinator and `ve init` through the Side Panel happy path; remove manual daemon/pairing/readiness steps. Supporting transport implementation exists below the real gate.                               | 6                             |
-| 8     | [ ]    | Local Control Center via `ve open`: Overview/Projects/Runs/Settings; scoped local auth, shared UI, real run detail/timeline/diff/verifier/review/artifacts/retry/approval/cancel. Bounded unified diff with file navigation/highlighting; meaningful batched events, no idle work. | 7                             |
-| 9     | [ ]    | P0.13 → P0.14 → P0.15: real closed loop, bounded repair/no-progress/human gates, reproducible GUI demo.                                                                                                                                                                            | 8, individual P0 dependencies |
+| Phase | Status | Work / acceptance                                                                                                                                                                                 | Depends on                 |
+| ----- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| GUI-1 | [x]    | Shared `packages/ui`: semantic light/dark tokens, typography, accessible primitives, icons and restrained motion.                                                                                 | Existing native onboarding |
+| GUI-2 | [ ]    | Chrome Side Panel, chatgpt.com only; explicit Project binding and restore; real workflow/evidence; unbound, idle, running, verification, completed, failed, paused, disconnected and dark states. | GUI-1                      |
+| GUI-3 | [ ]    | Tiny popup: status, Open Veyra, current Project and secondary Diagnostics.                                                                                                                        | GUI-2                      |
+| GUI-4 | [ ]    | Local Control Center through `ve open`: authenticated local access; Overview, Projects, Runs and Settings; shared UI, no mock production data.                                                    | GUI-3                      |
+| GUI-5 | [ ]    | Run detail/timeline, bounded unified diff, verification, review and artifacts with truthful provenance.                                                                                           | GUI-4                      |
+| GUI-6 | [ ]    | Independent `pnpm ui:dev` fixtures, fixed light/dark/narrow/wide screenshots, keyboard/reduced-motion/security/idle regressions and actual Chromium extension smoke.                              | GUI-5                      |
 
-Each phase requires task tests, all five baseline commands, a focused commit and push. Review light/dark, narrow/wide layouts, keyboard focus, reduced motion, error recovery and idle performance before calling GUI polished. Preserve existing protocol/Project/Daemon/Core/Runtime/Verifier/MCP functionality. No TUI, provider, cloud or release expansion.
+Each phase requires its task checks, all five baseline commands and a focused commit. Side Panel and Control Center screenshots must be generated from running UI. Keep fixtures/dev data separate from production. Retain Native Messaging, HTTP fallback, Project state, human gates and all existing protocol/runtime protections. No idle polling/animation or fictional progress/review evidence. No TUI/provider/cloud/release expansion.
+
+### GUI-1 verification — 2026-09-09
+
+Shared React primitives, semantic light/dark tokens, typography, spacing, iconography, workflow status, dialog/tabs/keyboard focus and reduced motion are implemented. Five new tests cover untrusted text, accessible controls, unknown/absent evidence and workflow labels. All baseline commands (`pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, `pnpm build`) passed. Browser visual acceptance follows in GUI-2/GUI-6.
 
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]
 
-**Depends on:** P0.12; the current user-directed GUI phase order also requires Phase 8 before this final product demo work.
+**Depends on:** P0.12; the current user-directed GUI phase order also requires GUI-6 and user visual review before this final product demo work.
 
 ### This is the MVP product gate
 
@@ -842,7 +843,7 @@ A new developer following the documented prerequisites can reproduce the P0 loop
 
 Preserve `apps/tui` as a scaffold. It is not required by P0/P1 and has no automatic start condition after a milestone. Do not develop it unless a new explicit product decision restores it to the roadmap. GUI implementation is tracked in the phases above and does not depend on TUI.
 
-The existing `apps/dashboard` scaffold may host the Phase 8 Local Control Center. Its Projects/Runs/settings/evidence UI must reuse shared `packages/ui` and the same Project/Daemon contracts. Remote/cloud control remains a separate deferred decision.
+The existing `apps/dashboard` scaffold hosts the GUI-4 Local Control Center. Its Projects/Runs/settings/evidence UI must reuse shared `packages/ui` and the same Project/Daemon contracts. Remote/cloud control remains a separate deferred decision.
 
 ---
 
@@ -886,8 +887,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.12 — Experimental ChatGPT Web Bridge for Pro product proof.**
+**GUI-1 — Shared Design System**, then GUI-2 through GUI-6 in order. Stop after tested screenshots, focused commits and push for the user's visual review. P0.12 real Pro re-acceptance remains pending and P0.13–P0.15 stay unstarted.
 
-Blocked on user Reload, target-page refresh and real ChatGPT Pro re-acceptance. The user confirmed on 2026-09-09 that re-testing has not happened. Existing installation/pairing evidence is retained; the native onboarding guide explains the current build and optional migration from HTTP. Finish Phase 1 before Phase 2–9 in the GUI plan above. P0.13 stays unstarted; local fixture success does not complete this gate.
-
-Do not resume the old API-key smoke as a blocker. It is now optional provider validation.
+Optional API smoke is not a blocker.
