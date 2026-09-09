@@ -69,7 +69,9 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
         expect(
           /^(package\.json|README\.md|CHANGELOG\.md|LICENSE|dist\/[\w/-]+\.(js|js\.map|d\.ts)|dist\/presets\/(dev|bugfix|review|research)\.yaml|schema\/workflow-v1\.schema\.json)$/.test(
             path,
-          ),
+          ) ||
+            (directory === "apps/cli" &&
+              /^dist\/browser-extension\/(manifest\.json|popup\.html|popup\.css)$/.test(path)),
           `${directory} packs unexpected file: ${path}`,
         ).toBe(true);
       }
@@ -95,6 +97,18 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
       expect(await readFile(join(staging, "README.md"), "utf8")).not.toBe("");
       if (manifest.name === "@veyraoss/cli") {
         expect(manifest.bin).toEqual({ ve: "./dist/index.js" });
+        const browser = JSON.parse(
+          await readFile(join(staging, "dist/browser-extension/manifest.json"), "utf8"),
+        );
+        expect(browser.manifest_version).toBe(3);
+        expect(browser.permissions).toContain("nativeMessaging");
+        for (const asset of ["background.js", "content.js", "popup.js", "popup.html", "popup.css"])
+          expect(await readFile(join(staging, "dist/browser-extension", asset), "utf8")).not.toBe(
+            "",
+          );
+        expect(await readFile(join(staging, "dist/native-host.js"), "utf8")).toContain(
+          "serveNative",
+        );
         expect(await readFile(join(staging, "dist/index.js"), "utf8")).toMatch(
           /^#!\/usr\/bin\/env node\n/,
         );

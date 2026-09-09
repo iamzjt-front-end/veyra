@@ -23,7 +23,7 @@
     "@veyraoss/daemon": "workspace:*"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && node build.mjs",
     "dev": "tsx src/index.ts",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests --maxWorkers=4",
@@ -50,5 +50,8 @@
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org"
+  },
+  "devDependencies": {
+    "@veyraoss/chatgpt-extension": "workspace:*"
   }
 }

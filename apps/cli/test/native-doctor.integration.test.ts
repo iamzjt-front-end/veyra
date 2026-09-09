@@ -34,7 +34,7 @@ describe("native-first doctor", () => {
         });
         return { code, output };
       };
-      const init = await invoke("init");
+      const init = await invoke("init", "--model", "fixture-model");
       expect(init.output).not.toContain("Set OPENAI_API_KEY");
       const before = await readFile(join(path, "veyra.yaml"));
       const native = await invoke("doctor", "--codex-executable", "/fixture/Codex CLI", "--json");

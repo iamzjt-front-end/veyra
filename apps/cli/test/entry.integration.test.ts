@@ -22,7 +22,7 @@ describe("public CLI process", () => {
             cwd: path,
             timeoutMs: 30_000,
           });
-        const initialized = await ve(["init", "--json"]);
+        const initialized = await ve(["init", "--model", "fixture-model", "--json"]);
         expect(initialized.exitCode, initialized.stderr).toBe(0);
         expect(await readFile(join(path, "veyra.yaml"), "utf8")).toContain("provider: codex");
         await writeFile(

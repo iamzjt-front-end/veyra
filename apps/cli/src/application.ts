@@ -1,10 +1,13 @@
 import { CLI_VERSION } from "./version.js";
-import { nativeProjectReadiness } from "./native-project-readiness.js";
+import { startCoordinator } from "./coordinator.js";
+import { ensureCoordinator } from "./native-service.js";
+import { setupNative } from "./native-installation.js";
+import { initializeNativeProject } from "./project-init.js";
 import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { loadConfig } from "@veyraoss/config";
-import { startDaemon, stopDaemon, daemonStatus, daemonProjects } from "@veyraoss/daemon";
+import { stopDaemon, daemonStatus, daemonProjects } from "@veyraoss/daemon";
 import {
   initializeProject,
   loadProjectBindings,
@@ -21,12 +24,7 @@ import { type ProcessRunner, runProcess } from "@veyraoss/runtime";
 import { loadWorkflow } from "@veyraoss/workflow";
 import { argumentsFor, CliError, help } from "./arguments.js";
 import { inspectEnvironment } from "./doctor.js";
-import {
-  nativeExecution,
-  nativeConfig,
-  projectExecutor,
-  requireNativeCodex,
-} from "./native-executor.js";
+import { nativeConfig, projectExecutor, requireNativeCodex } from "./native-executor.js";
 import { initialize } from "./init.js";
 import { listWorkflows, validateWorkflow } from "./workflows.js";
 import {
@@ -73,56 +71,39 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
       write({ version: CLI_VERSION, executable: "ve" }, `ve ${CLI_VERSION}`);
       return 0;
     }
+    if (command === "setup") {
+      const result = await setupNative({
+        registryRoot: values.registry ? resolve(cwd, values.registry) : undefined,
+        env,
+        runProcess: services.runProcess,
+        revoke: values.revoke,
+      });
+      await (await ensureCoordinator(result.statePath)).call("health", undefined);
+      write(
+        { ...result, coordinator: "ready" },
+        `Veyra setup\nCodex: ${result.native.ready ? "Ready" : result.native.message}\nBrowser bridge registered; local coordinator verified. No API key required.\n${result.extension === "awaiting-extension" ? "Install/Reload the experimental extension once in chrome://extensions (Developer mode → Load unpacked):" : "Extension previously connected; open Veyra to check the current connection:"}\n${result.extensionDirectory}\nThen run ve init in your project once. Open ChatGPT → Veyra → select Project → Bind.\nDiagnostics: ve doctor. Revoke browser authorization: ve setup --revoke.`,
+      );
+      return result.native.ready ? 0 : 1;
+    }
     if (command === "daemon") {
       const options = values.registry ? { registryRoot: resolve(cwd, values.registry) } : {};
       if (positionals[0] === "start") {
-        const daemon = await startDaemon({
+        const daemon = await startCoordinator({
           ...options,
           signal: services.signal,
           env,
+          runProcess: services.runProcess,
+          createAgent: services.createAgent,
+          allowPlugins: values["allow-plugin"],
           ...(values["http-port"] !== undefined
             ? {
                 http: {
                   port: Number(values["http-port"]),
                   origin: values["http-origin"] as string,
                   projectIds: values["http-project"] as ProjectId[],
-                  inspectProject: (project: import("@veyraoss/protocol").ProjectDescriptor) =>
-                    nativeProjectReadiness(project, env, services.runProcess),
                 },
               }
             : {}),
-          resolveExecution: async (project, handoff) => {
-            const binding = (await loadProjectBindings(project))?.roles.executor;
-            if (binding) {
-              const verificationConfig = handoff.requestedVerification?.length
-                ? await loadConfig(resolve(project.root, "veyra.yaml"))
-                : undefined;
-              return nativeExecution(
-                project,
-                binding,
-                handoff,
-                {
-                  env,
-                  runProcess: services.runProcess,
-                },
-                verificationConfig
-                  ? {
-                      config: verificationConfig,
-                      workflow: await loadWorkflow(verificationConfig.workflow.use, project.root),
-                    }
-                  : undefined,
-              );
-            }
-            const config = await loadConfig(resolve(project.root, "veyra.yaml"));
-            const workflow = await loadWorkflow(config.workflow.use, project.root);
-            const agents = services.createAgent
-              ? adaptersFor(config, workflow, services.createAgent)
-              : await configuredAdapters(config, workflow, project.root, values["allow-plugin"], {
-                  env,
-                  runProcess: services.runProcess,
-                });
-            return { config, workflow, agents, redactValues: secretValues(env, config) };
-          },
         });
         write(
           {
@@ -303,6 +284,23 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         ].join("\n"),
       );
       return result.valid ? 0 : 2;
+    }
+    if (
+      command === "init" &&
+      !values.config &&
+      !values.workflow &&
+      !values.model &&
+      !values.force
+    ) {
+      const result = await initializeNativeProject(cwd, {
+        registryRoot: values.registry ? resolve(cwd, values.registry) : undefined,
+        env,
+      });
+      write(
+        result,
+        `Project ready: ${result.project.name}\n${result.project.root}\nCodex Native executor ${result.bound ? "bound" : "preserved existing binding"}.\nOpen ChatGPT → Veyra → select ${result.project.name} → Bind.\n${result.checks.length ? `Verification: ${result.checks.join(", ")}.` : result.createdConfig ? "No test/build scripts detected; add project verification checks when available." : "Existing verification configuration preserved."}`,
+      );
+      return 0;
     }
     if (command === "init") {
       const result = await initialize(configPath, values);

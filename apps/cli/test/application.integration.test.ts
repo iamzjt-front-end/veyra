@@ -411,7 +411,7 @@ await new VeyraEngine({emit:event=>{if(event.type==='run.paused'){writeFileSync(
       const ve = commands(path);
       const ignore = "node_modules/\n!important.txt\n";
       await writeFile(join(path, ".gitignore"), ignore);
-      expect((await ve(["init"])).code).toBe(0);
+      expect((await ve(["init", "--model", "fixture-model"])).code).toBe(0);
       const first = await readFile(join(path, "veyra.yaml"), "utf8");
       expect((await ve(["init", "--model", "replacement"])).code).toBe(2);
       expect(await readFile(join(path, "veyra.yaml"), "utf8")).toBe(first);
@@ -530,7 +530,7 @@ await new VeyraEngine({emit:event=>{if(event.type==='run.paused'){writeFileSync(
           .records()[0]
           .providers.every((provider: { required: boolean }) => !provider.required),
       ).toBe(true);
-      expect((await ve(["init"])).code).toBe(0);
+      expect((await ve(["init", "--model", "fixture-model"])).code).toBe(0);
       const required = await ve(["doctor", "--config", "veyra.yaml", "--json"]);
       expect(required.code).toBe(1);
       expect(required.records()[0].providers).toContainEqual(

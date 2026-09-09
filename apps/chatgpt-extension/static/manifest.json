@@ -5,7 +5,7 @@
   "description": "Opt-in current-conversation bridge to a local Veyra Project.",
   "minimum_chrome_version": "120",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1GxWPBiZdNXawGDUJH0xP6xyHpzVWF7S3974Vmr/KFUslD+5KgEKiswMc0h8eUmCcysCsy68VyCgeWmYtRLVgh5hBNGkr/gHIBHNU2KAIuk81RbBmTfJi79DgjpQfb7zBMaKXw5fLuy4cZOs75hMcfqNiNghPEleq7au6m1vuj5D9iUqGaeOxEi/GqOW5dbHaEvfTTK6MmYZlKMpLeyHl0UK3rpm18/49qkxzNmSHg93o0R8TNPba/yZJaviNuQ9ArXWzfN21kw+3rwHt7gWkZwEfqTgFMTakNEXPbcK8B+jUJFpGexUXyS4DVST62qlJkQEFigFj8gRXKXQQAB+FQIDAQAB",
-  "permissions": ["storage", "activeTab"],
+  "permissions": ["storage", "activeTab", "nativeMessaging"],
   "host_permissions": ["https://chatgpt.com/*", "http://127.0.0.1/*"],
   "background": {
     "service_worker": "background.js",

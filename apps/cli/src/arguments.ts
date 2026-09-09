@@ -17,6 +17,7 @@ const options = {
   comment: { type: "string" },
   json: { type: "boolean" },
   "non-interactive": { type: "boolean" },
+  revoke: { type: "boolean" },
   force: { type: "boolean" },
   apply: { type: "boolean" },
   "older-than-days": { type: "string" },
@@ -28,7 +29,8 @@ const options = {
   version: { type: "boolean", short: "v" },
 } as const;
 const allowed: Record<string, string[]> = {
-  init: ["config", "workflow", "model", "force"],
+  setup: ["registry", "revoke"],
+  init: ["registry", "config", "workflow", "model", "force"],
   projects: ["registry"],
   project: ["registry", "executor", "codex-executable", "model", "session-run"],
   daemon: ["registry", "allow-plugin", "http-port", "http-origin", "http-project"],
@@ -196,6 +198,7 @@ export const help = `Veyra — one goal, many agents, verified execution.
 Usage: ve <command>
 
 Commands:
+  setup       one-time native Codex and browser bridge setup (no API key)
   daemon start           run the local daemon in the foreground (Ctrl-C to stop)
   daemon stop            stop the daemon for this registry root
   daemon status          inspect local daemon health
@@ -205,7 +208,7 @@ Commands:
   project remove <id>    unregister a Project (preserves project files)
   project show <id>      inspect a registered Project
   project bind <id> --executor codex/native  persist the Project executor
-  init        create veyra.yaml and local-state ignore rules
+  init        initialize/register this Project and bind native Codex
   run <goal>  execute the configured workflow
   status [id] inspect active/latest run state
   review [id] inspect saved review and verification evidence
@@ -219,6 +222,7 @@ Commands:
   help        show this help
 
 Options:
+  --revoke              revoke browser grants and rotate installation identity (setup)
   --registry <directory> select registry root (default: ~/.veyra)
   --http-port <port>    opt in to the daemon loopback HTTP transport (daemon start only)
   --http-origin <origin> exact chrome-extension://<id> allowed by that transport
