@@ -117,6 +117,8 @@ Preference order:
 
 The bridge must not assume that identity OAuth grants chat-history access and must not silently harvest unrelated conversations.
 
+For the current ChatGPT Pro proof, [ADR 001](ADR-001-CHATGPT-BRIDGE.md) selects `apps/chatgpt-extension`: all DOM/composer code stays in that replaceable experimental app. Its service worker uses the daemon's optional authenticated `127.0.0.1` HTTP transport, with a local Project allowlist and temporary conversation binding. The daemon contains only transport/Project/evidence logic; the CLI composes native readiness. `apps/chatgpt-bridge` retains the future official Full MCP implementation. No tunnel or API key is part of the current proof.
+
 ### Native Codex
 
 Codex is P0's executor through the installed native client/CLI and its normal existing ChatGPT authentication.
@@ -150,7 +152,8 @@ apps/
   cli/             automation/headless surface (`ve`)
   tui/             interactive terminal surface
   dashboard/       Web control center
-  chat-bridge/     selected/experimental ChatGPT bridge surface (P0, name may change)
+  chatgpt-bridge/  retained future official Full MCP surface
+  chatgpt-extension/  experimental Chrome/Chromium proof for ChatGPT Pro (P0)
 
 packages/
   project/         Project identity, registry, shared-state model (P0)

@@ -616,13 +616,13 @@ Choose the safest practical way for a real ChatGPT conversation to call Veyra an
 
 Commit a short ADR/design document selecting the P0 bridge path and explaining why. If official integration cannot yet meet the P0 goal, explicitly authorize an isolated experimental browser bridge for the product proof without contaminating Core.
 
-Verification: `docs/ADR-001-CHATGPT-BRIDGE.md` selects official ChatGPT web Developer mode + authenticated MCP, with a loopback bridge and explicitly approved HTTPS forwarding. Current official developer-mode, tool-result, connection, auth and tunnel documentation were fetched and compared on 2026-09-09. Secure MCP Tunnel remains optional because it requires a runtime API key. Actual account eligibility/installation is unverified and remains a P0.12 acceptance boundary; no real ChatGPT interaction is claimed. No runtime code changed in this research item. All five baseline commands passed (1,878 tests).
+Initial P0.11 verification selected official ChatGPT web Developer mode + authenticated MCP, with an explicitly authorized reachable transport as a future installation requirement. P0.12 updates that selection after the user confirmed ChatGPT Pro: the plan-specific Help Center restricts custom Pro MCP to read/fetch and conflicts with the general Developer mode guide. The amended [ADR 001](ADR-001-CHATGPT-BRIDGE.md) selects the isolated Experimental Browser Bridge and retains Full MCP for future entitled installations. The original research-only item passed all five baseline commands (1,878 tests); no real ChatGPT interaction was claimed.
 
 ---
 
 ## P0.12 — Implement the selected ChatGPT Bridge proof
 
-**Status:** [!] Local bridge implementation verified; blocked on explicit ChatGPT installation/authorization and temporary HTTPS forwarding permission.
+**Status:** [!] Experimental Browser Bridge locally verified; awaiting user installation/authorization and real ChatGPT Pro conversation acceptance. The existing MCP app is retained as the future official Full MCP path; no tunnel or public server is selected.
 
 **Depends on:** P0.11
 
@@ -656,15 +656,19 @@ A real ChatGPT session can submit a task to a disposable registered project and 
 
 ### Local implementation and verification
 
-`apps/chatgpt-bridge` is a private, replaceable official MCP adapter. It exposes only locally allowed Projects, bounded shared state/readiness/check IDs, canonical handoff dispatch, waits/results with resolved Verifier evidence, and scoped cancellation. The daemon/Core/runtime retain execution and human gates. No browser automation, chat harvesting, native credential access, API-key requirement or automatic forwarding is introduced. Bridge-owned OAuth uses the official SDK's code/S256 PKCE flow, explicit local pairing, exact callback/resource validation and short-lived process-local grants.
+The current Pro proof is the independent `apps/chatgpt-extension` Experimental Browser Bridge. It imports a daemon-issued local pairing grant, lists/selects authorized Projects, temporarily binds one current `chatgpt.com` conversation, validates only new completed explicit `veyra-handoff` blocks and uses the daemon's authenticated `http://127.0.0.1:<port>` API. Canonical run identity prevents replay. It polls execution, returns structured results/actual Verifier evidence/artifact references/current Git evidence through the same conversation's empty composer, and accepts subsequent repair handoffs up to the selected 1–5 run bound. Navigation, duplicate/ambiguous dispatch, busy composers and uncertain delivery fail closed or wait visibly. Human approvals stay in Veyra/native execution.
 
-Verified on 2026-09-09: 16 Bridge tests exercise an SDK MCP client through the daemon and actual local Verifier, including success/failure, duplicate/invalid/cross-Project requests, missing readiness, cancellation, paused human gates, OAuth revocation/expiry, HTTPS metadata binding, request limits and private-file/socket cleanup. These are local fixture tests, **not a real ChatGPT acceptance run**; the minimum real-ChatGPT capability checkboxes remain pending. No experimental browser/UI code was needed; the selected official surface is isolated in its own app. Frozen offline installation and all five baseline commands passed (1,894 tests).
+`apps/chatgpt-bridge` and its 16 OAuth/MCP tests are retained as the future official **Full MCP** path. [ADR 001](ADR-001-CHATGPT-BRIDGE.md) records the Help Center's Pro read/fetch limitation, the conflicting general Developer mode guide, and why transport connectivity cannot prove action entitlement. No cloudflared, HTTPS tunnel, public server or API key is used by the selected proof.
+
+Local verification on 2026-09-09: 11 extension tests, 4 added daemon HTTP tests and 2 added CLI tests cover schema/identity, origin/Host/auth/project scope, native readiness, streaming/old/user-message exclusion, duplicate suppression, acknowledgement/navigation, cancellation and bounded repairs. The manual browser fixture loaded the actual unpacked MV3 extension in Chromium **149.0.7827.55**, used simulated ChatGPT/executor with the real daemon/Verifier, executed twice, observed actual verifier failure then success, and automatically submitted exactly two result messages in the same fixture conversation. Its owned browser profile, daemon and pairing file were cleaned up. This is **not a real ChatGPT/native-account acceptance run**; the real-host capability checkboxes remain pending.
+
+All five baseline commands passed: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,911 passed**) and `pnpm build`.
 
 ### Blocker, attempts and unlock
 
-There is no installed/authorized real ChatGPT web MCP connection, and the user's workspace entitlement is unverified. Neither `cloudflared` nor `ngrok` is installed. The bridge's loopback endpoint cannot be assumed reachable from ChatGPT. Official supported integration/auth/forwarding documentation was checked; local OAuth/MCP-to-daemon tests passed, and P0.10 already proved real native Codex execution. No HTTPS forwarding or account linking was attempted without user permission.
+The user has confirmed ChatGPT Pro and explicitly selected this experimental path. The extension is built and locally testable, but has not been installed/authorized in the user's real Chrome/Chromium + ChatGPT Pro conversation. No personal browser profile, ChatGPT login, unrelated conversation, Codex credential or public forwarder was accessed. The previous tunnel proposal is superseded and must not be resumed.
 
-Unlock: the user authorizes a temporary Cloudflare Quick Tunnel (or supplies an approved HTTPS route) for the OAuth-protected bridge scoped to a disposable Project, then installs/links the private MCP connection in their eligible ChatGPT web account and grants its tools. Follow [`apps/chatgpt-bridge/README.md`](../apps/chatgpt-bridge/README.md) and record the actual same-conversation native task/result proof. Forwarder compatibility and host confirmation behavior still require live validation. No API key is required by this route. P0.13–P0.15 remain unstarted because they depend on this real bridge gate; no independent executable P0 item remains.
+Unlock: the user loads `apps/chatgpt-extension/dist` as an unpacked Chrome/Chromium extension, pairs it with the locally authorized daemon and selects a disposable Project/current real ChatGPT conversation. Follow the [extension guide](../apps/chatgpt-extension/README.md) and record the actual same-conversation native handoff/result evidence. Installation and this live account boundary require user involvement; they cannot be replaced by the simulated browser fixture. P0.13–P0.15 remain unstarted, and no independent eligible P0 task remains.
 
 ---
 

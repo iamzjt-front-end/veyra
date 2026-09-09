@@ -1,8 +1,8 @@
-# ChatGPT MCP Bridge proof (P0.12)
+# ChatGPT Bridge — future official Full MCP path
 
 Private, replaceable adapter from the official ChatGPT web MCP surface to the existing local Veyra daemon. It uses the user's native Codex login through the daemon's Project executor binding. No `OPENAI_API_KEY`, native credential copy, chat-history reader, custom UI, or public package is needed.
 
-**Acceptance status: local MCP tests only; real ChatGPT installation and end-to-end acceptance are still pending.** An SDK test client is not evidence of a real ChatGPT conversation. See [the selected bridge decision](../../docs/ADR-001-CHATGPT-BRIDGE.md) and [P0.12](../../docs/TODO.md#p012--implement-the-selected-chatgpt-bridge-proof).
+**Retained future path: local MCP tests only. Current P0.12 uses the [Experimental Browser Bridge](../chatgpt-extension/README.md) for ChatGPT Pro.** Pro write/action entitlement is not assumed; see the plan-specific evidence and documentation discrepancy in the ADR. An SDK test client is not evidence of a real ChatGPT conversation. See [the selected bridge decision](../../docs/ADR-001-CHATGPT-BRIDGE.md) and [P0.12](../../docs/TODO.md#p012--implement-the-selected-chatgpt-bridge-proof).
 
 ## Local preparation
 
@@ -37,9 +37,9 @@ For an isolated registry, pass the same `--registry /absolute/private/registry` 
 
 The startup JSON reports `localUrl`, `mcpUrl`, allowed Project IDs and a private `pairingFile` path. It never prints the pairing secret. The file has mode `0600` and is deleted on normal stop. Read its contents locally only when completing the OAuth form; do not paste the code into a chat, handoff, issue, or log. It is bridge-owned pairing material, not a Codex credential.
 
-## User installation boundary
+## Future Full MCP installation boundary
 
-The bridge always listens on `127.0.0.1`. Localhost by itself is not assumed reachable from ChatGPT. Before the next steps, the user must explicitly approve the temporary HTTPS forwarding route and installation/account linking. The application does not install a forwarder, start a tunnel, or expose a LAN/public listener automatically.
+The following is retained future-path documentation, not an instruction to install a tunnel for current P0.12. The bridge always listens on `127.0.0.1`. Localhost by itself is not assumed reachable from ChatGPT. A future Full MCP installation needs verified write entitlement and an explicitly authorized reachable transport/account connection. The application does not install a forwarder, start a tunnel, or expose a LAN/public listener automatically.
 
 After authorization, use a user-approved development HTTPS forwarder to this loopback port. Restart the bridge with that exact origin so OAuth discovery and resource binding agree:
 
@@ -51,7 +51,7 @@ pnpm --filter @veyraoss/chatgpt-bridge start \
 
 `--public-url` configures metadata and the Host allowlist only; it does not open forwarding. The endpoint must preserve paths, query strings, HTTP request/response bodies and authorization headers. It forwards the bridge, never the daemon's Unix socket. No production hosting or publication is part of this proof.
 
-The proposed temporary route, subject to user approval, is Cloudflare Quick Tunnel: install `cloudflared`, then run `cloudflared tunnel --url http://127.0.0.1:3180` and use its generated HTTPS origin above. Cloudflare documents this as an account-free development route without an uptime guarantee or SSE support. This bridge uses JSON responses over Streamable HTTP, with bounded polling rather than SSE; compatibility is a design inference until the real forwarded ChatGPT run passes. Its OAuth-protected endpoint becomes publicly reachable through Cloudflare for the lifetime of the tunnel, and authorized Project data passes through that provider. No tunnel has been installed or started. [Quick Tunnel documentation](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/)
+No Cloudflare installation or temporary tunnel is selected for current P0.12. Connecting an MCP endpoint does not grant write/action entitlement. The example HTTPS metadata above is retained only for a future explicitly authorized Full MCP deployment with verified account capabilities.
 
 In an eligible **ChatGPT web** account/workspace:
 
@@ -78,7 +78,7 @@ The handoff schema is advertised by MCP and revalidated by `@veyraoss/protocol`.
 
 The response contains both model-visible `structuredContent` and equivalent text. Verifier stdout/stderr, exit codes and event references come from persisted Core events for that Project/run. Evidence is bounded and redacted; truncation is explicit. Executor success claims cannot substitute for deterministic verification or ChatGPT review. Missing configuration, login, Project or daemon readiness is returned as state/error, not an API-key request. A paused run instructs local human action; the bridge has no approval-granting tool.
 
-Record the actual ChatGPT surface/plan, connection date, native CLI version, Project/run IDs, local tool sequence, confirmation behavior and success/failure evidence. Confirm that the same real conversation submits the handoff and receives the native result with **no manual message copy in either direction**. Only then may P0.12 be checked off. The full review/fix loop and stable product demo belong to later TODOs.
+Record the actual ChatGPT surface/plan, connection date, native CLI version, Project/run IDs, local tool sequence, confirmation behavior and success/failure evidence. Confirm that the same real conversation submits the handoff and receives the native result with **no manual message copy in either direction**. That would provide future Full MCP evidence; current P0.12 acceptance follows the selected extension path. The full review/fix loop and stable product demo belong to later TODOs.
 
 ## Proof limitations and shutdown
 

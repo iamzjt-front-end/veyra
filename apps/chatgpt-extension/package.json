@@ -1,0 +1,26 @@
+{
+  "name": "@veyraoss/chatgpt-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Experimental Chrome/Chromium ChatGPT bridge to the loopback Veyra daemon.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit && node build.mjs",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --maxWorkers=2",
+    "smoke:browser": "tsx test/manual-browser.ts",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@veyraoss/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.2.9",
+    "esbuild": "0.28.2",
+    "linkedom": "0.18.12",
+    "playwright": "1.63.0",
+    "@veyraoss/daemon": "workspace:*",
+    "@veyraoss/project": "workspace:*",
+    "@veyraoss/config": "workspace:*"
+  }
+}
