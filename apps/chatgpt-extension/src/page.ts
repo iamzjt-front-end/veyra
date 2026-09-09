@@ -38,7 +38,7 @@ export function latestHandoff(
   const source = extractHandoffBlock(text);
   return source === undefined ? undefined : { id, source };
 }
-function turnText(message: Element): string {
+export function turnText(message: Element): string {
   let text = "";
   const visit = (node: Node, depth: number) => {
     if (depth > 80 || text.length > 192 * 1024)
@@ -47,6 +47,10 @@ function turnText(message: Element): string {
     else if (node.nodeType === 1) {
       const element = node as Element;
       if (["SCRIPT", "STYLE", "BUTTON"].includes(element.tagName)) return;
+      // Chromium may leave the first line as a text node and wrap subsequent lines
+      // in DIVs. A block starts a line as well as ending one.
+      if (["P", "DIV", "PRE", "LI"].includes(element.tagName) && text && !text.endsWith("\n"))
+        text += "\n";
       for (const child of element.childNodes) visit(child, depth + 1);
       if (["P", "DIV", "PRE", "BR", "LI"].includes(element.tagName)) text += "\n";
     }
@@ -62,25 +66,38 @@ function composer(document: Document): HTMLElement | undefined {
   return candidates.length === 1 ? candidates[0] : undefined;
 }
 function editorText(element: HTMLElement): string {
-  const text =
-    element.tagName === "TEXTAREA"
-      ? (element as HTMLTextAreaElement).value
-      : (element.innerText ?? element.textContent ?? "");
-  // Chromium may preserve indentation in contenteditable with non-breaking spaces.
-  return text.replace(/\u00a0/g, " ").replace(/\r\n/g, "\n");
+  // DOM traversal does not force layout, unlike innerText on a large live ChatGPT page.
+  return element.tagName === "TEXTAREA"
+    ? (element as HTMLTextAreaElement).value
+    : turnText(element);
+}
+const attachmentSelector =
+  '[data-testid="composer-attachment"], [data-testid="file-thumbnail"], [data-testid="composer-file"]';
+function composerAvailable(document: Document, editor: HTMLElement): boolean {
+  return (
+    !generating(document) &&
+    editor.getAttribute("aria-disabled") !== "true" &&
+    !document.querySelector(attachmentSelector)
+  );
 }
 export function canCompose(document: Document): boolean {
   const editor = composer(document);
-  return (
-    !!editor &&
-    !generating(document) &&
-    !editorText(editor).trim() &&
-    editor.getAttribute("aria-disabled") !== "true" &&
-    !document.querySelector(
-      '[data-testid="composer-attachment"], [data-testid="file-thumbnail"], [data-testid="composer-file"]',
-    )
-  );
+  return !!editor && !editorText(editor).trim() && composerAvailable(document, editor);
 }
+
+// Preserve every non-whitespace character and word separator. Paragraph/BR/NBSP rendering
+// may change whitespace runs; this is supplementary integrity checking, not delivery proof.
+const normalized = (text: string) => text.replace(/[ \t\r\n\u00a0]+/g, " ").trim();
+const occurrences = (text: string, marker: string) => text.split(marker).length - 1;
+const boundaries = (text: string) =>
+  [
+    ...text.matchAll(
+      /(?:^|\n)[ \t\r\u00a0]*(VEYRA_(?:HANDOFF|RESULT|REVIEW)_(?:BEGIN|END))[ \t\r\u00a0]*(?=\n|$)/g,
+    ),
+  ]
+    .map((match) => match[1])
+    .join(",");
+
 export async function sendToConversation(
   document: Document,
   currentUrl: () => string,
@@ -92,48 +109,160 @@ export async function sendToConversation(
   const valid = () => stillBound() && conversationUrl(currentUrl()) === conversation;
   if (!valid() || !canCompose(document)) return "deferred";
   const editor = composer(document);
-  if (!editor || new TextEncoder().encode(text).length > 192 * 1024)
-    throw new Error("回传文本或输入框不符合限制。");
+  if (
+    !editor ||
+    new TextEncoder().encode(text).length > 192 * 1024 ||
+    !/^[a-zA-Z0-9-]{16,128}$/.test(marker) ||
+    occurrences(text, marker) !== 1 ||
+    !boundaries(text)
+  )
+    throw new Error("回传文本、唯一 marker 或 BEGIN/END 边界不符合限制。");
   editor.focus();
-  if (!valid() || editorText(editor).trim()) return "deferred";
-  if (editor.tagName === "TEXTAREA") {
-    const setter = Object.getOwnPropertyDescriptor(
-      document.defaultView?.HTMLTextAreaElement.prototype ?? {},
-      "value",
-    )?.set;
-    if (!setter) throw new Error("不支持当前输入框。");
-    setter.call(editor, text);
-    editor.dispatchEvent(
-      new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }),
-    );
-  } else {
-    const selection = document.getSelection();
-    const range = document.createRange();
-    range.selectNodeContents(editor);
-    selection?.removeAllRanges();
-    selection?.addRange(range);
-    if (!document.execCommand("insertText", false, text))
-      throw new Error("ChatGPT 输入框拒绝插入，请检查后重试绑定。");
+  if (!valid() || !canCompose(document)) return "deferred";
+
+  const expected = normalized(text);
+  const frames = boundaries(text);
+  const intact = (value: string) =>
+    occurrences(value, marker) === 1 &&
+    boundaries(value) === frames &&
+    normalized(value) === expected;
+  const userSelector = '[data-message-author-role="user"]';
+  // Snapshot identities only. Never retain or scan old conversation text.
+  const previous = new Set(document.querySelectorAll(userSelector));
+  const previousIds = new Set([...previous].flatMap((node) => assistantId(node) ?? []));
+  const echoes = new Set<Element>();
+  let inserting = true;
+  let interrupted = false;
+  let clicked = false;
+  let settled = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let check = () => {};
+  const intervention = (event: Event) => {
+    // execCommand's own synchronous input event is trusted too. A human event cannot
+    // interleave with that synchronous insertion; later trusted edits must fail closed.
+    if (event.type === "keydown") {
+      const key = (event as KeyboardEvent).key;
+      if (key.length !== 1 && !["Enter", "Backspace", "Delete"].includes(key)) return;
+    }
+    const target = event.target as Element | null;
+    if (!inserting && event.isTrusted && target?.closest?.("#prompt-textarea")) {
+      interrupted = true;
+      check();
+    }
+  };
+  const events = ["beforeinput", "input", "paste", "cut", "drop", "compositionstart", "keydown"];
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      const target =
+        record.target.nodeType === 1 ? (record.target as Element) : record.target.parentElement;
+      const user = target?.closest(userSelector);
+      if (user) echoes.add(user);
+      for (const node of record.addedNodes) {
+        if (node.nodeType !== 1) continue;
+        const element = node as Element;
+        if (element.matches(userSelector)) echoes.add(element);
+        // Insertion inside the composer cannot be a conversation echo.
+        if (!element.closest("#prompt-textarea"))
+          for (const child of element.querySelectorAll(userSelector)) echoes.add(child);
+      }
+    }
+    if (!inserting) check();
+  });
+  for (const event of events) document.addEventListener(event, intervention, true);
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: [
+      "disabled",
+      "aria-disabled",
+      "data-message-author-role",
+      "data-testid",
+      "data-is-streaming",
+      "class",
+    ],
+  });
+  try {
+    return await new Promise<"sent">((resolve, reject) => {
+      const finish = (error?: string) => {
+        if (settled) return;
+        settled = true;
+        if (error)
+          reject(
+            new Error(`${error} 请检查当前 conversation；不会自动重发，Project/run 证据保留。`),
+          );
+        else resolve("sent");
+      };
+      check = () => {
+        if (settled || inserting) return;
+        try {
+          if (!valid()) return finish("会话或绑定已变化，发送未确认。");
+          if (interrupted) return finish("检测到发送期间的用户输入，已停止发送确认。");
+          let matched = 0;
+          for (const echo of echoes) {
+            if (
+              !echo.isConnected ||
+              !echo.matches(userSelector) ||
+              previous.has(echo) ||
+              previousIds.has(assistantId(echo) ?? "")
+            )
+              continue;
+            const value = turnText(echo);
+            if (!value.includes(marker)) continue;
+            if (!intact(value))
+              return finish("对应 user message 的 marker 或内容不完整，发送未确认。");
+            matched++;
+          }
+          if (matched > 1) return finish("出现重复 marker 消息，发送未确认。");
+          // The page may already have submitted, replaced the composer and started a reply.
+          // A fresh, intact user echo is the proof. Never click again in that case.
+          if (matched === 1) return finish();
+          if (clicked) return;
+          const current = composer(document);
+          if (!current || !composerAvailable(document, current))
+            return finish("输入框、附件或 GPT 生成状态发生变化，已停止发送。");
+          if (!intact(editorText(current)))
+            return finish("输入内容的 marker、边界或正文发生变化，已停止发送。");
+          const sends = document.querySelectorAll<HTMLButtonElement>('[data-testid="send-button"]');
+          const send = sends.length === 1 ? sends[0] : undefined;
+          if (!send || send.disabled || send.getAttribute("aria-disabled") === "true") return;
+          clicked = true;
+          clearTimeout(timer);
+          timer = setTimeout(() => finish("对应 user message 未出现，发送未确认。"), 10000);
+          send.click();
+        } catch {
+          finish("页面内容无法安全确认，已停止发送。");
+        }
+      };
+      timer = setTimeout(() => finish("发送按钮不可用，文本可能保留在输入框。"), 3000);
+      if (editor.tagName === "TEXTAREA") {
+        const setter = Object.getOwnPropertyDescriptor(
+          document.defaultView?.HTMLTextAreaElement.prototype ?? {},
+          "value",
+        )?.set;
+        if (!setter) throw new Error("不支持当前输入框。");
+        setter.call(editor, text);
+        editor.dispatchEvent(
+          new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }),
+        );
+      } else {
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editor);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+        if (!document.execCommand("insertText", false, text))
+          throw new Error("ChatGPT 输入框拒绝插入；请检查当前会话，不会自动重发。");
+      }
+      inserting = false;
+      // Drain insertion/React mutations first, including a user echo produced synchronously.
+      // Subsequent checks are mutation/input driven, with one bounded timeout, not DOM polling.
+      queueMicrotask(check);
+    });
+  } finally {
+    clearTimeout(timer);
+    observer.disconnect();
+    for (const event of events) document.removeEventListener(event, intervention, true);
   }
-  const until = Date.now() + 3000;
-  let send: HTMLButtonElement | null = null;
-  while (Date.now() < until) {
-    if (!valid() || editorText(editor) !== text.replace(/\u00a0/g, " ").replace(/\r\n/g, "\n"))
-      throw new Error("会话或输入内容发生变化，已停止发送。");
-    send = document.querySelector<HTMLButtonElement>('[data-testid="send-button"]');
-    if (send && !send.disabled && send.getAttribute("aria-disabled") !== "true") break;
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  if (!send || send.disabled || send.getAttribute("aria-disabled") === "true" || !valid())
-    throw new Error("发送按钮不可用；文本保留在输入框，不会重复发送。");
-  send.click();
-  // A click alone is not delivery proof. Only acknowledge the echoed message in this conversation.
-  const deadline = Date.now() + 10000;
-  while (Date.now() < deadline && valid()) {
-    const users = document.querySelectorAll('[data-message-author-role="user"]');
-    const last = users[users.length - 1]?.textContent ?? "";
-    if (last.includes(marker) && !editorText(editor).trim()) return "sent";
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-  throw new Error("结果发送未确认；请检查当前会话，不会自动重发。");
 }
