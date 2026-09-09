@@ -148,6 +148,7 @@ export function panelFixture(name: string): PanelSnapshot {
       })),
     };
     state.evidence.verificationEvidence = ["test", "build", "typecheck"].map((check) => ({
+      eventId: `verify-${check}`,
       stepId: check,
       success: !(name === "failed" && check === "test"),
       results: [

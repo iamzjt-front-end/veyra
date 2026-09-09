@@ -7,6 +7,64 @@ export function controlFixture(name = "overview") {
   const first = panel.projects[0];
   if (!first || !panel.evidence.run || !running.evidence.run || !panel.evidence.handoff)
     throw new Error("Missing UI fixture");
+  panel.evidence.workspaceDiff = {
+    available: true,
+    scope: "current_workspace_including_preexisting_changes",
+    observedAt: "2026-09-09T10:29:14.000Z",
+    untrackedFiles: [],
+    patch: `diff --git a/src/auth/apple.ts b/src/auth/apple.ts
+index 567a23..aad578 100644
+--- a/src/auth/apple.ts
++++ b/src/auth/apple.ts
+@@ -1,8 +1,14 @@
+ import { getSession } from '../api/session';
+${" "}
+ export async function signInWithApple() {
+-  throw new Error('Not implemented');
++  const response = await apple.signIn();
++  const credential = await verifyCredential(response);
++  if (!credential.userId) {
++    throw new Error('A verified account is required');
++  }
++  return getSession(credential.userId);
+ }
+${" "}
+ export const provider = 'apple';
+${" "}
+ // The session contract stays unchanged.
++// Credentials remain inside the native provider.
+diff --git a/src/auth/wechat.ts b/src/auth/wechat.ts
+--- a/src/auth/wechat.ts
++++ b/src/auth/wechat.ts
+@@ -1,3 +1,5 @@
+ export async function signInWithWeChat() {
+-  return null;
++  const code = await wechat.authorize();
++  const account = await verifyWeChatCode(code);
++  return getSession(account.userId);
+ }
+diff --git a/src/api/session.ts b/src/api/session.ts
+--- a/src/api/session.ts
++++ b/src/api/session.ts
+@@ -12,3 +12,6 @@
+ export function validateSession(session) {
++  if (session.expiresAt < Date.now()) {
++    return { valid: false, reason: 'expired' };
++  }
+   return { valid: true };
+ }
+diff --git a/src/components/Login.vue b/src/components/Login.vue
+--- a/src/components/Login.vue
++++ b/src/components/Login.vue
+@@ -1,3 +1,5 @@
+ <template>
+-  <button>Sign in</button>
++  <button @click="signInWithApple">Continue with Apple</button>
++  <button @click="signInWithWeChat">Continue with WeChat</button>
++  <p>Your existing account stays with you.</p>
+ </template>
+`,
+  };
   const runs: DaemonRunSummary[] = [
     {
       ...running.evidence.run,

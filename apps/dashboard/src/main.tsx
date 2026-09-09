@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { Button, Dialog } from "@veyraoss/ui";
 import { WorkspaceStore } from "./store.js";
+import { RunDetail } from "./run-detail.js";
 import { WorkspaceView } from "./views.js";
 import "@veyraoss/ui/styles.css";
 import "./styles.css";
@@ -73,6 +74,15 @@ function App() {
     <>
       <WorkspaceView
         {...state}
+        runDetail={
+          state.evidence && state.project ? (
+            <RunDetail
+              evidence={state.evidence}
+              projectRoot={state.project.project.root}
+              cancel={() => setCancel(true)}
+            />
+          ) : undefined
+        }
         error={
           signedOut
             ? "This window is signed out. Open Veyra again to authorize a new session."

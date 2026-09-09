@@ -144,6 +144,7 @@ export async function projectTool(
                 results: event.results.slice(0, 8).map((check) => ({
                   success: check.success,
                   exitCode: check.exitCode,
+                  durationMs: check.durationMs,
                   command: redactor.text(check.command, { truncated: true }).slice(0, 512),
                   stdout: redactor.text(check.stdout, { truncated: true }).slice(0, 1024),
                   stderr: redactor.text(check.stderr, { truncated: true }).slice(0, 512),

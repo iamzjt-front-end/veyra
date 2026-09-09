@@ -221,7 +221,7 @@ export function Collapsible({
   children,
   open = false,
 }: {
-  title: string;
+  title: ReactNode;
   children: ReactNode;
   open?: boolean;
 }) {

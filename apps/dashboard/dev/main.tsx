@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import { RunDetail } from "../src/run-detail.js";
 import { WorkspaceView } from "../src/views.js";
 import { controlFixture } from "./fixtures.js";
 import "@veyraoss/ui/styles.css";
@@ -13,6 +14,13 @@ function Fixture() {
   return (
     <WorkspaceView
       {...fixture}
+      runDetail={
+        <RunDetail
+          evidence={fixture.evidence}
+          projectRoot={fixture.project.project.root}
+          cancel={() => {}}
+        />
+      }
       route={route}
       navigate={navigate}
       reconnect={() => {}}

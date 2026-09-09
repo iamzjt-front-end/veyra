@@ -11,6 +11,7 @@ const paths = {
   stop: "M6 6h12v12H6Z",
   folder: "M3 7V5h6l2 2h10v13H3Zm0 4h18",
   home: "m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8",
+  clock: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18m0 4v6l4 2",
   runs: "M12 3a9 9 0 1 1-9 9M3 3v6h6m3-2v6l4 2",
   settings:
     "M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1Zm3 6a3 3 0 1 0 0 6 3 3 0 0 0 0-6",
@@ -40,6 +41,7 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
       strokeLinejoin="round"
       aria-hidden="true"
       {...props}
+      className={["v-icon", props.className].filter(Boolean).join(" ")}
     >
       <path d={paths[name]} />
     </svg>

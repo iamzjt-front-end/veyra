@@ -25,7 +25,7 @@ try {
   });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  for (const state of ["overview", "projects", "project", "runs", "settings"]) {
+  for (const state of ["overview", "projects", "project", "runs", "settings", "run", "failed"]) {
     await page.goto(`http://127.0.0.1:${address.port}/control-center/${state}`);
     await page.locator(".v-page-heading h1").waitFor();
     assert.doesNotMatch(
@@ -39,6 +39,18 @@ try {
       animations: "disabled",
     });
   }
+  await page.goto(`http://127.0.0.1:${address.port}/control-center/run`);
+  await page.getByRole("navigation", { name: "Changed files" }).waitFor();
+  await page
+    .getByRole("button", { name: /src\/api\/session.ts/ })
+    .first()
+    .click();
+  assert.match(await page.locator(".v-diff-file-heading").innerText(), /src\/api\/session.ts/);
+  await page.locator(".v-verification-list summary").first().click();
+  assert.match(await page.locator(".v-command-evidence").first().innerText(), /pnpm test/);
+  await page.goto(`http://127.0.0.1:${address.port}/control-center/run?theme=dark`);
+  await page.locator(".v-diff").waitFor();
+  await page.screenshot({ path: resolve(output, "control-center-run-dark.png"), fullPage: true });
   await page.goto(`http://127.0.0.1:${address.port}/control-center/overview?theme=dark`);
   await page.locator(".v-active-run").waitFor();
   await page.screenshot({ path: resolve(output, "control-center-dark.png"), fullPage: true });
@@ -50,7 +62,7 @@ try {
   console.log(
     JSON.stringify({
       status: "passed",
-      views: 5,
+      views: 7,
       widths: [900, 1440],
       themes: ["light", "dark"],
       output,
