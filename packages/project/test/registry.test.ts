@@ -183,7 +183,8 @@ describe("Project Registry", () => {
         const original = await readFile(file);
         await expect(registry.list()).rejects.toMatchObject({ code: "invalid_registry" });
         await expect(registry.register(path)).rejects.toMatchObject({ code: "invalid_registry" });
-        expect(await readFile(file)).toEqual(original);
+        // Compare every byte natively; deep object matching is costly for the 1 MiB fixture.
+        expect((await readFile(file)).equals(original)).toBe(true);
       });
     },
   );

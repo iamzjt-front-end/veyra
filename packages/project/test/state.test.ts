@@ -135,7 +135,8 @@ describe("Project Shared State store", () => {
         await expect(store.save({ context, provenance }, 1)).rejects.toMatchObject({
           code: "invalid_shared_state",
         });
-        expect(await readFile(file)).toEqual(original);
+        // Keep full byte preservation checks without traversing a large Buffer as an object.
+        expect((await readFile(file)).equals(original)).toBe(true);
       });
     },
   );

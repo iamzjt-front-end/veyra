@@ -15,7 +15,7 @@
     "build": "TURBO_TELEMETRY_DISABLED=1 turbo build",
     "dev": "TURBO_TELEMETRY_DISABLED=1 turbo dev --parallel",
     "check": "TURBO_TELEMETRY_DISABLED=1 turbo check && tsc -p tsconfig.test.json && tsc -p tsconfig.scripts.json",
-    "test": "TURBO_TELEMETRY_DISABLED=1 turbo test && vitest run --config vitest.config.ts",
+    "test": "TURBO_TELEMETRY_DISABLED=1 turbo test --concurrency=1 && vitest run --config vitest.config.ts",
     "smoke:live": "pnpm build && tsx test/smoke/manual-smoke.ts",
     "packages:check": "pnpm build && vitest run --config vitest.config.ts test/packaging.test.ts",
     "clean": "TURBO_TELEMETRY_DISABLED=1 turbo clean && rm -rf node_modules",

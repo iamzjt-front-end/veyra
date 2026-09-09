@@ -26,7 +26,7 @@
     "build": "tsc -p tsconfig.json",
     "dev": "tsx src/index.ts",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests --maxWorkers=4",
     "smoke:native": "tsx test/manual-native-dispatch.ts",
     "clean": "rm -rf dist"
   },
