@@ -6,7 +6,7 @@
 
 Veyra is a **project-centered control plane for the AI tools you already use**.
 
-The product is **GUI-first, Project-first, Native-auth-first, API-key-optional**. The target daily interface is a Chrome Side Panel beside ChatGPT, followed by a Local Control Center for deeper Project/Run inspection. CLI supplies setup/init/open/doctor infrastructure; TUI is deferred. [UX Flow](docs/UX-FLOW.md) and [Design](docs/DESIGN.md) define this experience. Side Panel, shared UI and Control Center implementation follows the real P0.12 proof; the current popup remains an interim acceptance surface.
+The product is **GUI-first, Project-first, Native-auth-first, API-key-optional**. The target daily interface is a Chrome Side Panel beside ChatGPT, followed by a Local Control Center for deeper Project/Run inspection. CLI supplies setup/init/open/doctor infrastructure; TUI is deferred. [UX Flow](docs/UX-FLOW.md) and [Design](docs/DESIGN.md) define this experience. Side Panel, shared UI and Control Center are implemented; popup is a small launcher. The current GUI phase ends with the user’s first visual review, followed by the pending real P0.12 re-test.
 
 Its first product goal is simple: let ChatGPT plan/review a project change, let an already-authenticated native Codex execute it in the selected local project, then return the implementation evidence to ChatGPT automatically — without the developer manually copying messages between them.
 
@@ -26,7 +26,7 @@ The golden path is **native-auth-first**. It should reuse Codex's normal existin
 
 Read [`PRODUCT.md`](PRODUCT.md) for the canonical product definition.
 
-The current ChatGPT Pro proof uses the [Experimental Browser Bridge](apps/chatgpt-extension/README.md) with **Chrome Native Messaging**. [UX Flow](docs/UX-FLOW.md) defines the product interaction: **Setup once. Bind once. Then just talk.** `ve setup` registers the local bridge, `ve init` registers each Project and binds native Codex, and the popup connects on demand. Explicit same-conversation bindings survive refresh; only metadata is stored in the browser. Project `.veyra/` owns engineering state. No full history, public tunnel, manual daemon, pairing JSON or API key is part of normal use. Loopback HTTP remains a diagnostic fallback; official Full MCP remains the preferred future production integration. Real ChatGPT Pro re-acceptance is still required by P0.12.
+The current ChatGPT Pro proof uses the [Experimental Browser Bridge](apps/chatgpt-extension/README.md) with **Chrome Native Messaging**. [UX Flow](docs/UX-FLOW.md) defines the product interaction: **Setup once. Bind once. Then just talk.** `ve setup` registers the local bridge, `ve init` registers each Project and binds native Codex, and the Side Panel connects on demand. The popup is a small launcher; `ve open` opens deeper local Project/run evidence. Explicit same-conversation bindings survive refresh; only metadata is stored in the browser. Project `.veyra/` owns engineering state. No full history, public tunnel, manual daemon, pairing JSON or API key is part of normal use. Loopback HTTP remains a diagnostic fallback; official Full MCP remains the preferred future production integration. Real ChatGPT Pro re-acceptance is still required by P0.12.
 
 The product is **Veyra**. Its command is **`ve`**, its official npm scope is **`@veyraoss`**, and project-owned state lives under **`.veyra/`**.
 
@@ -151,7 +151,7 @@ Provider identifiers and models remain configuration choices. Core contains no v
 ```mermaid
 flowchart TB
   chat["ChatGPT bridge"] --> daemon["Local Veyra Daemon"]
-  cli["CLI · Side Panel and Local GUI planned"] --> daemon
+  cli["CLI · Side Panel · Local Control Center"] --> daemon
   daemon --> project["Project + shared .veyra state"]
   daemon --> core["Core: orchestration and policy"]
   core --> workflow["Workflow: graphs and transitions"]
@@ -168,6 +168,14 @@ flowchart TB
 The ChatGPT bridge is a replaceable surface. The Project owns durable coordination state. The Daemon exposes project-scoped local operations. Runtime handles native process/session lifecycle. Core coordinates workflow semantics. Verifier provides objective evidence.
 
 Read [Architecture](docs/ARCHITECTURE.md) for ownership and dependency rules.
+
+## See the GUI
+
+Use `ve open` for your real, authorized local workspace. After a source build, `pnpm ve open` runs the same command from this checkout. The Side Panel’s run details also open the scoped Control Center through Native Messaging.
+
+For independent visual review, run `pnpm ui:dev` and open [the local fixture gallery](http://127.0.0.1:4173). Fixtures include Side Panel states, Overview, Project, Run Detail and failure states; they never connect to personal Projects or ChatGPT. Light/dark screenshots and reproducible checks are described in [GUI acceptance](docs/GUI-ACCEPTANCE.md).
+
+The extension is built at `apps/chatgpt-extension/dist`; load that directory with Chrome’s **Load unpacked**, or **Reload** the existing extension after updating the source build. Keep `ve setup` for one-time native host registration. Real ChatGPT Pro re-acceptance is still pending.
 
 ## P0 success criterion
 
@@ -191,7 +199,7 @@ ChatGPT reviews it and either finishes or sends a repair
 
 No manual copy/paste between GPT and Codex. No OpenAI API key required for this core path.
 
-Side Panel and Local Control Center will share `packages/ui` and the existing Project/Daemon contracts. The real bridge proof precedes their GUI phases. TUI remains a retained, deferred scaffold, with no required P0/P1 delivery.
+Side Panel and Local Control Center share `packages/ui` and the existing Project/Daemon contracts. The latest user decision prioritizes the six GUI phases and a first visual review before real P0.12 re-acceptance. TUI remains a retained, deferred scaffold, with no required P0/P1 delivery.
 
 ## Safety and limits
 

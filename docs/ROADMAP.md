@@ -33,21 +33,18 @@ The exact implementation order and acceptance criteria are in [`TODO.md`](TODO.m
 
 Current Pro P0 uses the isolated Chrome/Chromium **Experimental Browser Bridge**, using Native Messaging with `ve setup` / `ve init` and persistent explicit conversation binding; loopback pairing remains a diagnostic fallback; it reads only explicit handoffs in the bound current conversation, never full ChatGPT history. Native Codex reuses existing login and Project `.veyra/` owns shared engineering state. API providers remain optional; `OPENAI_API_KEY` and public tunnels are not prerequisites. The retained `apps/chatgpt-bridge` is the **preferred future official Full MCP production path** after verified account write/action entitlement. Deterministic extension tests do not complete the real Pro gate or unlock P0.13–P0.15.
 
-## GUI productization — after real P0.12 acceptance
+## GUI productization — current user priority
 
-[UX Flow](UX-FLOW.md) and [Design](DESIGN.md) define the product experience. The explicit phase order and acceptance checks live in [TODO](TODO.md#gui-productization-phases--user-decision-2026-09-09):
+The 2026-09-09 user decision moved GUI implementation ahead of the pending real P0.12 re-test. [TODO](TODO.md#gui-productization-phases--user-decision-2026-09-09) records the exact six phases:
 
-1. Real P0.12 bridge proof (user re-acceptance pending).
-2. Shared `packages/ui` design system, accessible light/dark components and motion.
-3. Chrome Side Panel as the primary daily surface.
-4. Tiny popup launcher/status/Diagnostics.
-5. Project/Run/Workflow GUI based on real evidence.
-6. Fold machine payloads into reversible progress rows.
-7. Validate setup/native messaging/init and persistent binding through the new GUI.
-8. Local Control Center (`ve open`): Overview, Projects, Runs and Settings.
-9. P0.13/P0.14/P0.15 real closed loop, automatic repair and stable demo.
+1. Shared `packages/ui` design system, light/dark, accessible controls and restrained motion.
+2. Chrome Side Panel with explicit Project binding and evidence-based workflow status.
+3. Tiny popup launcher/status/Diagnostics.
+4. `ve open` local Control Center: Overview, Projects, Runs and Settings.
+5. Run detail: bounded unified diff, Verifier evidence, matching review and artifacts.
+6. Independent fixtures and fixed visual/keyboard/idle/security regression.
 
-Supporting native transport/onboarding code is implemented independently of the GUI redesign; the current popup remains an interim proof surface. The new GUI phases are not marked shipped. Neither fixture execution nor a screenshot substitutes for real ChatGPT/native-account acceptance.
+These surfaces are implemented; final acceptance evidence and status live in TODO. Stop after the GUI verification/commit/push for the first user visual review. Real ChatGPT Pro re-acceptance remains pending. Neither fixtures nor screenshots substitute for P0.12/P0.13; automatic review/repair and the stable real demo remain P0.14/P0.15 work.
 
 ## TUI — deferred / optional
 
@@ -129,7 +126,7 @@ Missing API credentials must not make the P0 native GPT ↔ Codex path unhealthy
 - [x] bounded event/artifact storage and retention
 - [x] prompt/decision provenance
 - [x] macOS/Linux platform verification and explicit native Windows policy
-- [ ] secret-redaction rendering checks for future Side Panel/Local Control Center surfaces (existing managed paths already hardened)
+- [x] managed redaction/scoped evidence and text-safe rendering for Side Panel/Local Control Center; actual verification is recorded under GUI-4–GUI-6
 
 ## Open-source productization
 

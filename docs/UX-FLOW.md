@@ -4,7 +4,7 @@
 
 This document defines the target user interaction for Veyra's ChatGPT ↔ native Codex golden path. The current `prepare:live`, manual daemon start, JSON pairing-file selection and disposable proof flow are **developer acceptance tooling**, not the intended product experience.
 
-Implementation status (2026-09-09): `ve setup`, the macOS/Linux Native Messaging host, lazy coordinator, Project-first `ve init`, persistent exact-conversation routing and reversible machine-message folding have supporting implementations. The simplified popup is an interim proof interface. Side Panel, shared UI and Local Control Center remain planned. The user has not yet re-tested the repaired real ChatGPT Pro bridge; [TODO](TODO.md) records this gate and the later GUI phases. In unpublished development, Chrome installation/Reload remains an explicit install/update step; setup does not claim an extension connection before a native handshake.
+Implementation status (2026-09-09): `ve setup`, the macOS/Linux Native Messaging host, lazy coordinator, Project-first `ve init`, persistent exact-conversation routing and reversible machine-message folding are implemented. The Chrome Side Panel is the primary surface; popup is its small launcher. The local Control Center opens with `ve open` and shares `packages/ui`. GUI-1–GUI-6 now precede real P0.12 re-acceptance by explicit user decision. The first visual review and repaired real ChatGPT Pro re-test remain pending; fixtures are not a real product-loop proof. In unpublished development, Chrome installation/Reload remains an explicit update step; setup only reports a connected extension after a native handshake.
 
 ## Product UX principle
 
@@ -525,19 +525,14 @@ Before calling the browser-bridge onboarding stable, demonstrate on a clean user
 
 Do not derail the P0 product proof by rebuilding unrelated providers.
 
-Recommended order:
+Current execution order:
 
-1. finish the current real P0.12 transport proof;
-2. implement one-command `ve setup`;
-3. implement Chrome Native Messaging host + extension transport while retaining loopback fallback/tests;
-4. convert the extension popup into a Side Panel-first GUI;
-5. lazy coordinator lifecycle;
-6. persistent same-conversation Project binding;
-7. shared `packages/ui` design system and motion primitives;
-8. simplify the primary GUI to Ready / Project / Workflow / Run;
-9. collapse machine handoff/result plumbing;
-10. implement the local Control Center GUI after the golden loop is reliable;
-11. rerun P0.13–P0.15 product demo using the simplified happy path.
+1. GUI-1 shared UI, GUI-2 Side Panel, GUI-3 popup launcher, GUI-4 local Control Center, GUI-5 run evidence/diff, GUI-6 fixed visual/performance/accessibility regression.
+2. Push the verified functional commits and stop for the user’s first visual review.
+3. Re-test real P0.12 in ChatGPT Pro using explicit binding and existing native Codex login.
+4. Only after that real gate passes, continue P0.13–P0.15: closed loop, bounded automatic repair and repeatable demo.
+
+Normal users use `ve setup` once and `ve init` once per Project, then bind in the Side Panel and talk. `ve open` provides deeper local run evidence. `pnpm ui:dev` and fixed fixtures are development/visual-review tools, not onboarding requirements. GUI sessions are local, scoped and revocable; no unauthenticated localhost control API is exposed.
 
 TUI is explicitly **not** on the critical path.
 

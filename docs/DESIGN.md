@@ -88,7 +88,7 @@ ChatGPT approved the result
 
 ## Design tokens
 
-Use semantic CSS variables shared across Side Panel and Control Center.
+Use semantic CSS variables shared across Side Panel and Control Center. The implemented source is `packages/ui/src/styles/index.css`. Light auxiliary text uses `#5F6962` (slightly stronger than the original suggested gray) so 10–12px text also meets AA contrast on the sage surface. Screenshot regression uses pinned fixture fonts only; production keeps the specified system/sans and monospace stacks.
 
 Recommended groups:
 
@@ -276,12 +276,12 @@ A component library should remain product-owned enough to preserve visual consis
 
 The Control Center should feel like a richer extension of the same product, not a different dashboard template.
 
-Suggested navigation:
+Implemented navigation:
 
 ```text
+Overview
 Projects
 Runs
-Activity
 Settings
 ```
 

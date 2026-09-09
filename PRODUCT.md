@@ -275,14 +275,14 @@ Priority order until the first product proof is complete:
 2. Local daemon and project IPC.
 3. Native Codex authentication/session continuity.
 4. Structured GPT ↔ Codex handoff protocol.
-5. Real P0.12 ChatGPT/native transport proof.
-6. GUI productization: shared UI system, Side Panel and Local Control Center in the TODO phase order.
+5. GUI-1–GUI-6 productization and the user’s first visual review, as explicitly prioritized on 2026-09-09.
+6. Real P0.12 ChatGPT Pro re-acceptance through the new GUI.
 7. Real P0.13 closed loop, P0.14 automatic review/fix and P0.15 stable demo using that GUI.
 8. Additional agents/providers only after the golden loop is proven.
 
 Additional providers, model routing and API integrations must not distract from the first GPT + Codex loop.
 
-The current simplified popup is an interim proof interface. It will become a small Side Panel launcher; it is not the target daily GUI. Shared `packages/ui` and the Control Center are planned, not shipped. Preserve the existing TUI scaffold without investing in it unless a future product decision restores it to the roadmap.
+The Chrome Side Panel, tiny popup launcher and local Control Center (`ve open`) are implemented, sharing `packages/ui`. Fixed fixtures are available through `pnpm ui:dev`. GUI implementation and visual evidence do not complete the pending real ChatGPT Pro acceptance. Preserve the existing TUI scaffold without investing in it unless a future product decision restores it to the roadmap.
 
 ## MVP success criterion
 

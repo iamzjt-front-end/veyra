@@ -6,7 +6,7 @@ This document owns Veyra's stable responsibility model. Read [`PRODUCT.md`](../P
 
 Veyra is a **project-centered control plane**.
 
-Its surfaces are GUI-first: Chrome Side Panel beside ChatGPT, then Local Control Center, then CLI infrastructure. [UX Flow](UX-FLOW.md) and [Design](DESIGN.md) are the GUI/UX contract. The current popup is interim; shared UI/Side Panel/Control Center remain planned until the real P0.12 gate passes. TUI is optional/deferred and not required by P0/P1.
+Its surfaces are GUI-first: Chrome Side Panel beside ChatGPT, then Local Control Center, then CLI infrastructure. [UX Flow](UX-FLOW.md) and [Design](DESIGN.md) are the GUI/UX contract. Shared UI, Side Panel and local Control Center are implemented; popup is a small launcher. The user explicitly prioritized GUI-1–GUI-6 ahead of real P0.12 re-acceptance. TUI is optional/deferred and not required by P0/P1.
 
 The durable coordination boundary is not a model conversation. It is a real local Project plus structured shared state.
 
@@ -164,12 +164,12 @@ Current repository plus P0 target additions:
 apps/
   cli/             setup/init/open/doctor and automation (`ve`)
   tui/             retained scaffold; deferred/optional
-  dashboard/       planned Local Control Center; existing scaffold retained
+  dashboard/       local React/Vite Control Center; development fixtures stay isolated
   chatgpt-bridge/  retained future official Full MCP surface
   chatgpt-extension/  experimental Chrome/Chromium proof for ChatGPT Pro (P0)
 
 packages/
-  ui/              planned shared GUI tokens/components/icons/motion, no orchestration
+  ui/              shared GUI tokens/components/icons/motion, no orchestration
   project/         Project identity, registry, shared-state model (P0)
   daemon/          local coordinator + typed IPC/tool API (P0)
   core/            orchestration
@@ -312,7 +312,7 @@ Codex native is the first executor. OpenAI API and other model APIs are optional
 
 ### Surfaces
 
-ChatGPT Side Panel/bridge, Local Control Center and CLI render Project state and issue typed commands. They must not reimplement Core or provider logic. Planned `packages/ui` owns semantic light/dark tokens, accessible controls, restrained motion and evidence presentation shared by the two GUI surfaces. It must not depend on browser conversation DOM, native authentication or execution. Browser DOM stays in `apps/chatgpt-extension`. The Control Center uses local authenticated access; `ve open` must not expose an unauthenticated localhost control API.
+ChatGPT Side Panel/bridge, Local Control Center and CLI render Project state and issue typed commands. They must not reimplement Core or provider logic. `packages/ui` owns semantic light/dark tokens, accessible controls, restrained motion and evidence presentation shared by the two GUI surfaces. It must not depend on browser conversation DOM, native authentication or execution. Browser DOM stays in `apps/chatgpt-extension`. The local GUI server is composed under `apps/cli`: `ve open` or scoped Native Messaging opens a one-use local invitation, exchanged for a short-lived HttpOnly/SameSite session plus CSRF protection. Exact Host/Origin, installation/grant revocation and Project root checks protect the common Project tool API. Only evidence reads and cancellation of an existing run are available; it does not grant dispatch, shell/file or approval authority. `runs.list` reads existing Core/handoff stores, returning bounded native run summaries. File-system notifications batch meaningful state changes into SSE; no token stream repaint or idle polling is introduced. Hidden pages close subscriptions; a separate GUI idle shutdown never cancels active coordinator work. The Control Center uses local authenticated access; `ve open` must not expose an unauthenticated localhost control API.
 
 ## Authentication model
 
@@ -396,6 +396,6 @@ same ChatGPT workflow reviews it
 
 No manual copy/paste. No OpenAI API key required.
 
-GUI productization follows the real P0.12 gate in TODO and does not substitute for real P0.13 evidence. TUI is deferred; GUI work does not depend on it.
+GUI productization precedes the pending real P0.12 re-test by the latest explicit user decision; it does not substitute for real P0.13 evidence. Stop for the first user visual review after GUI-6 verification/commit/push. TUI is deferred; GUI work does not depend on it.
 
 The existing [remote-control design](REMOTE-CONTROL-DESIGN.md) remains documentation only. Remote/cloud execution still requires an explicit later product decision; P0 is local-first.

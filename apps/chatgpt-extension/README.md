@@ -14,11 +14,11 @@
 
 每个真实项目只需在项目目录运行 `ve init`。它保留已有 `veyra.yaml` 与 executor 设置，注册 Project，自动绑定 native Codex；新配置只生成 executor 与从 package.json 识别的 test/build/check/lint 验证项。已有项目可直接使用，不需要 `PROOF_DIR`。从源码使用时，在目标项目目录执行 `node /absolute/path/to/veyra/apps/cli/dist/index.js init`。
 
-日常打开**已有的** ChatGPT conversation → Veyra → 选择 Project → **Bind**。确保输入框为空、无附件且 GPT 已停止生成；binding 消息确认后，直接提出目标，例如：“请给这个项目增加一个有测试覆盖的小功能，并运行已提供的 test/build 检查；根据返回的真实证据 Review。”不需要输入或复制 handoff JSON。
+日常打开**已有的** ChatGPT conversation → Veyra Popup → **Open Veyra** → 在 Side Panel 选择 Project → **Bind conversation**。确保输入框为空、无附件且 GPT 已停止生成；binding 消息确认后，直接提出目标，例如：“请给这个项目增加一个有测试覆盖的小功能，并运行已提供的 test/build 检查；根据返回的真实证据 Review。”不需要输入或复制 handoff JSON。
 
 同一个 conversation 刷新后自动恢复安全的绑定，不再发送 binding 消息。Pause 会保留绑定；Resume 只恢复已确认的安全暂停。Unbind 立即移除会话路由并请求取消 active run。未确认的发送、过期/撤销授权、路径变更和审批都显示 Needs attention，不自动重发或绕过审批。P0.12 仍保留每个绑定最多 1–5 次派发（默认 3）的诊断安全预算；它不是 P0.14 的正式自动 review/fix 策略。
 
-目标主界面是 Chrome Side Panel，详见 [DESIGN](../../docs/DESIGN.md)。它在真实 P0.12 通过后实现；当前 Popup 是过渡验收界面，仅展示 Ready/Working/Needs attention、Project、Run、Bind/Pause/Unbind。机器消息会折叠为 Project bound / Plan sent to Codex / Result returned，可以 Show details 展开。Verification 和执行状态由真实 Project 证据生成。原始状态、ID、手动刷新、Cancel 和 HTTP fallback 都在 Diagnostics。
+主界面已经是 Chrome Side Panel，详见 [DESIGN](../../docs/DESIGN.md)。它只在 chatgpt.com 启用，适配 320–460px，展示当前 Project、Plan / Execute / Verify / Review、Pause / Unbind 和运行详情。Popup 只保留状态、Open Veyra、Project 和 Diagnostics 快捷入口。机器消息折叠为 Project bound / Plan sent to Codex / Result returned，可展开原始协议；Verification 和执行状态来自真实 Project 证据。运行详情可 Cancel，并在 Native 模式下打开同一 Project 的 Local Control Center。原始状态、UUID、传输、手动刷新和 HTTP fallback 保留在 Diagnostics。
 
 Host 只允许固定扩展 ID `meibodpmcjcjdpfaaejdpiclijnpcclh`，不接受网站对 Native Messaging 的直接调用。安装状态位于 `~/.veyra/browser/installation.json`（自定义 registry 时随 registry）；只保存本机安装身份、Project ID/root 授权与握手时间，不保存账号凭证。显式 Bind 建立最长一年的项目授权；`ve setup --revoke` 撤销所有旧 grant 并轮换身份，旧绑定失效。Unbind 仅删除该会话路由，不撤销其他会话使用的 Project grant。
 
@@ -30,13 +30,13 @@ Native port 空闲 5 秒自动关闭，下次操作重连；独立 coordinator �
 
 ## 已安装用户：本次真实复验从这里开始
 
-这次代码已经构建，但**尚未通过真实 ChatGPT Pro 复验**。Side Panel 和 Control Center 还没有实现；先完成当前 Phase 1。
+GUI-1–GUI-6 已实现 Side Panel 和 Local Control Center；当前先做用户视觉 Review。**真实 ChatGPT Pro 复验尚未通过**，以下步骤仍是后续真实验收门槛，开发截图不代替它。
 
 1. 在原绑定对话中检查是否有 active run。有则先 Cancel 并核对终态；保留 Project 证据。更新后如仍显示旧 HTTP 绑定，先 Unbind 再切换传输，避免把旧运行路由到新的 registry。
 2. 在本仓库执行 `pnpm ve -- setup`。它注册本机 Native Host，自动检查 Codex 登录和 coordinator；不需要手动 daemon、localhost、pairing JSON 或 API Key。此步骤是一次性机器接入，不是每天的操作。
 3. 在**原 disposable `veyra-pro-proof` 项目根目录**执行 `node /absolute/path/to/veyra/apps/cli/dist/index.js init`，把它注册到默认本机 registry。保留原文件和原验证配置；不要对正在运行的生产项目做 proof。
 4. Chrome `chrome://extensions` → Veyra → **Reload**，然后刷新原目标 ChatGPT 对话。继续使用已加载的 `apps/chatgpt-extension/dist/` 即可；不必改为另一个目录或重复安装。首次加载可使用 setup 输出的 `apps/cli/dist/browser-extension/`，两者包含同样构建产物。
-5. 打开 Veyra。若 Diagnostics 中仍为 HTTP，先 Unbind 旧绑定，再点 **使用 Native Messaging**；项目列表自动刷新。明确选择 `veyra-pro-proof`，核对路径，保持 composer 为空、无附件、GPT 未生成，点击 **Bind**。
+5. 打开 Veyra → **Open Veyra** 进入 Side Panel。若 Diagnostics 中仍为 HTTP，先 Unbind 旧绑定，再点 **使用 Native Messaging**；项目列表自动刷新。明确选择 `veyra-pro-proof`，核对路径，保持 composer 为空、无附件、GPT 未生成，点击 **Bind**。
 6. 先确认 binding 消息仅发送一次、ChatGPT 正常回复，界面仍为 Ready 且当前 Project 正确。刷新该对话，确认绑定恢复、binding 消息未重发，然后自然提出验收任务。可直接使用下面的测试提示词；这是用户任务，不是复制 GPT/Codex 的输出。
 
    ```text
@@ -45,7 +45,7 @@ Native port 空闲 5 秒自动关闭，下次操作重连；独立 coordinator �
 
 7. 应看到 Working → Result returned，自动回传消息出现在**同一个** conversation，并由 ChatGPT 继续 Review。Diagnostics 的 Last Result 应是 `confirmed`；本地 completed 或 Send click 都不能代替它。再验证 Cancel 和闲置性能。若不确定，Pause 并检查当前消息/Project 证据，不重复派发。
 
-日志和停止方式见上面的 Native Messaging 产品流程。可记录两次 Run ID、成功/失败的 verifier 状态及同会话回传确认；无需导出聊天历史、cookie 或 native 凭证。真实通过后再进入 TODO 的 GUI phases。
+日志和停止方式见上面的 Native Messaging 产品流程。可记录两次 Run ID、成功/失败的 verifier 状态及同会话回传确认；无需导出聊天历史、cookie 或 native 凭证。GUI 视觉 Review 与真实 Pro 复验均通过后，再按 TODO 推进 P0.13；本次 GUI 实现结束即停止。
 
 ## 阶段 A：开发者可独立运行
 
@@ -77,7 +77,7 @@ pnpm build
 
 页面使用 MutationObserver，只追踪绑定后新增的 assistant turn。完成工具栏出现且输出稳定 400ms 后才提取 handoff；不周期性扫描整段 conversation，不读取旧 turn 的正文。Run 执行期间使用 1/2/4/8/15 秒有上限的退避查询，状态变化时加快一次；结束、停止或解除绑定后清除。当前 HTTP `runs.get` 会读取事件，因此 popup 不再另外周期性调用它，也不在后台定时探测 Codex readiness。此 P0 修复复用现有 daemon API，没有新增浏览器业务到 Daemon。
 
-Popup 仅在打开、用户操作和 storage/tab/focus 事件时刷新；事件刷新读取本地状态快照，不发 daemon 请求，100ms 合并突发事件。关闭后清除监听和待处理刷新。连接/readiness 是上次检测结果，Popup 打开自动连接；Diagnostics → Refresh diagnostics 可重新检测；派发前仍由 daemon 检查授权和 native readiness。
+Popup / Side Panel 仅在打开、用户操作和 storage/tab/focus 事件时更新；事件刷新读取本地状态快照，不发 daemon 请求，100ms 合并突发事件。隐藏时停止刷新，关闭后清除监听和待处理刷新。Side Panel 只在绑定或运行证据身份改变时请求一次 bounded evidence；稳定 idle 不重复 render。连接/readiness 是上次检测结果，打开时自动连接；Diagnostics → Refresh diagnostics 可重新检测；派发前仍由 daemon 检查授权和 native readiness。
 
 **稳定 idle 没有周期性 timer。** 仅发生事件时短暂存在 400ms turn debounce 或 100ms popup debounce；实际发送期间有一个 3 秒按钮等待或 10 秒 echo 确认截止 timer；active run 有一个退避 timer。单元测试覆盖大 DOM、60 秒虚拟空闲、mutation burst、active run 和 popup open/closed；`smoke:browser` 另外执行真实 Chromium DOM/可信用户输入测试及 3,000 个旧 turn 的 60 秒墙钟空闲测量。
 
@@ -160,4 +160,4 @@ Popup 仅在打开、用户操作和 storage/tab/focus 事件时刷新；事件�
 - Daemon 检查 Host、extension Origin/CORS、配对/撤销/到期、Project allowlist 和请求 schema；带 ChatGPT/恶意网页 Origin 的请求会被拒绝。无 Origin 也仍需本地授权。localhost 不是信任凭据，权限不能越过 Veyra/native 的 human approval gate。
 - Canonical handoff 上限 64 KiB，网络响应 256 KiB，自动结果 JSON 128 KiB。超限或不确定传输时暂停，不能把截断当成功。没有任意文件读取、shell、审批、聊天历史或凭证接口。
 
-阶段 B 真正通过后，按最新 TODO 的 GUI phases 继续 shared UI → Side Panel → Local Control Center，再完成 P0.13 → P0.14 → P0.15 的真实 Demo；不要仅凭开发夹具勾选产品闭环。
+本次 GUI phases 完成后停止，等待用户第一次视觉 Review。P0.12 阶段 B 的真实 Pro 证据仍是后续 P0.13 → P0.14 → P0.15 的前提，不凭开发夹具勾选产品闭环。截图、启动方式和 GUI 验证见 [GUI acceptance](../../docs/GUI-ACCEPTANCE.md)。
