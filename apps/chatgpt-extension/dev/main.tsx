@@ -1,3 +1,5 @@
+import { LauncherView } from "../src/launcher-view.js";
+import "../src/launcher.css";
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
 import { PanelView } from "../src/panel-view.js";
@@ -9,6 +11,16 @@ document.documentElement.dataset.theme =
   new URLSearchParams(location.search).get("theme") === "dark" ? "dark" : "light";
 function Fixture() {
   const [state, setState] = useState(() => panelFixture(name));
+  if (name === "popup")
+    return (
+      <LauncherView
+        state={{ status: "Ready", project: "veyra-pro-proof", allowed: true }}
+        open={() => {
+          location.href = "/side-panel/unbound";
+        }}
+        diagnostics={() => {}}
+      />
+    );
   return (
     <PanelView
       state={state}

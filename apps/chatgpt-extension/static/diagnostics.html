@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>Veyra Diagnostics</title>
+    <link rel="stylesheet" href="diagnostics.css" />
+  </head>
+  <body>
+    <h1>Veyra <small>Diagnostics</small></h1>
+    <p id="enabled" role="status">Needs attention</p>
+    <label for="project">Project</label>
+    <select id="project">
+      <option value="">选择本地 Project</option>
+    </select>
+    <p id="bound-project">当前对话未绑定</p>
+    <p id="run">尚无 Run</p>
+    <div class="controls">
+      <button id="bind" type="button">Bind</button>
+      <button id="disable" type="button">Pause</button>
+      <button id="unbind" type="button">Unbind</button>
+    </div>
+    <p id="error" role="alert"></p>
+    <p id="status" role="status" aria-live="polite">正在连接 Veyra…</p>
+    <p class="note">
+      Bind 一次，之后正常聊天。绑定会将该 Project 的工程状态发送到当前对话；不读取聊天历史。
+    </p>
+    <details id="diagnostics">
+      <summary>Diagnostics</summary>
+      <p>
+        首次使用请运行一次 <code>ve setup</code>；每个项目运行一次 <code>ve init</code>。不需要 API
+        Key。
+      </p>
+      <dl>
+        <dt>Conversation</dt>
+        <dd id="conversation"></dd>
+        <dt>Project ID / path</dt>
+        <dd id="project-detail"></dd>
+        <dt>Transport / coordinator</dt>
+        <dd id="daemon"></dd>
+        <dt>Native readiness</dt>
+        <dd id="native"></dd>
+        <dt>Run ID / status</dt>
+        <dd id="run-detail"></dd>
+        <dt>Agent</dt>
+        <dd id="agent"></dd>
+        <dt>Last Result</dt>
+        <dd id="last-result"></dd>
+      </dl>
+      <p id="previous-binding" class="note"></p>
+      <p id="grant" class="note"></p>
+      <button id="detect" type="button">Refresh diagnostics</button>
+      <button id="stop" type="button">Cancel Run</button>
+      <label for="limit">最多执行次数（含 repair）</label>
+      <select id="limit">
+        <option>1</option>
+        <option>2</option>
+        <option selected>3</option>
+        <option>4</option>
+        <option>5</option>
+      </select>
+      <details>
+        <summary>Loopback HTTP fallback（开发/诊断）</summary>
+        <label for="pairing">导入本机短期 pairing JSON</label>
+        <input id="pairing" type="file" accept="application/json,.json" />
+        <p id="pairing-scope" class="note"></p>
+        <button id="pair" type="button" disabled>确认项目范围并配对</button>
+        <button id="unpair" type="button">取消 Run 并撤销授权</button>
+        <button id="use-native" type="button">使用 Native Messaging</button>
+      </details>
+      <p class="note">
+        详细日志和证据位于 Project/.veyra/runs；coordinator 日志位于
+        ~/.veyra/daemon/daemon.jsonl。Native grant 可通过 ve setup --revoke 撤销。
+      </p>
+    </details>
+    <script src="diagnostics.js"></script>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+.v-launcher {
+  width: 300px;
+  padding: 20px;
+  background: var(--surface-raised);
+}
+.v-launcher > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.v-launcher-open {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  height: 42px;
+}
+.v-launcher > section {
+  margin-top: 22px;
+}
+.v-launcher > section p {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.v-launcher > .v-caption {
+  margin-top: 12px;
+}
+.v-launcher > footer {
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 8px;
+}
+.v-launcher footer .v-button {
+  padding-left: 0;
+  font-size: 11px;
+  gap: 3px;
+}
+.v-launcher footer svg {
+  width: 12px;
+}
+.v-launcher footer > span {
+  font-size: 10px;
+  color: var(--text-secondary);
+}

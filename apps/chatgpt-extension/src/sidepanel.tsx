@@ -42,7 +42,7 @@ function Panel() {
           void store.connect();
         },
         diagnostics: () => {
-          void chrome.tabs.create({ url: chrome.runtime.getURL("popup.html") });
+          void chrome.tabs.create({ url: chrome.runtime.getURL("diagnostics.html") });
         },
         theme: () => {
           const dark =

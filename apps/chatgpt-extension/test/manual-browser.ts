@@ -171,7 +171,7 @@ try {
   const conversation = "https://chatgpt.com/c/412bdbd3-48e2-45d1-947e-f4f865488614";
   await page.goto(conversation);
   const popup = await context.newPage();
-  await popup.goto(`${EXTENSION_ORIGIN}/popup.html`);
+  await popup.goto(`${EXTENSION_ORIGIN}/diagnostics.html`);
   let invitation: { code: string } | undefined;
   if (!native) {
     if (!daemon?.http) throw new Error("Missing HTTP transport");

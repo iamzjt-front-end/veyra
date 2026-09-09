@@ -77,6 +77,16 @@ try {
     await page.locator("dialog").evaluate((dialog) => (dialog as HTMLDialogElement).open),
     false,
   );
+  await page.setViewportSize({ width: 300, height: 290 });
+  await page.goto(`http://127.0.0.1:${address.port}/popup`);
+  await page.getByRole("button", { name: "Open Veyra" }).waitFor();
+  await page.screenshot({
+    path: resolve(directory, "popup.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.getByRole("button", { name: "Open Veyra" }).click();
+  await page.getByRole("button", { name: "Bind conversation" }).waitFor();
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({
