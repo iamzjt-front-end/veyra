@@ -1,11 +1,13 @@
 import { conversationUrl, object, parseHandoff, type Binding } from "./contracts.js";
-import { assistantIds, canCompose, latestHandoff, sendToConversation } from "./page.js";
+import { canCompose, sendToConversation } from "./page.js";
+import { RunBackoff, watchConversation } from "./watch.js";
 
 const epoch = crypto.randomUUID();
 let binding: Binding | undefined;
-let ignored = new Set<string>();
 let candidate: { id: string; source: string } | undefined;
 let busy = false;
+let composerChanged = false;
+let unwatch: (() => void) | undefined;
 const send = async (type: string, fields: Record<string, unknown> = {}) => {
   const response: unknown = await chrome.runtime.sendMessage({
     type,
@@ -21,6 +23,40 @@ const send = async (type: string, fields: Record<string, unknown> = {}) => {
 };
 const bound = (id: string) =>
   binding?.id === id && conversationUrl(location.href) === binding.conversation;
+function disarm() {
+  binding = undefined;
+  candidate = undefined;
+  unwatch?.();
+  unwatch = undefined;
+  runs.stop();
+}
+async function fail(error: unknown, id: string) {
+  if (binding?.id !== id) return;
+  await send("error", { message: error instanceof Error ? error.message : "页面桥接失败。" }).catch(
+    () => {},
+  );
+  disarm();
+}
+function accept(response: unknown, id: string) {
+  if (!object(response) || !object(response.binding)) throw new Error("绑定状态无效。");
+  const current = response.binding as unknown as Binding;
+  if (!bound(id)) return false;
+  if (current.id !== id) throw new Error("会话或绑定已经变化。");
+  binding = current;
+  if (["paused", "stopped"].includes(current.phase)) disarm();
+  return true;
+}
+const runs = new RunBackoff(async () => {
+  if (binding?.phase !== "running") return;
+  const id = binding.id;
+  try {
+    if (!accept(await send("poll"), id)) return;
+    if (binding?.phase === "running") return `${binding.runStatus}/${binding.agentStatus}`;
+    void work();
+  } catch (error) {
+    await fail(error, id);
+  }
+});
 chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || !object(message)) return false;
   if (message.type === "prepare") {
@@ -28,7 +64,7 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     return false;
   }
   if (message.type === "disarm") {
-    binding = undefined;
+    disarm();
     reply({ ok: true });
     return false;
   }
@@ -39,11 +75,27 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     typeof message.text !== "string"
   )
     return false;
+  disarm();
   binding = message.binding as unknown as Binding;
-  ignored = assistantIds(document);
-  candidate = undefined;
   const selected = binding;
   busy = true;
+  unwatch = watchConversation(
+    document,
+    (turn) => {
+      candidate = turn;
+      void work();
+    },
+    () => {
+      if (binding?.phase === "ready_to_deliver") {
+        composerChanged = true;
+        void work();
+      }
+    },
+    (error) => {
+      void fail(error, selected.id);
+    },
+    () => bound(selected.id),
+  );
   void sendToConversation(
     document,
     () => location.href,
@@ -53,39 +105,35 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     () => bound(selected.id),
   )
     .then((result) => {
-      if (result !== "sent") binding = undefined;
+      if (result !== "sent" && binding?.id === selected.id) disarm();
       reply({ ok: result === "sent" });
     })
     .catch((error: unknown) => {
-      binding = undefined;
+      if (binding?.id === selected.id) disarm();
       reply({ ok: false, error: error instanceof Error ? error.message : "页面发送失败。" });
     })
     .finally(() => {
       busy = false;
+      void work();
     });
   return true;
 });
-async function tick() {
+async function work() {
   if (busy || !binding) return;
   if (!bound(binding.id)) {
-    binding = undefined;
+    disarm();
     return;
   }
+  composerChanged = false;
   busy = true;
+  const current = binding;
   try {
-    const response = await send("poll");
-    if (!object(response) || !object(response.binding)) throw new Error("绑定状态无效。");
-    const current = response.binding as unknown as Binding;
-    if (!binding || current.id !== binding.id || !bound(current.id)) return;
-    binding = current;
-    if (current.phase === "armed") {
-      const next = latestHandoff(document, ignored);
-      if (next && candidate?.id === next.id && candidate.source === next.source) {
-        parseHandoff(next.source, current.projectId, current.nextRunId);
-        ignored.add(next.id);
-        candidate = undefined;
-        await send("dispatch", { source: next.source });
-      } else candidate = next;
+    if (current.phase === "armed" && candidate) {
+      const next = candidate;
+      candidate = undefined;
+      parseHandoff(next.source, current.projectId, current.nextRunId);
+      if (!accept(await send("dispatch", { source: next.source }), current.id)) return;
+      if (binding?.phase === "running") runs.start();
     } else if (current.phase === "ready_to_deliver" && canCompose(document)) {
       const claimed = await send("claim");
       if (
@@ -103,17 +151,24 @@ async function tick() {
         claimed.delivery.id,
         () => bound(current.id),
       );
-      await send(result === "sent" ? "ack" : "defer", { deliveryId: claimed.delivery.id });
+      accept(
+        await send(result === "sent" ? "ack" : "defer", { deliveryId: claimed.delivery.id }),
+        current.id,
+      );
     }
   } catch (error) {
-    await send("error", {
-      message: error instanceof Error ? error.message : "页面桥接失败。",
-    }).catch(() => {});
-    binding = undefined;
+    await fail(error, current.id);
   } finally {
     busy = false;
   }
+  // A completed assistant turn can arrive while the one-time delivery is being acknowledged.
+  if (
+    (binding?.phase === "armed" && candidate) ||
+    (binding?.phase === "ready_to_deliver" && composerChanged)
+  )
+    void work();
 }
-setInterval(() => {
-  void tick();
-}, 1500);
+window.addEventListener("pagehide", disarm);
+window.addEventListener("popstate", () => {
+  if (binding && !bound(binding.id)) disarm();
+});

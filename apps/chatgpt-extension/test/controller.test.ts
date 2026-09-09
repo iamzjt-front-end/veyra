@@ -115,6 +115,22 @@ function fixture() {
 }
 
 describe("session-local extension coordination", () => {
+  it("renders popup change notifications from snapshots without daemon reads or state write feedback", async () => {
+    const f = fixture();
+    await f.bind();
+    await f.dispatch();
+    await f.controller.handle({ type: "status" }, popup);
+    f.calls.length = 0;
+    const saved = vi.spyOn(f.host, "save");
+    for (let n = 0; n < 100; n++)
+      expect(await f.controller.handle({ type: "snapshot" }, popup)).toMatchObject({
+        currentBound: true,
+        selected: { readiness: { ready: true } },
+      });
+    expect(f.calls).toEqual([]);
+    expect(saved).not.toHaveBeenCalled();
+  });
+
   it("shows current Project path, daemon/native/run status and never presents another conversation as bound", async () => {
     const f = fixture();
     await f.bind();

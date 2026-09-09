@@ -32,6 +32,7 @@ export interface ExtensionHost {
 
 /** Session-local bridge coordination only; all execution stays in the daemon. */
 export class BridgeController {
+  private connectivity = { status: "disconnected", message: "尚未检测 Daemon。" };
   private readiness?: { projectId: string; at: number; view: ProjectView };
   constructor(
     private readonly host: ExtensionHost,
@@ -46,7 +47,8 @@ export class BridgeController {
       return new LocalClient(parsePairing(state.pairing), this.request);
     };
     if (popup) {
-      if (value.type === "status") return this.status(state, value.projectId);
+      if (value.type === "status" || value.type === "snapshot")
+        return this.status(state, value.projectId, value.type === "status");
       if (value.type === "inspect") {
         if (!isProjectId(value.projectId)) throw new Error("请选择 Project。");
         this.readiness = undefined;
@@ -186,6 +188,7 @@ export class BridgeController {
       }
       throw new Error("未知扩展操作。");
     }
+    const before = JSON.stringify(state);
     const binding = state.binding;
     if (
       !binding ||
@@ -281,7 +284,7 @@ export class BridgeController {
           ? "已回传，自动执行次数用尽。"
           : "已回传，等待 GPT Review 或新的 repair handoff。";
     }
-    await this.host.save(state);
+    if (JSON.stringify(state) !== before) await this.host.save(state);
     // Pending result bodies are available only through an explicit one-time claim.
     return { binding: { ...binding, delivery: undefined } };
   }
@@ -294,7 +297,7 @@ export class BridgeController {
     if (object(execution) && typeof execution.agentStatus === "string")
       binding.agentStatus = execution.agentStatus.slice(0, 128);
   }
-  private async status(state: SessionState, selectedId: unknown) {
+  private async status(state: SessionState, selectedId: unknown, inspect = true) {
     const tab = await this.host.activeTab();
     const conversation = conversationUrl(tab.url ?? "");
     const currentBound =
@@ -302,14 +305,19 @@ export class BridgeController {
       tab.id === state.binding.tabId &&
       conversation === state.binding.conversation;
     const paired = !!state.pairing && state.pairing.expiresAt > Date.now();
-    let connectivity = { status: "disconnected", message: "未配对或授权已过期。" };
+    let connectivity = paired
+      ? this.connectivity
+      : { status: "disconnected", message: "未配对或授权已过期。" };
     let selected: ProjectView | undefined;
     let readinessAt: number | undefined;
     if (paired && state.pairing) {
       try {
         const client = new LocalClient(parsePairing(state.pairing), this.request);
-        await client.call("projects.list", undefined);
-        connectivity = { status: "connected", message: "本机 Daemon 已连接且授权有效。" };
+        if (inspect) {
+          await client.call("projects.list", undefined);
+          this.connectivity = { status: "connected", message: "本机 Daemon 已连接且授权有效。" };
+          connectivity = this.connectivity;
+        }
         const activeBinding =
           currentBound && !["paused", "stopped"].includes(state.binding?.phase ?? "stopped");
         const projectId = activeBinding
@@ -320,7 +328,10 @@ export class BridgeController {
               ? state.binding?.projectId
               : undefined;
         if (isProjectId(projectId)) {
-          if (this.readiness?.projectId !== projectId || Date.now() - this.readiness.at > 30000) {
+          if (
+            inspect &&
+            (this.readiness?.projectId !== projectId || Date.now() - this.readiness.at > 30000)
+          ) {
             const view = (await client.call("projects.get", { projectId })) as ProjectView;
             if (
               !object(view) ||
@@ -333,22 +344,30 @@ export class BridgeController {
               throw new Error("Project readiness 响应无效。");
             this.readiness = { projectId, at: Date.now(), view };
           }
-          selected = this.readiness.view;
-          readinessAt = this.readiness.at;
+          if (this.readiness?.projectId === projectId) {
+            selected = this.readiness.view;
+            readinessAt = this.readiness.at;
+          }
         }
-        if (state.binding?.runId) {
+        if (
+          inspect &&
+          state.binding?.runId &&
+          !["completed", "failed", "cancelled"].includes(state.binding.runStatus ?? "")
+        ) {
+          const before = JSON.stringify(state.binding);
           const run = await client.call("runs.get", {
             projectId: state.binding.projectId,
             runId: state.binding.runId,
           });
           this.observeRun(state.binding, run);
-          await this.host.save(state);
+          if (JSON.stringify(state.binding) !== before) await this.host.save(state);
         }
       } catch (error) {
         connectivity = {
           status: "unavailable",
           message: error instanceof Error ? error.message : "本机请求失败。",
         };
+        this.connectivity = connectivity;
       }
     }
     return {
@@ -372,6 +391,7 @@ export class BridgeController {
         state.binding.lastResult.delivery = "stopped";
       state.binding.message = "页面已关闭、刷新或切换；自动回传已暂停，运行证据保留在 Project。";
       await this.host.save(state);
+      await this.host.send(tabId, { type: "disarm" }).catch(() => {});
     }
   }
 }

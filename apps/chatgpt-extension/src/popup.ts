@@ -1,3 +1,4 @@
+import { watchPopup } from "./popup-refresh.js";
 import { object, parseInvitation, type PairingInvitation } from "./contracts.js";
 const status = document.querySelector<HTMLElement>("#status") as HTMLElement;
 const project = document.querySelector<HTMLSelectElement>("#project") as HTMLSelectElement;
@@ -161,6 +162,6 @@ async function showStatus(type = "status") {
 act(async () => {
   await showStatus();
 });
-setInterval(() => {
-  if (!busy && !invitation) act(() => showStatus(), true);
-}, 3000);
+watchPopup(() => {
+  if (!busy && !invitation) act(() => showStatus("snapshot"), true);
+});

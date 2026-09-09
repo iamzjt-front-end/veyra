@@ -1,4 +1,5 @@
 /// <reference types="chrome" />
+import { browserRegressions } from "./browser-regressions.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -210,8 +211,10 @@ try {
     ),
     false,
   );
+  const regressions = await browserRegressions(context);
   console.log(
     JSON.stringify({
+      regressions,
       proof: "offline Chromium extension fixture; simulated ChatGPT and executor",
       browser: context.browser()?.version(),
       executions: executed,

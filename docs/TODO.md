@@ -622,7 +622,7 @@ Initial P0.11 verification selected official ChatGPT web Developer mode + authen
 
 ## P0.12 — Experimental ChatGPT Web Bridge for Pro product proof
 
-**Status:** [!] Stage A complete and verified. The only remaining blocker is user installation/authorization of the real Chrome extension and ChatGPT Pro conversation acceptance (Stage B). The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
+**Status:** [!] Send-confirmation normalization and polling-overhead repairs are locally verified. Real Chrome installation, pairing, injection and same-conversation binding-message receipt/reply are user-confirmed; the remaining blocker is user Reload and real ChatGPT Pro re-acceptance of the repaired extension. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
 
 **Depends on:** P0.11
 
@@ -642,7 +642,7 @@ Allow one real ChatGPT workflow to interact with the local Veyra daemon/project.
 
 ### Security requirements
 
-- [ ] explicit user installation/permission;
+- [x] explicit user installation/permission (user-confirmed real Chrome Stage B installation);
 - [x] localhost/project scope only by default;
 - [x] no unrelated conversation harvesting;
 - [x] no credential extraction;
@@ -670,17 +670,38 @@ The independent `apps/chatgpt-extension` is the current Pro **Experimental Brows
 
 `apps/chatgpt-bridge` and its 16 OAuth/MCP tests remain the **preferred future official Full MCP production path**. [ADR 001](ADR-001-CHATGPT-BRIDGE.md) records the freshly rechecked Help Center Pro read/fetch restriction and the conflicting general Developer mode guide. Transport reachability does not prove write/action entitlement. No cloudflared, ngrok, public server or API key is used by this proof.
 
-Verification on 2026-09-09: **24 extension tests** and **6 loopback HTTP tests** pass, covering malformed/missing/multiple markers, schema/identity, Host/Origin/auth/Project boundaries, invitation/grant expiry, single-use pairing, cancellation, revocation during pending native readiness, response bounds, old/user/streaming exclusion, navigation, acknowledgement, bounded repairs and protected-fixture tampering. The actual unpacked MV3 extension in Chromium **149.0.7827.55**, with simulated ChatGPT/executor and real daemon/Verifier, executed twice, observed failed then passed verification, and automatically returned exactly two results to the same fixture conversation. Current Project/readiness/Last Result UI, navigation isolation and UI-driven grant revocation also passed. Its owned browser/profile/daemon were cleaned up. These are deterministic transport/DOM tests, **not real ChatGPT/native-account acceptance**.
+Original Stage A verification on 2026-09-09: **24 extension tests** and **6 loopback HTTP tests** pass, covering malformed/missing/multiple markers, schema/identity, Host/Origin/auth/Project boundaries, invitation/grant expiry, single-use pairing, cancellation, revocation during pending native readiness, response bounds, old/user/streaming exclusion, navigation, acknowledgement, bounded repairs and protected-fixture tampering. The actual unpacked MV3 extension in Chromium **149.0.7827.55**, with simulated ChatGPT/executor and real daemon/Verifier, executed twice, observed failed then passed verification, and automatically returned exactly two results to the same fixture conversation. Current Project/readiness/Last Result UI, navigation isolation and UI-driven grant revocation also passed. Its owned browser/profile/daemon were cleaned up. These are deterministic transport/DOM tests, **not real ChatGPT/native-account acceptance**.
 
-A separate disposable `veyra-pro-proof` Project was prepared with trusted test/build/diff commands and independent registry. Its generated production-daemon start/status/health/stop scripts passed. With `OPENAI_API_KEY` unset, native **Codex 0.153.4** reported installed, authenticated and ready without credential-file access. That daemon was stopped; only the disposable Project and scripts remain for Stage B. This readiness probe does not claim a model invocation or real ChatGPT handback.
+During original Stage A, a separate disposable `veyra-pro-proof` Project was prepared with trusted test/build/diff commands and independent registry. Its generated production-daemon start/status/health/stop scripts passed. With `OPENAI_API_KEY` unset, native **Codex 0.153.4** reported installed, authenticated and ready without credential-file access. That daemon was stopped; only the disposable Project and scripts remain for Stage B. This readiness probe does not claim a model invocation or real ChatGPT handback.
 
-All five baseline commands passed: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,926 passed**) and `pnpm build`. See the [extension guide](../apps/chatgpt-extension/README.md) for reproducible build, fixture, native-ready checks, real-account prompt, evidence locations and stop/uninstall steps.
+The original Stage A baseline passed: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,926 passed**) and `pnpm build`. See the [extension guide](../apps/chatgpt-extension/README.md) for reproducible build, fixture, native-ready checks, real-account prompt, evidence locations and stop/uninstall steps.
+
+### Real ChatGPT Pro acceptance record — 2026-09-09
+
+User-reported Stage B evidence (not an agent-run account test):
+
+- Chrome extension installation and content-script injection on real `chatgpt.com` work.
+- Local pairing succeeds; Daemon is connected; `veyra-pro-proof` is recognized.
+- Native Codex **0.153.4** reports `available=true / ready=true` using the existing native login; no `OPENAI_API_KEY` is used.
+- The **same real ChatGPT conversation receives the Veyra binding/Project/context user message, and ChatGPT responds**.
+- The remaining failure is send-confirmation normalization: the extension incorrectly reports paused/Disabled with “绑定消息发送未确认：会话或输入内容发生变化，已停止发送。” after the real message/reply. Strict composer-string equality does not survive legal contenteditable normalization.
+- The user also reports Chrome/system sluggishness after binding. Code inspection found repeated 1.5-second conversation scans, layout-sensitive `innerText` reads and overlapping 3-second popup/Run queries. `runs.get` reads persisted events and repeated popup readiness checks can probe native Codex. These are confirmed avoidable costs; a before/after profile of the user's personal Chrome/system was not captured.
+
+The repair keeps DOM logic inside `apps/chatgpt-extension`: unique-marker/BEGIN-END/normalized-content integrity, trusted user-intervention detection and new same-conversation user-message echo proof; uncertain delivery never replays. MutationObserver handles only new/completed turns, active runs use bounded backoff and popup changes read cached snapshots. Project evidence and human approval gates are unchanged. See the [reload/retest guide](../apps/chatgpt-extension/README.md#已安装扩展的用户本次修复后从这里复验).
+
+### Repair verification — 2026-09-09
+
+- `pnpm --filter @veyraoss/chatgpt-extension test`: **48 passed**, including native text-node/DIV boundaries, paragraphs/BR/NBSP, large bilingual JSON, repeated blank lines, marker/BEGIN-END integrity, draft/tampering/navigation/binding/attachment/streaming rejection, echo-only confirmation and no uncertain replay.
+- `pnpm --filter @veyraoss/chatgpt-extension smoke:browser`: **passed** in Chromium **149.0.7827.55**. Fourteen real DOM/trusted-input cases pass, including an already-present binding echo plus GPT reply without a second click. The actual unpacked extension still executes twice against the offline fixture, verifies failure then success and returns exactly two results to the same conversation, with cancellation/revocation boundaries retained.
+- Performance regression: **3,000 old turns**, **60 wall-clock idle seconds**, **0 DOM queries**, **0 handoff checks**, page TaskDuration delta **0.0274 seconds** in this fixture. A 1,000-mutation burst triggers one completed-turn check. Unit tests also cover 60-second virtual idle, active-run bounded backoff, stopping an in-flight query, popup open/closed cleanup, snapshot updates without network/write feedback and composer changes during a pending defer response. These numbers are local fixture evidence, not a personal Chrome/system profile.
+- All five required baseline commands pass: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,950 passed**), `pnpm build`.
+- One browser startup attempt timed out waiting for its extension service worker while baseline/build work was running; the independently rerun built extension passed all browser checks above. Test-owned browser/profile/daemon resources were cleaned up. The user's real daemon, conversation and Project evidence were not reset.
 
 ### Blocker, attempts and unlock
 
-The user has confirmed ChatGPT Pro and explicitly selected this experimental path. The extension is built and locally testable, but has not been installed/authorized in the user's real Chrome/Chromium + ChatGPT Pro conversation. No personal browser profile, ChatGPT login, unrelated conversation, Codex credential or public forwarder was accessed. The previous tunnel proposal is superseded and must not be resumed.
+Installation and pairing are already user-confirmed; asking the user to install from scratch is no longer the blocker. The next live gate is **Reload the repaired extension, refresh the target ChatGPT page and explicitly rebind the same disposable Project**, then verify that the real binding echo/reply leaves the extension Enabled. Continue the P0.12 structured native handoff/result acceptance only after that succeeds. Existing messages and Project/run evidence must be retained; do not retry an uncertain dispatch.
 
-Unlock: the user loads `apps/chatgpt-extension/dist` as an unpacked Chrome/Chromium extension, pairs it with the locally authorized daemon and selects a disposable Project/current real ChatGPT conversation. Follow the [extension guide](../apps/chatgpt-extension/README.md) and record the actual same-conversation native handoff/result evidence. Installation and this live account boundary require user involvement; they cannot be replaced by the simulated browser fixture. P0.13–P0.15 remain unstarted, and no independent eligible P0 task remains.
+The user must confirm the fixed behavior and real-page performance. No personal browser profile, ChatGPT login, unrelated conversation, Codex credential or public forwarder was accessed by the repair tests. The previous tunnel proposal remains superseded. Deterministic fixtures cannot replace this live Pro confirmation; P0.12 remains incomplete and P0.13–P0.15 remain unstarted by explicit user instruction.
 
 ---
 
@@ -865,6 +886,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 **P0.12 — Experimental ChatGPT Web Bridge for Pro product proof.**
 
-Blocked on the explicit user installation/authorization boundary described above. Resume this task's real ChatGPT acceptance before P0.13; local fixture success does not complete the gate.
+Blocked on user Reload and real ChatGPT Pro re-acceptance after the send-confirmation/performance repair described above. Installation and pairing are already confirmed. Do not start P0.13 until this real P0.12 gate passes; local fixture success does not complete it.
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

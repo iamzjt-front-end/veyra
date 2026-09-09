@@ -25,6 +25,28 @@ pnpm build
 
 夹具加载真实构建的 MV3 扩展，使用独立临时浏览器 profile，用本地 DOM 模拟 `chatgpt.com`，并阻止公网请求。模拟 executor 修改 disposable Project，真实 daemon/Verifier 先失败再通过，检查两次结构化结果自动回到同一夹具对话、状态展示、配对及撤销；结束时清理其浏览器、daemon、profile。它**不是**真实 ChatGPT Pro / native Codex 账号验收。
 
+## 发送确认与空闲性能
+
+发送前仍要求当前 tab/conversation/binding 一致、输入框为空、无附件、GPT 未生成。插入后检查本次唯一 marker、完整 BEGIN/END 和归一化正文；允许段落、div、BR、NBSP 和连续空行的合法转换，不忽略正文字符或词间分隔。发送期间的真实键盘、输入、粘贴、剪切、拖放及 IME 输入会中止自动确认。
+
+最终证明是当前 conversation 中**新出现的、携带本次 marker 和完整内容的 user message**。即使 ChatGPT 已清空或替换 composer 并开始回复，也会识别该证明，不再次点击 Send。旧消息、assistant 回声或 click 本身均不算成功；不确定时暂停，不自动重发，Project/run 证据保留。
+
+页面使用 MutationObserver，只追踪绑定后新增的 assistant turn。完成工具栏出现且输出稳定 400ms 后才提取 handoff；不周期性扫描整段 conversation，不读取旧 turn 的正文。Run 执行期间使用 1/2/4/8/15 秒有上限的退避查询，状态变化时加快一次；结束、停止或解除绑定后清除。当前 HTTP `runs.get` 会读取事件，因此 popup 不再另外周期性调用它，也不在后台定时探测 Codex readiness。此 P0 修复复用现有 daemon API，没有新增浏览器业务到 Daemon。
+
+Popup 仅在打开、用户操作和 storage/tab/focus 事件时刷新；事件刷新读取本地状态快照，不发 daemon 请求，100ms 合并突发事件。关闭后清除监听和待处理刷新。连接/readiness 是上次检测结果，点击“检测 daemon / 刷新项目与 readiness”可重新检测；派发前仍由 daemon 检查授权和 native readiness。
+
+**稳定 idle 没有周期性 timer。** 仅发生事件时短暂存在 400ms turn debounce 或 100ms popup debounce；实际发送期间有一个 3 秒按钮等待或 10 秒 echo 确认截止 timer；active run 有一个退避 timer。单元测试覆盖大 DOM、60 秒虚拟空闲、mutation burst、active run 和 popup open/closed；`smoke:browser` 另外执行真实 Chromium DOM/可信用户输入测试及 3,000 个旧 turn 的 60 秒墙钟空闲测量。
+
+## 已安装扩展的用户：本次修复后从这里复验
+
+1. 若有未结束的 Run，先检查本地证据并 Stop / Cancel；不重派可能已执行的任务。保留当前 conversation 中已有的 binding 消息和原 disposable Project。
+2. 构建后在 `chrome://extensions` 对 Veyra 点击 **Reload**，再刷新目标 ChatGPT 页以替换旧 content script。仅 Reload 不会替换已注入页面的旧脚本。
+3. 检测 daemon 并核对 `veyra-pro-proof` 的原路径。若 grant 仍有效则复用；若配对丢失、过期或失效，按下面第 4–6 步重启专用测试 daemon，消费新邀请明确配对，不复制旧邀请或登录凭证。
+4. 等 GPT 回复结束，确认 composer 为空且无附件，在**当前目标 conversation** 明确选择 Project 并重新绑定。这是用户发起的新绑定，使用新 marker；扩展不会重放旧的不确定发送。
+5. 先验证新 binding user message 仅出现一次、ChatGPT 正常回复、popup 显示 Enabled 和正确的 Project。此项通过后从下面第 8 步继续原 P0.12 真实 handoff/result 验收。观察无新输出、无 Run 时是否仍卡顿，以及执行期间、popup 打开/关闭后的表现。
+
+本次测试不会把 P0.12 自动标成完成；修复后的真实 Pro 复验仍是必需项，P0.13 暂不开始。
+
 ## 阶段 B：用户安装与真实 ChatGPT Pro 验收
 
 以下操作只在开发验证完成后由用户进行。不要把模拟页面当成通过；P0.12 在真实安装、授权和自动回传证据齐备前保持未完成。
