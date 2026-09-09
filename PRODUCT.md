@@ -4,6 +4,8 @@
 
 Veyra is a **project-centered control plane for the AI tools a developer already uses**.
 
+The product is **GUI-first, Project-first, Native-auth-first, API-key-optional**. [UX Flow](docs/UX-FLOW.md) and [Design](docs/DESIGN.md) define its interaction and visual contract: Chrome Side Panel is the primary daily surface, Local Control Center is the deeper Project/Run surface, and CLI supplies setup/init/open/doctor infrastructure. TUI is deferred and is not a P0/P1 requirement.
+
 The first product goal is intentionally narrow:
 
 > Make ChatGPT and Codex work as one project team without requiring the user to copy messages between them and without requiring an OpenAI API key for the core workflow.
@@ -184,7 +186,7 @@ The registry must not become a second source of truth for project workflow state
 
 ## Local daemon
 
-Veyra needs a local coordinator so ChatGPT-facing bridges, CLI/TUI surfaces and native agents can communicate with the same project state.
+Veyra needs a local coordinator so ChatGPT-facing bridges, GUI/CLI surfaces and native agents can communicate with the same project state.
 
 The daemon owns local coordination concerns such as:
 
@@ -206,7 +208,7 @@ The long-term preference is an official, supported ChatGPT App/Plugin/tool integ
 
 Until then, an experimental local/browser bridge may be used to prove the product loop, but it must be isolated from Core and treated as replaceable infrastructure.
 
-For the current **ChatGPT Pro** P0 proof, the selected path is `apps/chatgpt-extension`: an **Experimental Browser Bridge** for Chrome/Chromium + `chatgpt.com`, connected directly to the authenticated local daemon at `http://127.0.0.1:<port>`. Explicit pairing and current-conversation Project binding are required. Only validated `VEYRA_HANDOFF_BEGIN/END` data can dispatch; structured `VEYRA_RESULT_BEGIN/END` evidence returns to that same conversation for review. The bridge does not read full ChatGPT history or native credentials, and does not use a public server, tunnel or API key.
+For the current **ChatGPT Pro** P0 proof, the selected path is `apps/chatgpt-extension`: an **Experimental Browser Bridge** for Chrome/Chromium + `chatgpt.com`, using Chrome Native Messaging to reach the local coordinator. The product flow is **Setup once. Bind once. Then just talk.** See [UX Flow](docs/UX-FLOW.md). `ve setup` establishes a persistent local installation, `ve init` registers a native-bound Project, and explicit current-conversation binding persists across refresh. Loopback HTTP and pairing files remain developer diagnostics/fallback only. Only validated `VEYRA_HANDOFF_BEGIN/END` data can dispatch; structured `VEYRA_RESULT_BEGIN/END` evidence returns to that same conversation for review. The bridge does not read full ChatGPT history or native credentials, and does not use a public server, tunnel or API key.
 
 The retained `apps/chatgpt-bridge` is the **preferred future official Full MCP production path**, conditional on verified write/action entitlement. Reachability alone does not prove that entitlement; the [ADR](docs/ADR-001-CHATGPT-BRIDGE.md) records conflicting official plan documentation. Native Codex keeps its existing login, API providers stay optional, and `<project>/.veyra/` remains the shared-state center regardless of bridge replacement. P0.12's real Chrome/Pro acceptance is pending; local fixtures are not a product-loop proof.
 
@@ -273,13 +275,14 @@ Priority order until the first product proof is complete:
 2. Local daemon and project IPC.
 3. Native Codex authentication/session continuity.
 4. Structured GPT ↔ Codex handoff protocol.
-5. Real ChatGPT → Codex → ChatGPT closed loop.
-6. Automatic review/fix loop.
-7. Stable demo.
-8. TUI and Dashboard polish.
-9. Additional agents/providers.
+5. Real P0.12 ChatGPT/native transport proof.
+6. GUI productization: shared UI system, Side Panel and Local Control Center in the TODO phase order.
+7. Real P0.13 closed loop, P0.14 automatic review/fix and P0.15 stable demo using that GUI.
+8. Additional agents/providers only after the golden loop is proven.
 
 Additional providers, model routing and API integrations must not distract from the first GPT + Codex loop.
+
+The current simplified popup is an interim proof interface. It will become a small Side Panel launcher; it is not the target daily GUI. Shared `packages/ui` and the Control Center are planned, not shipped. Preserve the existing TUI scaffold without investing in it unless a future product decision restores it to the roadmap.
 
 ## MVP success criterion
 

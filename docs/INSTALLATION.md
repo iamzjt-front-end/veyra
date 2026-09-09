@@ -15,10 +15,10 @@ Follow the [development setup](../README.md#development), then run:
 ```sh
 pnpm ve -- version
 pnpm ve -- doctor
-pnpm ve -- workflow list
+pnpm ve -- setup
 ```
 
-Use `pnpm ve -- init --config /absolute/project/veyra.yaml` to create configuration in another project, then inspect it before running agents. Existing files are protected unless `--force` is explicitly supplied. See the [CLI reference](CLI.md).
+From a project folder, run `node /absolute/path/to/veyra/apps/cli/dist/index.js init` once to register it and bind native Codex. In the checkout itself use `pnpm ve -- init`. Default init preserves existing configuration. `ve init --config` / `--workflow` / `--model` retain explicit optional-workflow initialization; `--force` is an explicit replacement. Follow [UX Flow](UX-FLOW.md) and the [native browser guide](../apps/chatgpt-extension/README.md#native-messaging-产品流程). See the [CLI reference](CLI.md).
 
 ## Install after the first approved release
 
@@ -26,10 +26,10 @@ Use `pnpm ve -- init --config /absolute/project/veyra.yaml` to create configurat
 npm install --global @veyraoss/cli@latest
 ve version
 ve doctor
-ve workflow list
+ve setup
 ```
 
-This installs the `ve` executable and its exact-version official dependencies. There is no `veyra` executable. In your project directory, run `ve init`, inspect `veyra.yaml`, configure provider credentials locally, and rerun `ve doctor`. Doctor reports missing pnpm with setup guidance and a missing configuration with `ve init` guidance. Providers are optional until a project workflow requires them. A missing explicit `--config` is an error. Checks do not create configuration/run state, install tools or make a model request; native providers may perform bounded local version/authentication probes.
+This installs the `ve` executable and its exact-version official dependencies. There is no `veyra` executable. Run `ve setup` once, then `ve init` in each project and bind it explicitly in ChatGPT. Native Codex uses its existing login; optional API-provider credentials are not required. Doctor reports missing pnpm with setup guidance and a missing configuration with `ve init` guidance. Providers are optional until a project workflow requires them. A missing explicit `--config` is an error. Checks do not create configuration/run state, install tools or make a model request; native providers may perform bounded local version/authentication probes.
 
 If the shell cannot find `ve`, inspect `npm prefix --global` and put its `bin` directory on `PATH` on macOS/Linux. For npm permission errors, use a user-managed Node installation or user-owned prefix as described in [npm's global installation guide](https://docs.npmjs.com/downloading-and-installing-packages-globally/).
 

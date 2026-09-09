@@ -6,6 +6,8 @@ This document owns Veyra's stable responsibility model. Read [`PRODUCT.md`](../P
 
 Veyra is a **project-centered control plane**.
 
+Its surfaces are GUI-first: Chrome Side Panel beside ChatGPT, then Local Control Center, then CLI infrastructure. [UX Flow](UX-FLOW.md) and [Design](DESIGN.md) are the GUI/UX contract. The current popup is interim; shared UI/Side Panel/Control Center remain planned until the real P0.12 gate passes. TUI is optional/deferred and not required by P0/P1.
+
 The durable coordination boundary is not a model conversation. It is a real local Project plus structured shared state.
 
 ```text
@@ -116,11 +118,19 @@ Preference order:
 
 The bridge must not assume that identity OAuth grants chat-history access and must not silently harvest unrelated conversations.
 
-For the current ChatGPT Pro proof, [ADR 001](ADR-001-CHATGPT-BRIDGE.md) selects `apps/chatgpt-extension`: all DOM/composer code stays in that replaceable experimental app. Its service worker uses the daemon's optional authenticated `127.0.0.1` HTTP transport, with a local Project allowlist and temporary conversation binding. The daemon contains only transport/Project/evidence logic; the CLI composes native readiness. `apps/chatgpt-bridge` retains the future official Full MCP implementation. No tunnel or API key is part of the current proof.
+For the current ChatGPT Pro proof, [ADR 001](ADR-001-CHATGPT-BRIDGE.md) selects `apps/chatgpt-extension`: all DOM/composer code stays in that replaceable experimental app. Its service worker defaults to `chrome.runtime.connectNative`. The stdio host in `apps/cli` verifies the pinned extension origin and local installation identity, then discovers/starts the coordinator through private Unix IPC. The shared `projectTool` API supplies bounded Project state/readiness/run/Verifier/diff evidence to both native and optional HTTP transports. Explicit conversation bindings persist as routing/intent metadata, without transcript bodies. The daemon contains only transport/Project/evidence logic; the CLI composes native readiness. `apps/chatgpt-bridge` retains the future official Full MCP implementation. No tunnel or API key is part of the current proof.
 
 Full MCP is the preferred future official production path after verifying write/action entitlement. Replacing the browser surface must preserve the existing handoff protocol, shared Project `.veyra/` state, native Codex integration and Project/Daemon/Core/Runtime/Protocol/Verifier responsibilities. No browser selectors or composer operations belong in those packages.
 
-The current transport exchanges a private, ten-minute single-use pairing invitation for an eight-hour local grant scoped to the launcher's Project allowlist. Explicit extension confirmation is required; authenticated revocation, expiry and daemon restart invalidate access. Host/Origin/CORS, request validation and Project scope are independent checks; localhost alone is not trusted. The page never receives pairing material. The current conversation's new completed assistant turn is inspected only for `VEYRA_HANDOFF_BEGIN/END`; only that bounded canonical envelope crosses to the daemon. Results use `VEYRA_RESULT_BEGIN/END` and an explicit Reviewer instruction. Review framing is reserved for P0.14; it is not a second workflow engine in the extension.
+The retained HTTP fallback exchanges a private, ten-minute single-use pairing invitation for an eight-hour local grant scoped to the launcher's Project allowlist. Explicit extension confirmation is required; authenticated revocation, expiry and daemon restart invalidate access. Host/Origin/CORS, request validation and Project scope are independent checks; localhost alone is not trusted. The page never receives pairing material. The current conversation's new completed assistant turn is inspected only for `VEYRA_HANDOFF_BEGIN/END`; only that bounded canonical envelope crosses to the daemon. Results use `VEYRA_RESULT_BEGIN/END` and an explicit Reviewer instruction. Review framing is reserved for P0.14; it is not a second workflow engine in the extension.
+
+### Native browser installation and lifecycle
+
+`ve setup` registers `com.veyraoss.bridge` in user-level Chrome/Chromium host manifests (macOS/Linux). Only `chrome-extension://meibodpmcjcjdpfaaejdpiclijnpcclh/` is allowed. The host independently checks Chrome's origin argument before accessing installation state. It reads/writes bounded length-prefixed UTF-8 JSON on stdio; stdout contains no CLI text. A private installation identity and expiring Project ID/root grants live under the selected registry's `browser/`; explicit Bind grants engineering-state access for that Project, with revocation/identity rotation via `ve setup --revoke`. Registry names/locations and readiness are metadata-only discovery. No browser/native account credentials are stored.
+
+The host is a CLI composition surface, not a second executor. The coordinator starts in a separate process; disconnecting Chrome cannot terminate active Codex runs. An opt-in one-shot 60-second idle deadline only runs when no operations/admitted runs remain. Foreground `ve daemon start` keeps its diagnostic behavior. The extension closes an idle native port after five seconds and reconnects on the next action. There are no periodic keepalives or idle DOM scans.
+
+Extension local storage holds at most 50 explicit conversation bindings (Project ID/root, installation ID, leases and phase); result/handoff bodies remain in `.veyra/`. A same-conversation restore validates installation, Project root, grant/readiness and current tab/epoch. Ambiguous dispatch/bootstrap/delivery intents pause. An unclaimed result can be reloaded from Project evidence. Pause persists; Unbind deletes local routing immediately and requests cancellation of active work. Only one tab owns a live binding; changing conversations cannot reroute a pending result. Machine blocks fold reversibly after confirmed delivery/accepted dispatch without changing protocol or durable evidence.
 
 ### Native Codex
 
@@ -144,7 +154,7 @@ Veyra separates responsibilities so product surfaces remain replaceable and mode
 6. **Core** — coordinates workflow execution, policy, state and events.
 7. **Daemon** — local long-lived coordination and IPC/tool API.
 8. **Providers** — native/API adapters such as Codex/OpenAI/etc.
-9. **Surfaces** — CLI, ChatGPT bridge, TUI and Dashboard.
+9. **Surfaces** — ChatGPT Side Panel/bridge, Local Control Center and CLI; TUI is deferred.
 
 ## Repository boundaries
 
@@ -152,13 +162,14 @@ Current repository plus P0 target additions:
 
 ```text
 apps/
-  cli/             automation/headless surface (`ve`)
-  tui/             interactive terminal surface
-  dashboard/       Web control center
+  cli/             setup/init/open/doctor and automation (`ve`)
+  tui/             retained scaffold; deferred/optional
+  dashboard/       planned Local Control Center; existing scaffold retained
   chatgpt-bridge/  retained future official Full MCP surface
   chatgpt-extension/  experimental Chrome/Chromium proof for ChatGPT Pro (P0)
 
 packages/
+  ui/              planned shared GUI tokens/components/icons/motion, no orchestration
   project/         Project identity, registry, shared-state model (P0)
   daemon/          local coordinator + typed IPC/tool API (P0)
   core/            orchestration
@@ -301,7 +312,7 @@ Codex native is the first executor. OpenAI API and other model APIs are optional
 
 ### Surfaces
 
-CLI, ChatGPT bridge, TUI and Dashboard render/project state and issue typed commands. They must not reimplement Core or provider logic.
+ChatGPT Side Panel/bridge, Local Control Center and CLI render Project state and issue typed commands. They must not reimplement Core or provider logic. Planned `packages/ui` owns semantic light/dark tokens, accessible controls, restrained motion and evidence presentation shared by the two GUI surfaces. It must not depend on browser conversation DOM, native authentication or execution. Browser DOM stays in `apps/chatgpt-extension`. The Control Center uses local authenticated access; `ve open` must not expose an unauthenticated localhost control API.
 
 ## Authentication model
 
@@ -385,6 +396,6 @@ same ChatGPT workflow reviews it
 
 No manual copy/paste. No OpenAI API key required.
 
-TUI/Dashboard work is downstream product UX, not a substitute for this gate.
+GUI productization follows the real P0.12 gate in TODO and does not substitute for real P0.13 evidence. TUI is deferred; GUI work does not depend on it.
 
 The existing [remote-control design](REMOTE-CONTROL-DESIGN.md) remains documentation only. Remote/cloud execution still requires an explicit later product decision; P0 is local-first.

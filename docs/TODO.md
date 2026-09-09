@@ -33,7 +33,7 @@ ChatGPT
 
 The core path must **not require `OPENAI_API_KEY`**.
 
-OpenAI API, Anthropic API, Gemini API and other API providers remain valid optional integrations. They do not block P0, TUI work or the first release-worthy product demo.
+OpenAI API, Anthropic API, Gemini API and other API providers remain valid optional integrations. They do not block P0, GUI work or the first release-worthy product demo. The product is GUI-first; Side Panel → Local Control Center → CLI is the surface priority. TUI is deferred/optional, with its scaffold retained and no P0/P1 delivery requirement. Read [UX Flow](UX-FLOW.md) and [Design](DESIGN.md) for GUI/UX constraints.
 
 The first supported team is deliberately narrow:
 
@@ -622,7 +622,7 @@ Initial P0.11 verification selected official ChatGPT web Developer mode + authen
 
 ## P0.12 — Experimental ChatGPT Web Bridge for Pro product proof
 
-**Status:** [!] Send-confirmation normalization and polling-overhead repairs are locally verified. Real Chrome installation, pairing, injection and same-conversation binding-message receipt/reply are user-confirmed; the remaining blocker is user Reload and real ChatGPT Pro re-acceptance of the repaired extension. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
+**Status:** [!] Send-confirmation normalization, polling-overhead and native-onboarding support are locally verified. Real Chrome installation, pairing, injection and same-conversation binding-message receipt/reply are user-confirmed; the remaining blocker is user Reload and real ChatGPT Pro re-acceptance of the repaired extension. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
 
 **Depends on:** P0.11
 
@@ -666,7 +666,7 @@ A real ChatGPT session can submit a task to a disposable registered project and 
 - [x] deterministic DOM, unit/integration/security tests; actual Chromium extension fixture; disposable live-test preparation and independent protected-file/test/build inspection;
 - [x] all seven product/status documents updated, retained official MCP app and complete twelve-step Stage B guide.
 
-The independent `apps/chatgpt-extension` is the current Pro **Experimental Browser Bridge**. Only a new completed assistant turn's explicitly delimited canonical handoff is sent to the authenticated `http://127.0.0.1:<port>` daemon. Project `.veyra/` owns engineering state; no complete conversation, native credentials, cookies or tokens are harvested. The popup distinguishes current binding from a previous/other page. Disable stops automation; Stop/Cancel also cancels the run; Unpair revokes the grant. Navigation, duplicate/ambiguous dispatch, busy composers and uncertain delivery pause or wait without guessed replay. Existing native execution, Verifier and human gates are reused.
+The original Stage A HTTP path in `apps/chatgpt-extension` sent only a new completed assistant turn's explicitly delimited canonical handoff to the authenticated `http://127.0.0.1:<port>` daemon. Native Messaging is now the default supporting transport; HTTP remains diagnostic/fallback. Project `.veyra/` owns engineering state; no complete conversation, native credentials, cookies or tokens are harvested. The popup distinguishes current binding from a previous/other page. Disable stops automation; Stop/Cancel also cancels the run; Unpair revokes the grant. Navigation, duplicate/ambiguous dispatch, busy composers and uncertain delivery pause or wait without guessed replay. Existing native execution, Verifier and human gates are reused.
 
 `apps/chatgpt-bridge` and its 16 OAuth/MCP tests remain the **preferred future official Full MCP production path**. [ADR 001](ADR-001-CHATGPT-BRIDGE.md) records the freshly rechecked Help Center Pro read/fetch restriction and the conflicting general Developer mode guide. Transport reachability does not prove write/action entitlement. No cloudflared, ngrok, public server or API key is used by this proof.
 
@@ -687,7 +687,7 @@ User-reported Stage B evidence (not an agent-run account test):
 - The remaining failure is send-confirmation normalization: the extension incorrectly reports paused/Disabled with “绑定消息发送未确认：会话或输入内容发生变化，已停止发送。” after the real message/reply. Strict composer-string equality does not survive legal contenteditable normalization.
 - The user also reports Chrome/system sluggishness after binding. Code inspection found repeated 1.5-second conversation scans, layout-sensitive `innerText` reads and overlapping 3-second popup/Run queries. `runs.get` reads persisted events and repeated popup readiness checks can probe native Codex. These are confirmed avoidable costs; a before/after profile of the user's personal Chrome/system was not captured.
 
-The repair keeps DOM logic inside `apps/chatgpt-extension`: unique-marker/BEGIN-END/normalized-content integrity, trusted user-intervention detection and new same-conversation user-message echo proof; uncertain delivery never replays. MutationObserver handles only new/completed turns, active runs use bounded backoff and popup changes read cached snapshots. Project evidence and human approval gates are unchanged. See the [reload/retest guide](../apps/chatgpt-extension/README.md#已安装扩展的用户本次修复后从这里复验).
+The repair keeps DOM logic inside `apps/chatgpt-extension`: unique-marker/BEGIN-END/normalized-content integrity, trusted user-intervention detection and new same-conversation user-message echo proof; uncertain delivery never replays. MutationObserver handles only new/completed turns, active runs use bounded backoff and popup changes read cached snapshots. Project evidence and human approval gates are unchanged. See the [reload/retest guide](../apps/chatgpt-extension/README.md#native-messaging-产品流程).
 
 ### Repair verification — 2026-09-09
 
@@ -705,11 +705,48 @@ The user must confirm the fixed behavior and real-page performance. No personal 
 
 ---
 
+### Product onboarding support (implementation started before the GUI phase order)
+
+- [x] Implement `ve setup`, native messaging installation and project-scoped authorization, lazy coordinator lifecycle, default Project-first `ve init`, persistent explicit conversation binding, simplified interim popup and reversible machine-message folding.
+- [x] Verify native messaging framing/origin/scope, installation safety, refresh/restart recovery, cancellation, idle behavior and both native/HTTP browser fixtures, then run all baseline commands.
+
+This supporting work follows [UX-FLOW](UX-FLOW.md). It does not complete the real ChatGPT Pro gate or the GUI phases. The simplified popup is an interim proof interface; its replacement follows Phase 3/4 below. Developer proof scripts and loopback transport remain diagnostic/fallback capabilities.
+
+### Native onboarding verification — 2026-09-09
+
+- `pnpm --filter @veyraoss/chatgpt-extension test`: **62 passed**. Restoration preserves the exact conversation/Project/installation identity; ambiguous delivery/dispatch is not replayed. New concurrency regressions cover Unbind during dispatch, Bind, Resume and document restoration, including late replies. Local storage contains routing/intent metadata only. HTTP Unpair does not silently switch transport.
+- CLI onboarding tests: **9 passed**, including idempotent Project registration/native binding, configuration preservation, nested init, framed UTF-8 messages, caller origin/schema/scope/expiry/revocation, foreign/linked installation rejection and concurrent lazy startup of one independent coordinator. Daemon integration verifies idle shutdown while preserving admitted runs. Packaging checks the complete extension assets and stdio host inside the CLI tarball.
+- `pnpm --filter @veyraoss/chatgpt-extension smoke:native-browser`: **passed**, Chromium **149.0.7827.55**. Real `connectNative` → registered stdio host → automatically started coordinator → actual native adapter with a fixture executable, then real Verifier. Explicit HTTP-to-native switching refreshes Projects automatically. Same-conversation refresh restores an armed binding without another bootstrap. Two executions return two results, first failed then passed; scope/Unbind pass. No API key or public network is used.
+- `pnpm --filter @veyraoss/chatgpt-extension smoke:browser`: **passed**, retained HTTP pairing/revocation path, two same-conversation results and failed/passed Verifier evidence.
+- Both browser fixtures include **14 normalization/safety cases**, **3,000 old turns**, **60 wall-clock idle seconds**, **0 idle DOM queries** and one completed-turn check after a **1,000-mutation burst**. TaskDuration delta: native **0.0147 seconds**, HTTP **0.0307 seconds**. These are isolated fixture measurements, not a profile of personal Chrome. Test-owned profiles, hosts and daemons are cleaned up.
+- `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,974 passed**) and `pnpm build`: **all passed**. Both source and CLI-packaged extension directories are built.
+- `env -u OPENAI_API_KEY pnpm ve -- doctor --json`: native **Codex 0.153.4**, available/authenticated/Ready on macOS arm64 and Node 22.22.0. This is a supported non-secret readiness probe, not a live model request.
+
+**Real-account acceptance remains blocked.** The user explicitly confirmed re-testing has not happened. Follow the [installed-user re-acceptance guide](../apps/chatgpt-extension/README.md#已安装用户本次真实复验从这里开始). No fixture or native readiness result completes P0.12 or unlocks GUI Phase 2 by itself.
+
+### GUI productization phases — user decision, 2026-09-09
+
+The user explicitly confirmed that the repaired real ChatGPT Pro bridge **has not been re-tested**. Phase 1 is therefore blocked on real browser acceptance, not an implementation or API-key blocker. Do not claim subsequent phases are complete from the supporting onboarding code, and do not begin them before this prerequisite passes.
+
+| Phase | Status | Work / acceptance                                                                                                                                                                                                                                                                  | Depends on                    |
+| ----- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------- |
+| 1     | [!]    | Finish real P0.12: binding remains enabled, native Codex runs, Verifier evidence returns automatically to the same real Pro conversation; failure/cancel/idle behavior checked. Reload/page refresh and user re-acceptance are pending.                                            | P0.11                         |
+| 2     | [ ]    | `packages/ui`: semantic light/dark color, typography, spacing, radius, elevation, status and motion tokens; shared accessible primitives/components/icons/styles.                                                                                                                  | 1                             |
+| 3     | [ ]    | Chrome Side Panel on `chatgpt.com` only, persistent/open-close, exact-conversation Project and active-run restoration; no overlay or idle polling.                                                                                                                                 | 2                             |
+| 4     | [ ]    | Tiny popup with status, Open Side Panel and Diagnostics.                                                                                                                                                                                                                           | 3                             |
+| 5     | [ ]    | Project/Run UI and Plan → Execute → Verify → Review timeline; real evidence only, actionable error/empty/loading/success/paused states.                                                                                                                                            | 4                             |
+| 6     | [ ]    | Integrate reversible machine-payload folding with compact progress rows and Show raw payload, preserving marker/schema/delivery security. Supporting folding exists but polished GUI acceptance is pending.                                                                        | 5                             |
+| 7     | [ ]    | Validate `ve setup` + native host, persistent Project authorization, lazy coordinator and `ve init` through the Side Panel happy path; remove manual daemon/pairing/readiness steps. Supporting transport implementation exists below the real gate.                               | 6                             |
+| 8     | [ ]    | Local Control Center via `ve open`: Overview/Projects/Runs/Settings; scoped local auth, shared UI, real run detail/timeline/diff/verifier/review/artifacts/retry/approval/cancel. Bounded unified diff with file navigation/highlighting; meaningful batched events, no idle work. | 7                             |
+| 9     | [ ]    | P0.13 → P0.14 → P0.15: real closed loop, bounded repair/no-progress/human gates, reproducible GUI demo.                                                                                                                                                                            | 8, individual P0 dependencies |
+
+Each phase requires task tests, all five baseline commands, a focused commit and push. Review light/dark, narrow/wide layouts, keyboard focus, reduced motion, error recovery and idle performance before calling GUI polished. Preserve existing protocol/Project/Daemon/Core/Runtime/Verifier/MCP functionality. No TUI, provider, cloud or release expansion.
+
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]
 
-**Depends on:** P0.12
+**Depends on:** P0.12; the current user-directed GUI phase order also requires Phase 8 before this final product demo work.
 
 ### This is the MVP product gate
 
@@ -801,46 +838,11 @@ A new developer following the documented prerequisites can reproduce the P0 loop
 
 ---
 
-# P1 — TUI / Agent Mission Control
+# TUI — deferred / optional future surface
 
-**Status:** deferred until P0.13; foundation work may start after P0.10 only if it does not delay the ChatGPT bridge.
+Preserve `apps/tui` as a scaffold. It is not required by P0/P1 and has no automatic start condition after a milestone. Do not develop it unless a new explicit product decision restores it to the roadmap. GUI implementation is tracked in the phases above and does not depend on TUI.
 
-The TUI is a surface for Project/Daemon state, not the product's coordination engine.
-
-Planned work after the P0 loop is proven:
-
-- [ ] project selector/registry view;
-- [ ] daemon health;
-- [ ] workflow/run graph;
-- [ ] active native agent/session status;
-- [ ] timeline/event stream;
-- [ ] diff/review/verification view;
-- [ ] approval inbox;
-- [ ] pause/resume/cancel;
-- [ ] TUI tests;
-- [ ] stable demo.
-
-Bare `ve` may eventually open the TUI, but the P0 bridge must not depend on terminal UI rendering.
-
----
-
-# P2 — Dashboard
-
-Deferred until P1 is stable.
-
-Dashboard should consume the same Project/Daemon API and never reimplement orchestration.
-
-Planned:
-
-- [ ] projects;
-- [ ] run detail;
-- [ ] workflow visualization;
-- [ ] native-agent readiness/settings;
-- [ ] approvals;
-- [ ] metrics/history;
-- [ ] multi-project view.
-
-Remote/cloud control remains a separate explicit product decision.
+The existing `apps/dashboard` scaffold may host the Phase 8 Local Control Center. Its Projects/Runs/settings/evidence UI must reuse shared `packages/ui` and the same Project/Daemon contracts. Remote/cloud control remains a separate deferred decision.
 
 ---
 
@@ -886,6 +888,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 **P0.12 — Experimental ChatGPT Web Bridge for Pro product proof.**
 
-Blocked on user Reload and real ChatGPT Pro re-acceptance after the send-confirmation/performance repair described above. Installation and pairing are already confirmed. Do not start P0.13 until this real P0.12 gate passes; local fixture success does not complete it.
+Blocked on user Reload, target-page refresh and real ChatGPT Pro re-acceptance. The user confirmed on 2026-09-09 that re-testing has not happened. Existing installation/pairing evidence is retained; the native onboarding guide explains the current build and optional migration from HTTP. Finish Phase 1 before Phase 2–9 in the GUI plan above. P0.13 stays unstarted; local fixture success does not complete this gate.
 
 Do not resume the old API-key smoke as a blocker. It is now optional provider validation.

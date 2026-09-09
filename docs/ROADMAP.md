@@ -1,6 +1,6 @@
 # Roadmap
 
-Veyra is now explicitly **project-centered and native-auth-first**. Read [`PRODUCT.md`](../PRODUCT.md) for the product definition and [`docs/TODO.md`](TODO.md) for the canonical task-by-task plan.
+Veyra is now explicitly **GUI-first, Project-first, Native-auth-first and API-key-optional**. Read [`PRODUCT.md`](../PRODUCT.md) for the product definition and [`docs/TODO.md`](TODO.md) for the canonical task-by-task plan.
 
 The repository already contains substantial verified orchestration/runtime/provider infrastructure. The roadmap below distinguishes those foundations from the current product priority.
 
@@ -22,48 +22,36 @@ Goal: let a real ChatGPT workflow hand work to an already-authenticated native C
 - [x] canonical planner/executor/reviewer handoff protocol
 - [x] real native Codex Project dispatch E2E with `OPENAI_API_KEY` unset
 - [x] ChatGPT bridge feasibility ADR/spike
-- [ ] P0.12 Experimental ChatGPT Web Bridge for Pro product proof (real installation/acceptance pending)
+- [ ] P0.12 Experimental ChatGPT Web Bridge for Pro product proof (extension installed; real Pro re-acceptance pending)
 - [ ] **real ChatGPT → Codex → ChatGPT closed loop (MVP gate)**
 - [ ] automatic review/fix loop
 - [ ] stable onboarding/demo
 
+Product onboarding follows [UX Flow](UX-FLOW.md): Setup once, Bind once, then talk. Supporting native transport/onboarding work is tracked inside P0.12; it does not claim the later real closed-loop or stable demo gates.
+
 The exact implementation order and acceptance criteria are in [`TODO.md`](TODO.md).
 
-Current Pro P0 uses the isolated Chrome/Chromium **Experimental Browser Bridge**, directly paired with `127.0.0.1`; it reads only explicit handoffs in the bound current conversation, never full ChatGPT history. Native Codex reuses existing login and Project `.veyra/` owns shared engineering state. API providers remain optional; `OPENAI_API_KEY` and public tunnels are not prerequisites. The retained `apps/chatgpt-bridge` is the **preferred future official Full MCP production path** after verified account write/action entitlement. Deterministic extension tests do not complete the real Pro gate or unlock P0.13–P0.15.
+Current Pro P0 uses the isolated Chrome/Chromium **Experimental Browser Bridge**, using Native Messaging with `ve setup` / `ve init` and persistent explicit conversation binding; loopback pairing remains a diagnostic fallback; it reads only explicit handoffs in the bound current conversation, never full ChatGPT history. Native Codex reuses existing login and Project `.veyra/` owns shared engineering state. API providers remain optional; `OPENAI_API_KEY` and public tunnels are not prerequisites. The retained `apps/chatgpt-bridge` is the **preferred future official Full MCP production path** after verified account write/action entitlement. Deterministic extension tests do not complete the real Pro gate or unlock P0.13–P0.15.
 
-## P1 — TUI / Agent Mission Control
+## GUI productization — after real P0.12 acceptance
 
-TUI work no longer waits on an OpenAI API smoke test. It is downstream of the native project bridge so it renders the correct Project/Daemon model instead of becoming a parallel orchestration system.
+[UX Flow](UX-FLOW.md) and [Design](DESIGN.md) define the product experience. The explicit phase order and acceptance checks live in [TODO](TODO.md#gui-productization-phases--user-decision-2026-09-09):
 
-- [ ] project selector/registry view
-- [ ] daemon health/readiness
-- [ ] workflow/run graph
-- [ ] native agent/session status
-- [ ] timeline/event stream
-- [ ] diff/review/verification views
-- [ ] approval inbox
-- [ ] pause/resume/cancel
-- [ ] TUI regression tests
-- [ ] stable demo
+1. Real P0.12 bridge proof (user re-acceptance pending).
+2. Shared `packages/ui` design system, accessible light/dark components and motion.
+3. Chrome Side Panel as the primary daily surface.
+4. Tiny popup launcher/status/Diagnostics.
+5. Project/Run/Workflow GUI based on real evidence.
+6. Fold machine payloads into reversible progress rows.
+7. Validate setup/native messaging/init and persistent binding through the new GUI.
+8. Local Control Center (`ve open`): Overview, Projects, Runs and Settings.
+9. P0.13/P0.14/P0.15 real closed loop, automatic repair and stable demo.
 
-Bare `ve` may eventually launch the TUI, while headless commands remain supported.
+Supporting native transport/onboarding code is implemented independently of the GUI redesign; the current popup remains an interim proof surface. The new GUI phases are not marked shipped. Neither fixture execution nor a screenshot substitutes for real ChatGPT/native-account acceptance.
 
-## P2 — Dashboard
+## TUI — deferred / optional
 
-Dashboard implementation follows a stable Project/Daemon/TUI model.
-
-- [ ] local Web control center foundation
-- [ ] project/run bridge and event streaming
-- [ ] Projects page
-- [ ] Run detail page
-- [ ] workflow visualization
-- [ ] native agent/provider readiness/settings
-- [ ] human approval inbox
-- [ ] cost/token/duration metrics where known
-- [ ] multi-project runs
-- [x] remote worker/control-plane design document only
-
-Remote/cloud execution remains deferred and requires a separate explicit product decision.
+Preserve `apps/tui` as a scaffold, without further development. It is not required for P0/P1 and has no automatic milestone-triggered start. Surface priority is **Side Panel → Local Control Center → CLI → optional future TUI**. Local GUI does not depend on TUI. Remote/cloud execution remains deferred and requires a separate product decision.
 
 ---
 
@@ -141,7 +129,7 @@ Missing API credentials must not make the P0 native GPT ↔ Codex path unhealthy
 - [x] bounded event/artifact storage and retention
 - [x] prompt/decision provenance
 - [x] macOS/Linux platform verification and explicit native Windows policy
-- [ ] secret-redaction rendering checks for future ChatGPT Bridge/TUI/Dashboard surfaces (existing managed paths already hardened)
+- [ ] secret-redaction rendering checks for future Side Panel/Local Control Center surfaces (existing managed paths already hardened)
 
 ## Open-source productization
 

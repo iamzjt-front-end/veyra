@@ -4,6 +4,8 @@
 
 This document defines the target user interaction for Veyra's ChatGPT ↔ native Codex golden path. The current `prepare:live`, manual daemon start, JSON pairing-file selection and disposable proof flow are **developer acceptance tooling**, not the intended product experience.
 
+Implementation status (2026-09-09): `ve setup`, the macOS/Linux Native Messaging host, lazy coordinator, Project-first `ve init`, persistent exact-conversation routing and reversible machine-message folding have supporting implementations. The simplified popup is an interim proof interface. Side Panel, shared UI and Local Control Center remain planned. The user has not yet re-tested the repaired real ChatGPT Pro bridge; [TODO](TODO.md) records this gate and the later GUI phases. In unpublished development, Chrome installation/Reload remains an explicit install/update step; setup does not claim an extension connection before a native handshake.
+
 ## Product UX principle
 
 Veyra is **GUI-first**.

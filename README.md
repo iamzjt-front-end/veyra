@@ -6,6 +6,8 @@
 
 Veyra is a **project-centered control plane for the AI tools you already use**.
 
+The product is **GUI-first, Project-first, Native-auth-first, API-key-optional**. The target daily interface is a Chrome Side Panel beside ChatGPT, followed by a Local Control Center for deeper Project/Run inspection. CLI supplies setup/init/open/doctor infrastructure; TUI is deferred. [UX Flow](docs/UX-FLOW.md) and [Design](docs/DESIGN.md) define this experience. Side Panel, shared UI and Control Center implementation follows the real P0.12 proof; the current popup remains an interim acceptance surface.
+
 Its first product goal is simple: let ChatGPT plan/review a project change, let an already-authenticated native Codex execute it in the selected local project, then return the implementation evidence to ChatGPT automatically — without the developer manually copying messages between them.
 
 ```text
@@ -24,7 +26,7 @@ The golden path is **native-auth-first**. It should reuse Codex's normal existin
 
 Read [`PRODUCT.md`](PRODUCT.md) for the canonical product definition.
 
-The current ChatGPT Pro proof uses the [Experimental Browser Bridge](apps/chatgpt-extension/README.md), connecting Chrome/Chromium directly to the local daemon with explicit, expiring, revocable Project-scoped pairing. It processes only delimited handoffs in the explicitly bound current conversation; it does not read full ChatGPT history. Native Codex uses its existing login and Project `.veyra/` owns shared state. The retained official MCP adapter is the **preferred future Full MCP production path** after verified action entitlement. Real Chrome/Pro acceptance is still pending in P0.12; the [installation and test guide](apps/chatgpt-extension/README.md) includes a disposable Project setup command. No tunnel or public server is required.
+The current ChatGPT Pro proof uses the [Experimental Browser Bridge](apps/chatgpt-extension/README.md) with **Chrome Native Messaging**. [UX Flow](docs/UX-FLOW.md) defines the product interaction: **Setup once. Bind once. Then just talk.** `ve setup` registers the local bridge, `ve init` registers each Project and binds native Codex, and the popup connects on demand. Explicit same-conversation bindings survive refresh; only metadata is stored in the browser. Project `.veyra/` owns engineering state. No full history, public tunnel, manual daemon, pairing JSON or API key is part of normal use. Loopback HTTP remains a diagnostic fallback; official Full MCP remains the preferred future production integration. Real ChatGPT Pro re-acceptance is still required by P0.12.
 
 The product is **Veyra**. Its command is **`ve`**, its official npm scope is **`@veyraoss`**, and project-owned state lives under **`.veyra/`**.
 
@@ -88,7 +90,15 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
-### Provider-free local tour
+### Product flow
+
+With the installed CLI, run `ve setup` once. In each project folder, run `ve init` once. Then open an existing ChatGPT conversation → Veyra → select Project → **Bind**. Wait for the binding confirmation, then describe the feature normally. Refresh restores the same binding; Pause/Resume and Unbind remain explicit.
+
+Packages are not published yet. From this built checkout the equivalent setup is `pnpm ve -- setup`; the printed unpacked extension directory ships with the CLI. Install it once in `chrome://extensions` (Developer Mode → Load unpacked). For a project outside the checkout, run `node /absolute/path/to/veyra/apps/cli/dist/index.js init` from that project. Already installed development extensions need Reload and a ChatGPT page refresh after code updates; this is an experimental update step, not a daily workflow.
+
+Setup reports an extension as pending until its native handshake is observed; it never infers an installed extension from a manifest file. Native Codex must already be installed/logged in. Normal operation does not require `ve daemon start`, a port, a pairing file or optional API providers. See the [native onboarding guide](apps/chatgpt-extension/README.md#native-messaging-产品流程).
+
+### Provider-free developer tour
 
 After setup, this provider-free example pauses before a real Node version check. It uses a temporary project and needs no API key:
 
@@ -141,7 +151,7 @@ Provider identifiers and models remain configuration choices. Core contains no v
 ```mermaid
 flowchart TB
   chat["ChatGPT bridge"] --> daemon["Local Veyra Daemon"]
-  cli["CLI · TUI planned · Dashboard planned"] --> daemon
+  cli["CLI · Side Panel and Local GUI planned"] --> daemon
   daemon --> project["Project + shared .veyra state"]
   daemon --> core["Core: orchestration and policy"]
   core --> workflow["Workflow: graphs and transitions"]
@@ -181,7 +191,7 @@ ChatGPT reviews it and either finishes or sends a repair
 
 No manual copy/paste between GPT and Codex. No OpenAI API key required for this core path.
 
-TUI and Dashboard are downstream management surfaces built on the same Project/Daemon model; they are not substitutes for this product proof.
+Side Panel and Local Control Center will share `packages/ui` and the existing Project/Daemon contracts. The real bridge proof precedes their GUI phases. TUI remains a retained, deferred scaffold, with no required P0/P1 delivery.
 
 ## Safety and limits
 

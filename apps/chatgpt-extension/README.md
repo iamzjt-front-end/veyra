@@ -1,8 +1,51 @@
 # Experimental ChatGPT Web Bridge for Pro — P0.12
 
-独立、私有的 Manifest V3 扩展，只支持 **Chrome/Chromium + `https://chatgpt.com`**。直接连接 `http://127.0.0.1:<port>` 的本机 Veyra Daemon。原生 Codex 使用已有登录；API Provider 为 optional，核心流程无需 `OPENAI_API_KEY`。不使用 Cloudflare、ngrok、公网服务器或 ChatGPT 隐藏后端 API。
+独立、私有的 Manifest V3 扩展，只支持 **Chrome/Chromium + `https://chatgpt.com`**。默认通过 Chrome Native Messaging 连接本机 Veyra coordinator；loopback HTTP 保留为开发/诊断 fallback。原生 Codex 使用已有登录；API Provider 为 optional，核心流程无需 `OPENAI_API_KEY`。不使用 Cloudflare、ngrok、公网服务器或 ChatGPT 隐藏后端 API。
 
 保留的 [`apps/chatgpt-bridge`](../chatgpt-bridge/README.md) 是 **preferred future official Full MCP production path**。官方 Pro 权限资料存在差异，证据和当前产品决策见 [ADR 001](../../docs/ADR-001-CHATGPT-BRIDGE.md)。浏览器桥接是可替换的实验路径，DOM 变化可能使其暂停。Project `.veyra/` 是唯一工程共享状态中心；不读取完整 ChatGPT history、其他 conversation 或任何登录凭证。
+
+## Native Messaging 产品流程
+
+**Setup once. Bind once. Then just talk.** 交互事实来源是 [UX-FLOW](../../docs/UX-FLOW.md)。
+
+首次运行 `ve setup`。它自动寻找 PATH 或已安装 Codex/ChatGPT app 中的原生 Codex，通过版本和 login status 检查 readiness，注册本机 host 并验证 coordinator 可启动。不读取凭证文件，也不需要 API Key。尚未发布时，在已构建仓库中使用 `pnpm ve -- setup`。首次安装仍由用户在 `chrome://extensions` 开启 Developer Mode，Load unpacked 加载 setup 输出的目录；未发生 native handshake 时，setup 如实显示等待扩展连接。
+
+扩展随 CLI 打包于 `apps/cli/dist/browser-extension/`；源码构建目录 `apps/chatgpt-extension/dist/` 内容相同。已安装旧开发扩展可继续使用原目录，更新后点击 Reload，再刷新 ChatGPT 页即可，不必每天 Reload。仅 macOS/Linux 的 Chrome/Chromium 受支持；不会修改或使用其他浏览器账号。
+
+每个真实项目只需在项目目录运行 `ve init`。它保留已有 `veyra.yaml` 与 executor 设置，注册 Project，自动绑定 native Codex；新配置只生成 executor 与从 package.json 识别的 test/build/check/lint 验证项。已有项目可直接使用，不需要 `PROOF_DIR`。从源码使用时，在目标项目目录执行 `node /absolute/path/to/veyra/apps/cli/dist/index.js init`。
+
+日常打开**已有的** ChatGPT conversation → Veyra → 选择 Project → **Bind**。确保输入框为空、无附件且 GPT 已停止生成；binding 消息确认后，直接提出目标，例如：“请给这个项目增加一个有测试覆盖的小功能，并运行已提供的 test/build 检查；根据返回的真实证据 Review。”不需要输入或复制 handoff JSON。
+
+同一个 conversation 刷新后自动恢复安全的绑定，不再发送 binding 消息。Pause 会保留绑定；Resume 只恢复已确认的安全暂停。Unbind 立即移除会话路由并请求取消 active run。未确认的发送、过期/撤销授权、路径变更和审批都显示 Needs attention，不自动重发或绕过审批。P0.12 仍保留每个绑定最多 1–5 次派发（默认 3）的诊断安全预算；它不是 P0.14 的正式自动 review/fix 策略。
+
+目标主界面是 Chrome Side Panel，详见 [DESIGN](../../docs/DESIGN.md)。它在真实 P0.12 通过后实现；当前 Popup 是过渡验收界面，仅展示 Ready/Working/Needs attention、Project、Run、Bind/Pause/Unbind。机器消息会折叠为 Project bound / Plan sent to Codex / Result returned，可以 Show details 展开。Verification 和执行状态由真实 Project 证据生成。原始状态、ID、手动刷新、Cancel 和 HTTP fallback 都在 Diagnostics。
+
+Host 只允许固定扩展 ID `meibodpmcjcjdpfaaejdpiclijnpcclh`，不接受网站对 Native Messaging 的直接调用。安装状态位于 `~/.veyra/browser/installation.json`（自定义 registry 时随 registry）；只保存本机安装身份、Project ID/root 授权与握手时间，不保存账号凭证。显式 Bind 建立最长一年的项目授权；`ve setup --revoke` 撤销所有旧 grant 并轮换身份，旧绑定失效。Unbind 仅删除该会话路由，不撤销其他会话使用的 Project grant。
+
+Native port 空闲 5 秒自动关闭，下次操作重连；独立 coordinator 无 active run/操作 60 秒后退出。运行中关闭 Chrome 不会杀掉 Codex。稳定 idle 无周期性计时器；有事件才产生 debounce，有 active run 才退避查询。日志见 Diagnostics、Project `.veyra/runs/` 和 `~/.veyra/daemon/daemon.jsonl`。Native Host 启动/协议错误可在扩展 Service Worker console 查看；其 stdout 仅用于 framing，不输出私密日志。
+
+安全停止：Pause 停止自动派发/回传；Diagnostics → Cancel Run 取消当前运行；Unbind 删除该对话绑定；在 `chrome://extensions` 禁用/移除扩展停止浏览器桥接。需要全机撤销时执行 `ve setup --revoke`。保留 `.veyra/` 证据；高级 `ve daemon stop` 仍可用于显式停止 coordinator。
+
+真实 Pro 复验从“更新扩展 → ve setup → 在目标 test Project 内 ve init → 明确选择项目 Bind”开始；已有 HTTP grant 可在 Diagnostics 中切换到 Native Messaging（先暂停旧绑定）。检查 binding 只出现一次、刷新不再重发、目标 handoff 触发原生 Codex、结果自动返回**同一** conversation，以及失败、Cancel、闲置性能。这个人工门槛仍未通过，下面的脚本夹具不能替代它。
+
+## 已安装用户：本次真实复验从这里开始
+
+这次代码已经构建，但**尚未通过真实 ChatGPT Pro 复验**。Side Panel 和 Control Center 还没有实现；先完成当前 Phase 1。
+
+1. 在原绑定对话中检查是否有 active run。有则先 Cancel 并核对终态；保留 Project 证据。更新后如仍显示旧 HTTP 绑定，先 Unbind 再切换传输，避免把旧运行路由到新的 registry。
+2. 在本仓库执行 `pnpm ve -- setup`。它注册本机 Native Host，自动检查 Codex 登录和 coordinator；不需要手动 daemon、localhost、pairing JSON 或 API Key。此步骤是一次性机器接入，不是每天的操作。
+3. 在**原 disposable `veyra-pro-proof` 项目根目录**执行 `node /absolute/path/to/veyra/apps/cli/dist/index.js init`，把它注册到默认本机 registry。保留原文件和原验证配置；不要对正在运行的生产项目做 proof。
+4. Chrome `chrome://extensions` → Veyra → **Reload**，然后刷新原目标 ChatGPT 对话。继续使用已加载的 `apps/chatgpt-extension/dist/` 即可；不必改为另一个目录或重复安装。首次加载可使用 setup 输出的 `apps/cli/dist/browser-extension/`，两者包含同样构建产物。
+5. 打开 Veyra。若 Diagnostics 中仍为 HTTP，先 Unbind 旧绑定，再点 **使用 Native Messaging**；项目列表自动刷新。明确选择 `veyra-pro-proof`，核对路径，保持 composer 为空、无附件、GPT 未生成，点击 **Bind**。
+6. 先确认 binding 消息仅发送一次、ChatGPT 正常回复，界面仍为 Ready 且当前 Project 正确。刷新该对话，确认绑定恢复、binding 消息未重发，然后自然提出验收任务。可直接使用下面的测试提示词；这是用户任务，不是复制 GPT/Codex 的输出。
+
+   ```text
+   请验收当前已绑定的 disposable Project。先让 Codex 只检查不修改，并运行已有 test/build/diff 检查，确认失败结果能自动返回。根据真实 Verification Evidence 和 Diff Review 后，发起 repair，只修改 src/message.js，让 message() 返回精确字符串 Hello from the Veyra fixture。保留 tests、scripts、配置与 .veyra 证据，重跑相同检查。使用 Veyra 刚提供的 canonical handoff 身份和明确 BEGIN/END 边界，不读取凭证、不提交、不发布、不部署。只在证据真实通过时给 PASS。
+   ```
+
+7. 应看到 Working → Result returned，自动回传消息出现在**同一个** conversation，并由 ChatGPT 继续 Review。Diagnostics 的 Last Result 应是 `confirmed`；本地 completed 或 Send click 都不能代替它。再验证 Cancel 和闲置性能。若不确定，Pause 并检查当前消息/Project 证据，不重复派发。
+
+日志和停止方式见上面的 Native Messaging 产品流程。可记录两次 Run ID、成功/失败的 verifier 状态及同会话回传确认；无需导出聊天历史、cookie 或 native 凭证。真实通过后再进入 TODO 的 GUI phases。
 
 ## 阶段 A：开发者可独立运行
 
@@ -14,6 +57,7 @@ pnpm build
 pnpm --filter @veyraoss/chatgpt-extension test
 pnpm --filter @veyraoss/daemon test
 pnpm --filter @veyraoss/chatgpt-extension smoke:browser
+pnpm --filter @veyraoss/chatgpt-extension smoke:native-browser
 pnpm lint
 pnpm format:check
 pnpm check
@@ -33,11 +77,11 @@ pnpm build
 
 页面使用 MutationObserver，只追踪绑定后新增的 assistant turn。完成工具栏出现且输出稳定 400ms 后才提取 handoff；不周期性扫描整段 conversation，不读取旧 turn 的正文。Run 执行期间使用 1/2/4/8/15 秒有上限的退避查询，状态变化时加快一次；结束、停止或解除绑定后清除。当前 HTTP `runs.get` 会读取事件，因此 popup 不再另外周期性调用它，也不在后台定时探测 Codex readiness。此 P0 修复复用现有 daemon API，没有新增浏览器业务到 Daemon。
 
-Popup 仅在打开、用户操作和 storage/tab/focus 事件时刷新；事件刷新读取本地状态快照，不发 daemon 请求，100ms 合并突发事件。关闭后清除监听和待处理刷新。连接/readiness 是上次检测结果，点击“检测 daemon / 刷新项目与 readiness”可重新检测；派发前仍由 daemon 检查授权和 native readiness。
+Popup 仅在打开、用户操作和 storage/tab/focus 事件时刷新；事件刷新读取本地状态快照，不发 daemon 请求，100ms 合并突发事件。关闭后清除监听和待处理刷新。连接/readiness 是上次检测结果，Popup 打开自动连接；Diagnostics → Refresh diagnostics 可重新检测；派发前仍由 daemon 检查授权和 native readiness。
 
 **稳定 idle 没有周期性 timer。** 仅发生事件时短暂存在 400ms turn debounce 或 100ms popup debounce；实际发送期间有一个 3 秒按钮等待或 10 秒 echo 确认截止 timer；active run 有一个退避 timer。单元测试覆盖大 DOM、60 秒虚拟空闲、mutation burst、active run 和 popup open/closed；`smoke:browser` 另外执行真实 Chromium DOM/可信用户输入测试及 3,000 个旧 turn 的 60 秒墙钟空闲测量。
 
-## 已安装扩展的用户：本次修复后从这里复验
+## 历史 HTTP fallback：send-confirmation 修复复验
 
 1. 若有未结束的 Run，先检查本地证据并 Stop / Cancel；不重派可能已执行的任务。保留当前 conversation 中已有的 binding 消息和原 disposable Project。
 2. 构建后在 `chrome://extensions` 对 Veyra 点击 **Reload**，再刷新目标 ChatGPT 页以替换旧 content script。仅 Reload 不会替换已注入页面的旧脚本。
@@ -47,7 +91,7 @@ Popup 仅在打开、用户操作和 storage/tab/focus 事件时刷新；事件�
 
 本次测试不会把 P0.12 自动标成完成；修复后的真实 Pro 复验仍是必需项，P0.13 暂不开始。
 
-## 阶段 B：用户安装与真实 ChatGPT Pro 验收
+## HTTP fallback 阶段 B：开发者诊断验收
 
 以下操作只在开发验证完成后由用户进行。不要把模拟页面当成通过；P0.12 在真实安装、授权和自动回传证据齐备前保持未完成。
 
@@ -107,13 +151,13 @@ Popup 仅在打开、用户操作和 storage/tab/focus 事件时刷新；事件�
 
 ## 协议与隔离边界
 
-- UI 默认 Disabled，绑定必须由用户明确选择 Project；一次只允许一个当前对话。切换/刷新/关闭目标页会暂停，不自动寻找其他对话。其他页面只看到“未绑定”，不会自动接收结果。
+- 未绑定页面默认禁用自动执行，Project 必须由用户明确选择。一次仅一个 tab 拥有 live binding；切换/关闭会解除页面附着，不自动寻找其他对话。Native 模式仅为完全相同的 conversation 恢复已确认安全的持久绑定；HTTP fallback 保留临时会话行为。不确定的派发/回传和用户 Pause 不自动重放。
 - 只有 **新完成 assistant 输出**中的一个完整 BEGIN/END handoff 区块参与处理。绑定时只记住已存在消息的 ID，既不扫描旧文本，也不采集其他 conversation。围栏语言标签不能代替明确边界；schema/来源/Project/新鲜 run UUID 不匹配均不能执行。只提取结构化 JSON，不把整条 GPT 回答发给 Codex。
 - JSON 复用 [canonical handoff schema](../../docs/HANDOFF.md)：`version/kind/id/projectId/runId/provenance/context`，其中计划位于 `context.plan`，任务为 `{id,description}`，Project ID 是真实 UUID。扁平化产品示例不能替代该 schema。扩展会自动提供可直接填写的完整身份模板。
 - Result 使用 canonical 执行结果，附加真实事件中的 bounded `verificationEvidence`、`workspaceDiff`，明确提示 GPT 作为 Reviewer 审查。Git diff 标注为读取时的工作区快照（可能含先前修改）；命名 diff Verifier 的输出才是持久化的运行检查证据。不读取 untracked 文件内容、父目录仓库或 `.veyra` / `.env*` diff。
 - `VEYRA_REVIEW_BEGIN/END` 为 P0.14 保留结构化 verdict/findings/nextAction 边界。当前 review 本身不会派发；GPT 可另发有效 repair handoff，在本次 1–5 次总执行限额内自动处理，默认 3。P0.14 后续负责正式 review 持久化、最多三次默认 repair、no-progress detection、human decision 和完整循环 provenance。
-- Pairing、grant、临时绑定和短期 Last Result 摘要仅在可信扩展 `chrome.storage.session` 中；DOM 不是长期状态。页面脚本拿不到 grant，不读取 ChatGPT cookie/token 或 Codex 凭证。只有 service worker 可访问固定本机 HTTP 地址；网页不能传入任意 URL、命令或 Project 根路径。
+- HTTP pairing/grant、临时绑定和短期 Result body 仅在可信扩展 `chrome.storage.session` 中；Native 持久绑定只在可信 `chrome.storage.local` 保存路由/一次性意图元数据，工程证据仍在 Project。DOM 不是长期状态。页面脚本拿不到 grant，不读取 ChatGPT cookie/token 或 Codex 凭证。只有 service worker 可访问固定本机 HTTP 地址；网页不能传入任意 URL、命令或 Project 根路径。
 - Daemon 检查 Host、extension Origin/CORS、配对/撤销/到期、Project allowlist 和请求 schema；带 ChatGPT/恶意网页 Origin 的请求会被拒绝。无 Origin 也仍需本地授权。localhost 不是信任凭据，权限不能越过 Veyra/native 的 human approval gate。
 - Canonical handoff 上限 64 KiB，网络响应 256 KiB，自动结果 JSON 128 KiB。超限或不确定传输时暂停，不能把截断当成功。没有任意文件读取、shell、审批、聊天历史或凭证接口。
 
-阶段 B 真正通过后，按 TODO 顺序继续 P0.13 → P0.14 → P0.15；不要仅凭此开发夹具勾选产品闭环。
+阶段 B 真正通过后，按最新 TODO 的 GUI phases 继续 shared UI → Side Panel → Local Control Center，再完成 P0.13 → P0.14 → P0.15 的真实 Demo；不要仅凭开发夹具勾选产品闭环。

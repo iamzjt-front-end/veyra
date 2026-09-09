@@ -1,6 +1,6 @@
 # AGENTS.md — Veyra contributor instructions
 
-This file defines coding-agent rules. Read [`PRODUCT.md`](PRODUCT.md) first for product intent, then [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for stable boundaries and [`docs/TODO.md`](docs/TODO.md) for canonical execution order. [`docs/ROADMAP.md`](docs/ROADMAP.md) is only a milestone summary.
+This file defines coding-agent rules. Read [`PRODUCT.md`](PRODUCT.md) first for product intent, [`docs/UX-FLOW.md`](docs/UX-FLOW.md) and [`docs/DESIGN.md`](docs/DESIGN.md) for GUI/UX, then [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for stable boundaries and [`docs/TODO.md`](docs/TODO.md) for canonical execution order. [`docs/ROADMAP.md`](docs/ROADMAP.md) is only a milestone summary.
 
 ## Product intent
 
@@ -34,10 +34,18 @@ Retain `apps/chatgpt-bridge` as the **preferred future official Full MCP product
 2. **Shared engineering state is the integration contract.** Do not make cross-agent coordination depend on scraping full ChatGPT/Codex histories.
 3. **Native-auth-first.** Prefer an already-authenticated native client/session when available. API-key integrations are optional, explicit choices.
 4. **P0 is ChatGPT + Codex.** Do not expand provider/model work if it delays the first real ChatGPT → Codex → ChatGPT loop.
-5. **No API-key gate for the golden path.** Missing `OPENAI_API_KEY` must not block native Codex project dispatch, the ChatGPT bridge proof, or the future TUI.
+5. **No API-key gate for the golden path.** Missing `OPENAI_API_KEY` must not block native Codex project dispatch, the ChatGPT bridge proof or the GUI.
 6. **Bridge code is replaceable.** Prefer official supported ChatGPT integration. Browser/UI automation, if used for a proof, must be isolated and clearly experimental.
 7. **No unrelated conversation harvesting.** A bridge may operate on the explicitly selected/current project workflow but must not silently collect other conversations/history.
 8. **Human authority remains.** Publication, release, deployment and destructive/security-sensitive actions stay approval-gated.
+
+## Product interaction
+
+Follow **Setup once. Bind once. Then just talk.** The experimental Chrome bridge defaults to Native Messaging: `ve setup` installs its local host and persistent installation identity; `ve init` registers the current Project and native Codex executor. The host lazily starts the coordinator; active runs prevent idle shutdown. Keep stdio host/installation code in `apps/cli` and all DOM/composer behavior in `apps/chatgpt-extension`. Reuse the daemon's transport-neutral Project evidence API and preserve the HTTP fallback.
+
+Veyra is GUI-first: Chrome Side Panel is the primary daily surface, Local Control Center is the secondary surface, and CLI supplies setup/init/open/doctor infrastructure. The current simplified popup is interim; the planned popup is only a launcher/status/Diagnostics shortcut. Preserve `apps/tui` as deferred/optional, with no P0/P1 work. Implement the GUI phases in TODO after real P0.12 proof; do not claim shared `packages/ui`, Side Panel or Control Center already exists.
+
+Primary GUI state is Ready/Working/Needs attention, Project, workflow/run and Bind/Pause/Unbind. Ports, IDs, pairing and raw evidence belong in Diagnostics. Shared UI tokens/components must support light/dark, keyboard focus and reduced motion; no idle animation, periodic DOM scan or invented progress/review results. Only explicit conversation→Project routing metadata may persist in extension storage; Project `.veyra/` remains engineering memory. Never replay an unconfirmed dispatch/delivery after refresh. Real Pro re-acceptance remains required; deterministic native-host fixtures do not complete P0.12.
 
 ## Stable architecture
 

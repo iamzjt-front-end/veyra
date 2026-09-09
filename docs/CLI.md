@@ -1,6 +1,6 @@
 # CLI commands
 
-The public executable is `ve`. In this checkout, build the workspace and use `pnpm ve -- <command>` from the repository root. For another project, pass `--config /absolute/project/veyra.yaml`; paths and execution resolve relative to that config's directory. See [installation](INSTALLATION.md) for verified local global installation, future registry installation, upgrades and removal; public packages are not published yet.
+The public executable is `ve`. In this checkout, build the workspace and use `pnpm ve -- <command>` from the repository root. For Project-first initialization in another folder, run the built `apps/cli/dist/index.js init` with that folder as CWD. Explicit optional-workflow commands can still use `--config /absolute/project/veyra.yaml`, with paths relative to its directory. See [installation](INSTALLATION.md) for verified local global installation, future registry installation, upgrades and removal; public packages are not published yet.
 
 `ve version` prints `ve <installed-package-version>`; `ve version --json` returns `{ "version": "<installed-package-version>", "executable": "ve" }`. This comes from the CLI package manifest, including any prerelease suffix. It does not infer publication status from the version. See [Versioning](VERSIONING.md).
 
@@ -20,17 +20,27 @@ Without `--config`, file paths resolve relative to the current directory and eve
 
 See the [workflow example gallery](../examples/workflows/README.md) for complete simple, branching, parallel, approval, subworkflow, judge and policy definitions. Select a file for execution with `ve run "goal" --workflow <path> --config <file>`. The CLI delegates execution and resume to the shared Core model.
 
-## Initialize and run
+## Set up once and initialize a Project
 
 ```bash
-pnpm ve -- init
-pnpm ve -- doctor --config veyra.yaml
-pnpm ve -- run "repair the failing test" --non-interactive
+ve setup             # once per machine; native login, host registration, coordinator check
+ve init              # once in each real Project folder
+ve status            # idle/active Project state
 ```
 
-`init` creates `veyra.yaml` with the `dev` preset, an OpenAI planner/reviewer, a Codex executor, and a three-repair default. The default model matches the repository example, `gpt-5.6-sol`; use `--model <model>` to choose another available Responses/structured-output model. The default model's API capabilities were checked in the [official model reference](https://developers.openai.com/api/docs/models/gpt-5.6-sol). Actual API access requires the user's credentials and model access.
+Then open ChatGPT → Veyra → select Project → Bind and talk normally. See [UX Flow](UX-FLOW.md) and the [native browser guide](../apps/chatgpt-extension/README.md#native-messaging-产品流程). In this unpublished checkout use `pnpm ve -- setup`; setup prints the bundled unpacked extension directory for the one-time explicit Chrome install. It reports native readiness and distinguishes a registered host from a previously observed extension handshake. Native Messaging supports macOS/Linux Chrome/Chromium default user profiles; HTTP remains diagnostic fallback. `ve setup --revoke` revokes grants and rotates the installation identity. Normal operation starts the coordinator lazily, with safe idle shutdown.
 
-This is an optional API workflow. Initialization distinguishes its provider setup from the default native Codex path, which uses the client's existing login without requiring `OPENAI_API_KEY`. It appends only the Veyra state/run ignore block to `.gitignore`, preserving existing rules. An existing config is preserved unless `--force` is explicitly supplied; symlink/non-regular destinations are refused even with force. Replacement files use a same-directory temporary file and rename. Config and ignore-file updates are separate operations, so an I/O error may require completing the remaining setup step manually.
+Default `ve init` opens/creates `.veyra/project.yaml`, registers the Project, preserves existing configuration/bindings, and binds native Codex when no executor is configured. Missing configuration gets an executor-only workflow and named checks discovered from package.json. It never runs those scripts during init, asks about an optional API provider or requires `OPENAI_API_KEY`. Existing native login is verified by setup and before bridge dispatch. The `.gitignore` additions cover local engineering evidence, not the entire Project directory.
+
+## Explicit optional workflow initialization and execution
+
+`ve init --config <path>`, `--workflow <name/path>`, `--model <model>` or `--force` retains the legacy optional-workflow initializer. Its default is the `dev` preset with an OpenAI planner/reviewer, native Codex executor and three-repair default. API credentials/model entitlement are required only when that optional workflow is explicitly executed. Existing files are refused without `--force`; symlink/non-regular destinations are refused even with force. These flags are not the normal ChatGPT onboarding flow.
+
+```bash
+pnpm ve -- init --workflow dev --config /absolute/project/veyra.yaml
+pnpm ve -- doctor --config /absolute/project/veyra.yaml
+pnpm ve -- run "repair the failing test" --config /absolute/project/veyra.yaml --non-interactive
+```
 
 `run <goal>` loads configuration, loads the selected workflow, constructs only referenced adapters, and delegates execution to Core. `--workflow <preset-or-file>` overrides the configured workflow for this run. The supplied goal and selected workflow are saved. The adapter composition supports OpenAI, OpenAI-compatible/local endpoints, Codex, Claude, Claude Code, Gemini API/CLI and OpenCode without binding workflow roles to a provider; unregistered providers produce an actionable error. Command-only workflows can use an empty agents object and require no provider credentials. See [compatible endpoint setup](OPENAI-COMPATIBLE.md) for explicit base URLs and output-mode support.
 
@@ -78,7 +88,7 @@ For configured agents with valid metadata, `doctor --config veyra.yaml --json` a
 
 Run, resume and doctor accept repeatable `--allow-plugin <provider>` flags to explicitly trust configured local third-party modules for that command. Run/resume load only required providers; selected-workflow doctor reports untrusted required/optional plugins without importing them. Trust must be supplied again on resume. Status, review and workflow validation never load plugins. See [plugin registration and loading](PLUGINS.md) before granting trust: imported code has full host-process privileges, and version pins are not integrity checks.
 
-Output is readable plain text by default, without ANSI styling. `--json` produces one JSON object for inspection/doctor/init/errors; run/resume produce JSON Lines containing persisted events and a final `type: "result"` record. Known credential values are redacted before output and supplied to Core's store. `--non-interactive` explicitly selects the existing prompt-free behavior: human gates pause and never auto-approve. With no arguments, `ve` currently prints help; TUI mode remains planned.
+Output is readable plain text by default, without ANSI styling. `--json` produces one JSON object for inspection/doctor/init/errors; run/resume produce JSON Lines containing persisted events and a final `type: "result"` record. Known credential values are redacted before output and supplied to Core's store. `--non-interactive` explicitly selects the existing prompt-free behavior: human gates pause and never auto-approve. With no arguments, `ve` currently prints help; TUI is deferred/optional; Side Panel and Local Control Center are the planned primary GUI surfaces.
 
 | Exit code     | Meaning                                                                                |
 | ------------- | -------------------------------------------------------------------------------------- |
