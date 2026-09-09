@@ -1,4 +1,5 @@
 import { CLI_VERSION } from "./version.js";
+import { nativeProjectReadiness } from "./native-project-readiness.js";
 import { stat } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
@@ -79,6 +80,17 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           ...options,
           signal: services.signal,
           env,
+          ...(values["http-port"] !== undefined
+            ? {
+                http: {
+                  port: Number(values["http-port"]),
+                  origin: values["http-origin"] as string,
+                  projectIds: values["http-project"] as ProjectId[],
+                  inspectProject: (project: import("@veyraoss/protocol").ProjectDescriptor) =>
+                    nativeProjectReadiness(project, env, services.runProcess),
+                },
+              }
+            : {}),
           resolveExecution: async (project, handoff) => {
             const binding = (await loadProjectBindings(project))?.roles.executor;
             if (binding) {
@@ -113,8 +125,12 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
           },
         });
         write(
-          { type: "daemon.started", ...daemon.metadata },
-          `Veyra daemon running (PID ${daemon.metadata.owner.pid}).\nRegistry: ${daemon.metadata.registryRoot}\nForeground service; Ctrl-C or ve daemon stop to shut down.`,
+          {
+            type: "daemon.started",
+            ...daemon.metadata,
+            ...(daemon.http ? { http: daemon.http } : {}),
+          },
+          `Veyra daemon running (PID ${daemon.metadata.owner.pid}).\nRegistry: ${daemon.metadata.registryRoot}\n${daemon.http ? `Loopback: ${daemon.http.url}\nPairing file (import in extension): ${daemon.http.pairingFile}\n` : ""}Foreground service; Ctrl-C or ve daemon stop to shut down.`,
         );
         await daemon.closed;
         return 0;

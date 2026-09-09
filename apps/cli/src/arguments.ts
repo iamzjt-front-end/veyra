@@ -3,6 +3,9 @@ import { parseArgs } from "node:util";
 const options = {
   config: { type: "string" },
   registry: { type: "string" },
+  "http-port": { type: "string" },
+  "http-origin": { type: "string" },
+  "http-project": { type: "string", multiple: true },
   "codex-executable": { type: "string" },
   executor: { type: "string" },
   "session-run": { type: "string" },
@@ -28,7 +31,7 @@ const allowed: Record<string, string[]> = {
   init: ["config", "workflow", "model", "force"],
   projects: ["registry"],
   project: ["registry", "executor", "codex-executable", "model", "session-run"],
-  daemon: ["registry", "allow-plugin"],
+  daemon: ["registry", "allow-plugin", "http-port", "http-origin", "http-project"],
   run: ["config", "workflow", "non-interactive", "allow-plugin"],
   status: ["config", "run-id"],
   review: ["config", "run-id"],
@@ -126,6 +129,20 @@ export function argumentsFor(argv: string[]) {
       "invalid_daemon_command",
       "Use ve daemon start, stop, status or projects [--registry <directory>].",
     );
+  const httpOptions = ["http-port", "http-origin", "http-project"] as const;
+  if (httpOptions.some((key) => parsed.values[key] !== undefined)) {
+    if (
+      command !== "daemon" ||
+      positionals[0] !== "start" ||
+      !/^\d+$/.test(parsed.values["http-port"] ?? "") ||
+      !parsed.values["http-origin"] ||
+      !parsed.values["http-project"]?.length
+    )
+      throw new CliError(
+        "invalid_loopback_options",
+        "ve daemon start requires --http-port, --http-origin and --http-project together.",
+      );
+  }
   if (
     command === "workspace" &&
     (positionals.length !== 2 || positionals[0] !== "remove" || !positionals[1]?.trim())
@@ -203,6 +220,9 @@ Commands:
 
 Options:
   --registry <directory> select registry root (default: ~/.veyra)
+  --http-port <port>    opt in to the daemon loopback HTTP transport (daemon start only)
+  --http-origin <origin> exact chrome-extension://<id> allowed by that transport
+  --http-project <id>  allow a Project on loopback; repeat for at most eight Projects
   --codex-executable <path> select the native Codex executable for doctor
   --config <file>       select configuration (default: ./veyra.yaml)
   --workflow <name/path> override workflow for run/doctor, or select it during init

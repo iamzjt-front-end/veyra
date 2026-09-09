@@ -13,6 +13,7 @@ import {
   type JsonValue,
 } from "@veyraoss/protocol";
 import { RunCoordinator, type ExecutionResolver } from "./runs.js";
+import { startLoopback, type LoopbackHandle, type LoopbackOptions } from "./loopback.js";
 import {
   acquireLocalLock,
   createSecretRedactor,
@@ -32,12 +33,14 @@ import {
 
 export { DaemonError, type DaemonMetadata } from "./files.js";
 export type { ExecutionSetup, ExecutionResolver } from "./runs.js";
+export type { LoopbackOptions } from "./loopback.js";
 export interface DaemonOptions {
   registryRoot?: string;
   signal?: AbortSignal;
   env?: Readonly<Record<string, string | undefined>>;
   onLog?: (entry: DaemonLog) => void;
   resolveExecution?: ExecutionResolver;
+  http?: LoopbackOptions;
 }
 export interface DaemonLog {
   at: string;
@@ -48,6 +51,7 @@ export interface DaemonHandle {
   metadata: DaemonMetadata;
   closed: Promise<void>;
   signal: AbortSignal;
+  http?: Pick<LoopbackHandle, "url" | "pairingFile">;
   stop(): Promise<void>;
 }
 export type DaemonStatus =
@@ -120,6 +124,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   const sockets = new Set<Socket>();
   const operations = new Set<Promise<void>>();
   let shutdown: Promise<void> | undefined;
+  let http: LoopbackHandle | undefined;
   let resolveClosed: () => void = () => {};
   const closed = new Promise<void>((resolve) => {
     resolveClosed = resolve;
@@ -242,6 +247,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
       options.signal?.removeEventListener("abort", onAbort);
       for (const socket of sockets) socket.destroy();
       try {
+        await http?.stop();
         await new Promise<void>((resolve) => server.close(() => resolve()));
         await executionShutdown;
         await Promise.allSettled([...operations]);
@@ -298,6 +304,13 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     });
     await chmod(location.socketPath, 0o600);
     await writePrivate(location.metadata, `${JSON.stringify(metadata)}\n`);
+    if (options.http)
+      http = await startLoopback(
+        options.http,
+        new DaemonClient(options),
+        location.directory,
+        options.env,
+      );
     await log(
       "daemon.ready",
       "Local daemon ready; no provider authentication or cloud service required.",
@@ -308,9 +321,11 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
       metadata: { ...metadata, owner: { ...metadata.owner } },
       closed,
       signal: controller.signal,
+      ...(http ? { http: { url: http.url, pairingFile: http.pairingFile } } : {}),
       stop,
     };
   } catch (error) {
+    await http?.stop();
     if (server.listening) await new Promise<void>((resolve) => server.close(() => resolve()));
     if ((await readMetadata(location).catch(() => undefined))?.id === metadata.id)
       await unlink(location.metadata);

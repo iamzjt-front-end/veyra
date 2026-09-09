@@ -11,13 +11,21 @@ ve daemon stop
 
 All commands accept `--registry <directory>` and `--json`. A service manager can own the foreground process. `SIGINT`/`SIGTERM` request graceful shutdown. No API key or native-agent login is required to start the coordinator.
 
+## Optional authenticated loopback HTTP
+
+The default transport remains the private Unix socket. For the experimental browser extension, `ve daemon start --http-port 3181 --http-origin chrome-extension://<extension-id> --http-project <project-id>` enables an additional listener on **127.0.0.1 only**. All three options are required; repeat the Project option for at most eight UUIDs. See the [extension installation guide](../../apps/chatgpt-extension/README.md).
+
+`startDaemon({ http: { port, origin, projectIds, inspectProject } })` exposes its `http.url` and private `http.pairingFile` path on the returned handle. The launcher supplies provider-specific native readiness; daemon code never inspects browser DOM or native login files. An eight-hour, process-local bearer grant in a mode-0600 file protects every operation except non-sensitive `/health`. Exact Host and optional Origin checks, an exact-origin CORS allowlist, eight-operation concurrency and bounded bodies/responses restrict the transport. Shutdown closes the HTTP listener and removes its pairing file.
+
+`POST /rpc` accepts the existing versioned request contract, scoped to the local Project allowlist. It omits daemon stop and Project registration. Replies use `{ ok, data }` or `{ ok: false, error }`: `projects.get` adds Project shared state/readiness/check IDs, and `results.get` adds bounded Verifier evidence from saved Core events plus an explicitly labelled current-workspace Git snapshot. Other operations retain their typed IPC data. There is no arbitrary-file, shell, approval or history endpoint. HTTP dispatch requires a passing launcher readiness check and still uses the same Core/Runtime/human-gate execution path.
+
 `startDaemon({ registryRoot, signal })` returns a handle with metadata, `closed`, a cancellation signal and idempotent `stop()`. Separate clients call `daemonStatus`, `daemonProjects` and `stopDaemon`. Tests always supply a disposable registry root.
 
 ## Discovery and local trust
 
 One daemon owns a registry root. The process-aware Runtime lock prevents duplicate starts. Non-secret discovery metadata lives at `<registry-root>/daemon/daemon.json`: instance UUID, process owner, canonical registry root, start time and socket location. PID liveness is conservative: live or unknown owners are never killed/replaced based on metadata. Only a provably stopped local owner permits stale recovery. Corrupt metadata is preserved and fails closed.
 
-Connections use a Unix socket, never a TCP/public listener. To fit macOS socket path limits, the socket is under the current user's mode-0700 `/tmp/veyra-<uid>/` directory; its name is derived from the canonical registry root and mode is 0600. Discovery and logs also require private current-user ownership. The trust boundary is the local OS user, not a secret copied from Codex. Other applications running as the same OS user can call the daemon; this is not an isolation boundary against that user. A future bridge must add its own explicit narrow authorization.
+Default connections use a Unix socket; the optional HTTP transport above is authenticated and loopback-only. To fit macOS socket path limits, the socket is under the current user's mode-0700 `/tmp/veyra-<uid>/` directory; its name is derived from the canonical registry root and mode is 0600. Discovery and logs also require private current-user ownership. The Unix socket trust boundary is the local OS user, not a secret copied from Codex. Other applications running as the same OS user can call the daemon; this is not an isolation boundary against that user. Bridge transports add their own explicit narrow authorization.
 
 Shutdown aborts in-flight listing and execution, waits for Runtime cleanup, closes client sockets, releases the local lease and removes the current instance's discovery/socket. Project/registry data remains untouched. A killed process leaves metadata/lock/socket for conservative recovery on restart. An orphan socket with no verifiable discovery record is preserved for inspection.
 
