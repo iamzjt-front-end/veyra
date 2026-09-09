@@ -5,6 +5,7 @@ const project = document.querySelector<HTMLSelectElement>("#project") as HTMLSel
 const limit = document.querySelector<HTMLSelectElement>("#limit") as HTMLSelectElement;
 let invitation: PairingInvitation | undefined;
 let busy = false;
+let paused = false;
 async function call(type: string, params: Record<string, unknown> = {}) {
   const response: unknown = await chrome.runtime.sendMessage({ type, ...params });
   if (!object(response) || response.ok !== true)
@@ -34,14 +35,19 @@ async function refresh() {
     option.disabled = entry.status !== "available";
     project.append(option);
   }
-  project.value = [...project.options].some((option) => option.value === previous) ? previous : "";
+  project.value = [...project.options].some((option) => option.value === previous && previous)
+    ? previous
+    : project.options.length === 2
+      ? (project.options[1]?.value ?? "")
+      : "";
   await showStatus("inspect");
 }
 function act(action: () => Promise<unknown>, quiet = false) {
   if (busy) return;
   busy = true;
   if (!quiet) field("error", "");
-  for (const button of document.querySelectorAll("button")) button.disabled = true;
+  for (const button of document.querySelectorAll("button"))
+    if (!["disable", "unbind"].includes(button.id)) button.disabled = true;
   void action()
     .catch((error: unknown) => {
       field("error", error instanceof Error ? error.message : "操作失败。");
@@ -89,15 +95,41 @@ document.querySelector("#bind")?.addEventListener("click", () =>
 );
 for (const [selector, type] of [
   ["#stop", "stop"],
-  ["#disable", "disable"],
   ["#unpair", "unpair"],
+  ["#use-native", "native"],
 ]) {
   document.querySelector(selector as string)?.addEventListener("click", () =>
     act(async () => {
-      await call(type as string);
-      await showStatus();
+      await call(type === "disable" && paused ? "resume" : (type as string));
+      if (type === "native") await refresh();
+      else await showStatus();
     }),
   );
+}
+let safetyBusy = false;
+for (const [selector, action] of [
+  ["#disable", "disable"],
+  ["#unbind", "unbind"],
+]) {
+  document.querySelector(selector as string)?.addEventListener("click", () => {
+    if (safetyBusy) return;
+    safetyBusy = true;
+    field(
+      "status",
+      action === "unbind" ? "正在解除绑定；运行证据保留在 Project。" : "正在更新暂停状态…",
+    );
+    void call(action === "disable" && paused ? "resume" : (action as string))
+      .then(() => showStatus("snapshot"))
+      .catch((error: unknown) =>
+        field(
+          "error",
+          error instanceof Error ? error.message : "操作未确认，请检查 Project 证据。",
+        ),
+      )
+      .finally(() => {
+        safetyBusy = false;
+      });
+  });
 }
 function field(id: string, text: string) {
   const element = document.querySelector(`#${id}`);
@@ -113,7 +145,25 @@ async function showStatus(type = "status") {
   const readiness = selected && object(selected.readiness) ? selected.readiness : undefined;
   const last = binding && object(binding.lastResult) ? binding.lastResult : undefined;
   const connectivity = object(data.connectivity) ? data.connectivity : undefined;
-  field("enabled", data.enabled ? "Enabled" : "Disabled");
+  const working =
+    data.enabled &&
+    binding &&
+    ["dispatching", "running", "ready_to_deliver", "delivering"].includes(String(binding.phase));
+  field(
+    "enabled",
+    working
+      ? "Working"
+      : connectivity?.status === "connected" && (!data.currentBound || data.enabled)
+        ? "Ready"
+        : "Needs attention",
+  );
+  paused = data.currentBound === true && binding?.pausedByUser === true;
+  field("disable", paused ? "Resume" : "Pause");
+  const bindButton = document.querySelector<HTMLButtonElement>("#bind");
+  if (bindButton) bindButton.hidden = data.currentBound === true;
+  if (data.currentBound && typeof binding?.projectId === "string")
+    project.value = binding.projectId;
+  project.disabled = data.currentBound === true;
   field(
     "conversation",
     data.currentBound
@@ -125,7 +175,7 @@ async function showStatus(type = "status") {
   field(
     "bound-project",
     data.currentBound && binding
-      ? `${binding.projectName}\n${binding.projectRoot}\n${binding.projectId}`
+      ? `${binding.projectName}\n${binding.projectRoot}`
       : "当前对话未绑定任何 Project",
   );
   field(
@@ -134,14 +184,32 @@ async function showStatus(type = "status") {
       ? `另一个页面/之前的绑定：${binding.projectName}\n${binding.projectRoot}（不会向当前对话派发或回传）`
       : "",
   );
-  field("daemon", `${connectivity?.status ?? "disconnected"} — ${connectivity?.message ?? ""}`);
+  field("project-detail", binding ? `${binding.projectId}\n${binding.projectRoot}` : "未绑定");
+  field(
+    "daemon",
+    `${data.transport} — ${connectivity?.status ?? "disconnected"} — ${connectivity?.message ?? ""}`,
+  );
   field(
     "native",
     readiness
       ? `${object(selected?.project) ? selected.project.name : "Project"}\nCodex — ${readiness.ready ? "Ready" : "Not Ready"}\n${readiness.message}\n检查于 ${new Date(Number(data.readinessAt)).toLocaleTimeString()}`
       : "Codex — 未检查；请选择 Project",
   );
-  field("run", binding?.runId ? `${binding.runId}\n${binding.runStatus ?? "unknown"}` : "尚无 Run");
+  field(
+    "run",
+    binding?.runId
+      ? last?.delivery === "confirmed"
+        ? "Result returned"
+        : binding.phase === "ready_to_deliver"
+          ? "Result ready for review"
+          : binding.phase === "dispatching"
+            ? "Plan sent to Codex"
+            : binding.phase === "running"
+              ? "Codex working"
+              : String(binding.runStatus ?? "Needs attention")
+      : "尚无 Run",
+  );
+  field("run-detail", binding?.runId ? `${binding.runId}\n${binding.runStatus}` : "尚无 Run");
   field("agent", `Codex — ${binding?.agentStatus ?? "idle"}`);
   field(
     "last-result",
@@ -151,16 +219,22 @@ async function showStatus(type = "status") {
   );
   field(
     "grant",
-    data.paired
-      ? `本地授权到期：${new Date(Number(data.expiresAt)).toLocaleString()}`
-      : "未授权 / 已过期 / 已撤销",
+    data.transport === "native"
+      ? "本机持久授权；每个 Project 需显式 Bind。可在本机 ve setup --revoke 撤销。"
+      : data.paired
+        ? `本地授权到期：${new Date(Number(data.expiresAt)).toLocaleString()}`
+        : "未授权 / 已过期 / 已撤销",
   );
-  status.textContent = binding
-    ? `${binding.message}\n本次执行：${binding.count}/${binding.maxRuns}`
-    : String(connectivity?.message ?? "请先配对。");
+  status.textContent =
+    data.currentBound && binding
+      ? `${binding.message}\n本次执行：${binding.count}/${binding.maxRuns}`
+      : connectivity?.status === "connected"
+        ? "选择 Project → Bind → 正常聊天。"
+        : "请先完成 ve setup，并在该项目运行 ve init。";
 }
 act(async () => {
-  await showStatus();
+  await showStatus("snapshot");
+  await refresh();
 });
 watchPopup(() => {
   if (!busy && !invitation) act(() => showStatus("snapshot"), true);

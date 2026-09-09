@@ -105,6 +105,7 @@ export async function sendToConversation(
   text: string,
   marker: string,
   stillBound: () => boolean,
+  onDelivered?: (message: Element) => void,
 ): Promise<"sent" | "deferred"> {
   const valid = () => stillBound() && conversationUrl(currentUrl()) === conversation;
   if (!valid() || !canCompose(document)) return "deferred";
@@ -200,6 +201,7 @@ export async function sendToConversation(
           if (!valid()) return finish("会话或绑定已变化，发送未确认。");
           if (interrupted) return finish("检测到发送期间的用户输入，已停止发送确认。");
           let matched = 0;
+          let delivered: Element | undefined;
           for (const echo of echoes) {
             if (
               !echo.isConnected ||
@@ -213,11 +215,20 @@ export async function sendToConversation(
             if (!intact(value))
               return finish("对应 user message 的 marker 或内容不完整，发送未确认。");
             matched++;
+            delivered = echo;
           }
           if (matched > 1) return finish("出现重复 marker 消息，发送未确认。");
           // The page may already have submitted, replaced the composer and started a reply.
           // A fresh, intact user echo is the proof. Never click again in that case.
-          if (matched === 1) return finish();
+          if (matched === 1) {
+            finish();
+            try {
+              if (delivered) onDelivered?.(delivered);
+            } catch {
+              /* Rendering never changes delivery proof. */
+            }
+            return;
+          }
           if (clicked) return;
           const current = composer(document);
           if (!current || !composerAvailable(document, current))

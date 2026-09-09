@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
+import type { NativeTransport } from "../src/native-client.js";
 import { BridgeController, type ExtensionHost, type SessionState } from "../src/controller.js";
 import { EXTENSION_ORIGIN, frameHandoff, handoffTemplate } from "../src/contracts.js";
 import type { ProjectId } from "@veyraoss/protocol";
@@ -7,7 +8,7 @@ import type { ProjectId } from "@veyraoss/protocol";
 const projectId = "62bf60b0-5646-4195-9f47-a4ea70140859" as ProjectId;
 const conversation = `https://chatgpt.com/c/${randomUUID()}`;
 const popup = { url: `${EXTENSION_ORIGIN}/popup.html` };
-function fixture() {
+function fixture(native?: NativeTransport) {
   let state: SessionState = {
     pairing: {
       version: 1,
@@ -84,7 +85,7 @@ function fixture() {
       };
     return new Response(JSON.stringify({ ok: true, data }), { status: 200 });
   });
-  const controller = new BridgeController(host, request);
+  const controller = new BridgeController(host, request, native);
   const bind = async (maxRuns = 2) =>
     controller.handle({ type: "bind", projectId, maxRuns }, popup);
   const message = (
@@ -192,6 +193,27 @@ describe("session-local extension coordination", () => {
     });
     await f.controller.handle({ type: "unpair" }, popup);
     expect(f.state().pairing).toBeUndefined();
+  });
+  it("retains a disconnected HTTP fallback after revocation instead of implicitly using native authorization", async () => {
+    const native = {
+      identity: vi.fn(async () => randomUUID()),
+      call: vi.fn(),
+      authorize: vi.fn(),
+      revoke: vi.fn(),
+    };
+    const f = fixture(native);
+    await f.bind();
+    f.request.mockImplementationOnce(
+      async () => new Response(JSON.stringify({ ok: true, data: { revoked: true } })),
+    );
+    // Prevent a run cancellation request; this binding has not dispatched.
+    await f.controller.handle({ type: "unpair" }, popup);
+    expect(await f.controller.handle({ type: "status" }, popup)).toMatchObject({
+      transport: "http",
+      paired: false,
+      enabled: false,
+    });
+    expect(native.call).not.toHaveBeenCalled();
   });
   it("requires explicit popup binding and rejects another tab, epoch, Project or stale lease", async () => {
     const f = fixture();

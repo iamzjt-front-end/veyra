@@ -33,18 +33,9 @@ export class LocalClient {
       this.request,
       this.pairing.token,
     );
-    const checked =
-      method === "runs.get" && object(data)
-        ? (({ execution: _execution, ...run }) => run)(data)
-        : data;
-    if (
-      !["projects.get", "results.get"].includes(method) &&
-      !isDaemonResponse({ version: 1, ok: true, result: checked }, method)
-    )
-      throw new Error("Daemon 返回不符合协议的结果。");
-    return data;
+    return validateReply(method, data);
   }
-  async revoke() {
+  async revoke(_projectId?: string) {
     const data = await localRequest(
       this.pairing.url,
       "/grant/revoke",
@@ -104,4 +95,17 @@ async function localRequest(
         : "本机 daemon 请求失败。",
     );
   return data.data;
+}
+
+export function validateReply(method: DaemonMethod, data: unknown): unknown {
+  const checked =
+    method === "runs.get" && object(data)
+      ? (({ execution: _execution, ...run }) => run)(data)
+      : data;
+  if (
+    !["projects.get", "results.get"].includes(method) &&
+    !isDaemonResponse({ version: 1, ok: true, result: checked }, method)
+  )
+    throw new Error("Daemon 返回不符合协议的结果。");
+  return data;
 }

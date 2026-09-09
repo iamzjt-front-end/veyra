@@ -100,6 +100,8 @@ it("wakes for new turns and an emptied composer, including input while a defer r
   );
   await vi.advanceTimersByTimeAsync(1000);
   expect(armed).toHaveBeenCalledWith({ ok: true });
+  expect(call.mock.calls.filter(([message]) => message.type === "hello")).toHaveLength(1);
+  call.mockClear();
   await vi.advanceTimersByTimeAsync(60000);
   expect(call).not.toHaveBeenCalled();
   const article = document.createElement("article");

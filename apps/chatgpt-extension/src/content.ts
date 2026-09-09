@@ -1,3 +1,4 @@
+import { collapseHandoff, collapseMachine } from "./collapse.js";
 import { conversationUrl, object, parseHandoff, type Binding } from "./contracts.js";
 import { canCompose, sendToConversation } from "./page.js";
 import { RunBackoff, watchConversation } from "./watch.js";
@@ -59,6 +60,11 @@ const runs = new RunBackoff(async () => {
 });
 chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || !object(message)) return false;
+  if (message.type === "restore") {
+    void restore();
+    reply({ ok: true });
+    return false;
+  }
   if (message.type === "prepare") {
     reply({ epoch, conversation: conversationUrl(location.href) });
     return false;
@@ -72,9 +78,13 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     message.type !== "arm" ||
     !object(message.binding) ||
     message.binding.epoch !== epoch ||
-    typeof message.text !== "string"
+    (typeof message.text !== "string" && message.restore !== true)
   )
     return false;
+  activate(message, reply);
+  return true;
+});
+function activate(message: Record<string, unknown>, reply: (value: unknown) => void) {
   disarm();
   binding = message.binding as unknown as Binding;
   const selected = binding;
@@ -96,13 +106,18 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     },
     () => bound(selected.id),
   );
-  void sendToConversation(
-    document,
-    () => location.href,
-    selected.conversation,
-    message.text,
-    selected.id,
-    () => bound(selected.id),
+  void (
+    message.restore === true
+      ? Promise.resolve("sent" as const)
+      : sendToConversation(
+          document,
+          () => location.href,
+          selected.conversation,
+          message.text as string,
+          selected.id,
+          () => bound(selected.id),
+          (node) => collapseMachine(node, "Project bound"),
+        )
   )
     .then((result) => {
       if (result !== "sent" && binding?.id === selected.id) disarm();
@@ -114,10 +129,10 @@ chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
     })
     .finally(() => {
       busy = false;
+      if (binding?.phase === "running") runs.start();
       void work();
     });
-  return true;
-});
+}
 async function work() {
   if (busy || !binding) return;
   if (!bound(binding.id)) {
@@ -133,7 +148,14 @@ async function work() {
       candidate = undefined;
       parseHandoff(next.source, current.projectId, current.nextRunId);
       if (!accept(await send("dispatch", { source: next.source }), current.id)) return;
-      if (binding?.phase === "running") runs.start();
+      if (binding?.phase === "running") {
+        runs.start();
+        try {
+          collapseHandoff(document, next.id, next.source);
+        } catch {
+          /* Cosmetic only. */
+        }
+      }
     } else if (current.phase === "ready_to_deliver" && canCompose(document)) {
       const claimed = await send("claim");
       if (
@@ -150,6 +172,7 @@ async function work() {
         claimed.delivery.text,
         claimed.delivery.id,
         () => bound(current.id),
+        (node) => collapseMachine(node, "Result returned"),
       );
       accept(
         await send(result === "sent" ? "ack" : "defer", { deliveryId: claimed.delivery.id }),
@@ -171,4 +194,24 @@ async function work() {
 window.addEventListener("pagehide", disarm);
 window.addEventListener("popstate", () => {
   if (binding && !bound(binding.id)) disarm();
+  void restore();
 });
+
+async function restore() {
+  if (binding || busy || !conversationUrl(location.href)) return;
+  try {
+    const response = await send("hello");
+    if (
+      !binding &&
+      object(response) &&
+      response.restored === true &&
+      object(response.binding) &&
+      response.binding.epoch === epoch &&
+      response.binding.conversation === conversationUrl(location.href)
+    )
+      activate({ binding: response.binding, restore: true }, () => {});
+  } catch {
+    /* Setup/explicit Bind may not have happened. Idle remains event-only. */
+  }
+}
+void restore();

@@ -1,11 +1,13 @@
 /// <reference types="chrome" />
+import { initializeNativeProject } from "../../cli/src/project-init.js";
+import { setupNative } from "../../cli/src/native-installation.js";
 import { browserRegressions } from "./browser-regressions.js";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright";
-import { startDaemon } from "@veyraoss/daemon";
+import { startDaemon, stopDaemon } from "@veyraoss/daemon";
 import { initializeProject, ProjectRegistry } from "@veyraoss/project";
 import { parseConfig } from "@veyraoss/config";
 import { EXTENSION_ORIGIN, parsePairing } from "../src/contracts.js";
@@ -18,8 +20,11 @@ document.querySelector('button').onclick=()=>{
  const text=editor.innerText.replace(/\u00a0/g,' '); editor.textContent='';
  const user=document.createElement('div');user.dataset.messageAuthorRole='user';user.textContent=text;main.append(user);
  const match=[...text.matchAll(/VEYRA_HANDOFF_BEGIN\\n([\\s\\S]*?)\\nVEYRA_HANDOFF_END/g)].at(-1);
- if(!match)return;
- const handoff=JSON.parse(match[1]);handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';handoff.requestedVerification=[{id:'verify',kind:'test'}];
+ if(match)sessionStorage.setItem('fixture-plan',match[1]);
+ if(sessionStorage.getItem('pauseFixture')==='yes')return;
+ if(!match && text!=='Implement the fixture feature')return;
+ const source=match?match[1]:sessionStorage.getItem('fixture-plan');if(!source)return;
+ const handoff=JSON.parse(source);handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';handoff.requestedVerification=[{id:'verify',kind:'test'}];
  const stop=document.createElement('button');stop.dataset.testid='stop-button';document.body.append(stop);
  const article=document.createElement('article'), assistant=document.createElement('div');assistant.dataset.messageAuthorRole='assistant';assistant.dataset.messageId=crypto.randomUUID();
  const pre=document.createElement('pre'), code=document.createElement('code');code.className='language-veyra-handoff';code.textContent='{';pre.append(code);assistant.append(pre);article.append(assistant);main.append(article);
@@ -27,34 +32,45 @@ document.querySelector('button').onclick=()=>{
 };
 </script></body></html>`;
 
+const native = process.argv.includes("--native");
 const root = await mkdtemp(join(tmpdir(), "veyra-extension-browser-"));
 const project = await initializeProject(root);
 const registryRoot = join(root, "registry");
-await new ProjectRegistry({ root: registryRoot }).register(root);
-let executed = 0;
-const env = { ...process.env };
-delete env.OPENAI_API_KEY;
-const daemon = await startDaemon({
-  registryRoot,
-  env,
-  http: {
-    port: 0,
-    origin: EXTENSION_ORIGIN,
-    projectIds: [project.id],
-    inspectProject: async () => ({
-      ready: true,
-      message: "Fixture executor; not native authentication proof",
-      checks: [{ id: "verify" }],
+if (native) {
+  const executable = join(root, "codex");
+  await writeFile(
+    executable,
+    `#!/usr/bin/env node
+const fs=require('node:fs');const {randomUUID}=require('node:crypto');
+if(process.env.OPENAI_API_KEY)process.exit(2);
+if(process.argv[2]==='--version')console.log('codex-cli 1.2.3');
+else if(process.argv[2]==='login')console.log('Logged in using ChatGPT');
+else {
+ fs.readFileSync(0,'utf8');
+ const count=fs.existsSync('executions.txt')?Number(fs.readFileSync('executions.txt','utf8'))+1:1;
+ fs.writeFileSync('executions.txt',String(count));fs.writeFileSync('answer.txt',count===1?'WRONG':'42');
+ console.log(JSON.stringify({type:'thread.started',thread_id:randomUUID()}));
+ console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify({status:'success',summary:'Fixture native executor',changedFiles:['answer.txt'],commandsRun:[]})}}));
+ console.log(JSON.stringify({type:'turn.completed'}));
+}
+`,
+    { mode: 0o700 },
+  );
+  await writeFile(
+    join(root, "veyra.yaml"),
+    JSON.stringify({
+      version: 1,
+      agents: { executor: { provider: "codex" } },
+      workflow: { use: "./workflow.yaml" },
     }),
-  },
-  resolveExecution: () => ({
-    config: parseConfig({ version: 1, agents: {}, workflow: { use: "fixture" } }),
-    workflow: {
+  );
+  await writeFile(
+    join(root, "workflow.yaml"),
+    JSON.stringify({
       version: 1,
       name: "fixture",
-      start: "execute",
+      start: "verify",
       steps: {
-        execute: { type: "agent", agent: "executor", next: "verify" },
         verify: {
           type: "command",
           run: [
@@ -62,31 +78,79 @@ const daemon = await startDaemon({
           ],
         },
       },
-    },
-    agents: {
-      executor: {
-        id: "fixture",
-        provider: "fake",
-        async run() {
-          executed++;
-          await writeFile(join(root, "answer.txt"), executed === 1 ? "WRONG" : "42");
-          return {
-            status: "success",
-            summary: "Fixture implementation",
-            data: { changedFiles: ["answer.txt"] },
-          };
-        },
+    }),
+  );
+}
+await new ProjectRegistry({ root: registryRoot }).register(root);
+let executed = 0;
+const env: NodeJS.ProcessEnv = {
+  ...process.env,
+  ...(native ? { PATH: `${root}:${process.env.PATH ?? ""}` } : {}),
+};
+delete env.OPENAI_API_KEY;
+if (native) await initializeNativeProject(root, { registryRoot, env });
+const daemon = native
+  ? undefined
+  : await startDaemon({
+      registryRoot,
+      env,
+      http: {
+        port: 0,
+        origin: EXTENSION_ORIGIN,
+        projectIds: [project.id],
+        inspectProject: async () => ({
+          ready: true,
+          message: "Fixture executor; not native authentication proof",
+          checks: [{ id: "verify" }],
+        }),
       },
-    },
-  }),
-});
+      resolveExecution: () => ({
+        config: parseConfig({ version: 1, agents: {}, workflow: { use: "fixture" } }),
+        workflow: {
+          version: 1,
+          name: "fixture",
+          start: "execute",
+          steps: {
+            execute: { type: "agent", agent: "executor", next: "verify" },
+            verify: {
+              type: "command",
+              run: [
+                `${process.execPath} -e 'if(require("node:fs").readFileSync("answer.txt","utf8")!=="42")process.exit(1)'`,
+              ],
+            },
+          },
+        },
+        agents: {
+          executor: {
+            id: "fixture",
+            provider: "fake",
+            async run() {
+              executed++;
+              await writeFile(join(root, "answer.txt"), executed === 1 ? "WRONG" : "42");
+              return {
+                status: "success",
+                summary: "Fixture implementation",
+                data: { changedFiles: ["answer.txt"] },
+              };
+            },
+          },
+        },
+      }),
+    });
 let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | undefined;
 try {
   const extension = resolve("dist");
+  if (native)
+    await setupNative({
+      registryRoot,
+      manifestDirs: [join(root, "browser", "NativeMessagingHosts")],
+      env,
+    });
   context = await chromium.launchPersistentContext(join(root, "browser"), {
     channel: "chromium",
     executablePath: process.env.CHROMIUM_EXECUTABLE,
     headless: true,
+    env,
     args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
   });
   await context.route("**/*", (route) => {
@@ -108,22 +172,52 @@ try {
   await page.goto(conversation);
   const popup = await context.newPage();
   await popup.goto(`${EXTENSION_ORIGIN}/popup.html`);
-  if (!daemon.http) throw new Error("Missing transport");
-  const invitation = JSON.parse(await readFile(daemon.http.pairingFile, "utf8"));
-  await popup.locator("#pairing").setInputFiles(daemon.http.pairingFile);
-  await popup.locator("#pair").click();
+  let invitation: { code: string } | undefined;
+  if (!native) {
+    if (!daemon?.http) throw new Error("Missing HTTP transport");
+    invitation = JSON.parse(await readFile(daemon.http.pairingFile, "utf8"));
+    await popup.locator("#diagnostics").evaluate((node) => {
+      (node as HTMLDetailsElement).open = true;
+    });
+    await popup.locator("#pairing").evaluate((node) => {
+      const details = node.closest("details");
+      if (details) details.open = true;
+    });
+    await popup.locator("#pairing").setInputFiles(daemon.http.pairingFile);
+    await popup.locator("#pair").click();
+  }
   await popup
     .waitForFunction(
-      () => document.querySelector("#status")?.textContent?.includes("已连接"),
+      () => (document.querySelector<HTMLSelectElement>("#project")?.options.length ?? 0) > 1,
       undefined,
-      { timeout: 10000 },
+      { timeout: 15000 },
     )
     .catch(async () => {
-      throw new Error(`Pairing failed: ${await popup.locator("#status").textContent()}`);
+      throw new Error(`Connection failed: ${await popup.locator("#error").textContent()}`);
     });
+  await popup.locator("#diagnostics").evaluate((node) => {
+    (node as HTMLDetailsElement).open = true;
+  });
+  if (native) {
+    await popup.locator("#diagnostics details").evaluate((node) => {
+      (node as HTMLDetailsElement).open = true;
+    });
+    await popup.waitForFunction(
+      () => !document.querySelector<HTMLButtonElement>("#use-native")?.disabled,
+    );
+    // Exercise migration from an explicitly selected HTTP fallback; no manual project refresh.
+    await worker.evaluate(() => chrome.storage.session.set({ state: { transport: "http" } }));
+    await popup.locator("#project").evaluate((node) => node.replaceChildren());
+    await popup.locator("#use-native").click();
+    await popup.waitForFunction(
+      (id) => !!document.querySelector(`#project option[value="${id}"]`),
+      project.id,
+    );
+  }
   await popup.locator("#project").selectOption(project.id);
   await popup.locator("#limit").selectOption("2");
   await page.bringToFront();
+  if (native) await page.evaluate(() => sessionStorage.setItem("pauseFixture", "yes"));
   // The extension's own popup controls are exercised while the conversation remains active.
   await popup.waitForFunction(() => {
     const bind = document.querySelector<HTMLButtonElement>("#bind");
@@ -131,16 +225,61 @@ try {
     bind.click();
     return true;
   });
+  if (native) {
+    await popup.waitForFunction(() =>
+      document.querySelector("#conversation")?.textContent?.includes("已明确绑定"),
+    );
+    let armed: { binding?: { epoch: string; bootstrapped?: boolean; phase: string } } = {};
+    for (let attempt = 0; attempt < 100; attempt++) {
+      armed =
+        ((await worker.evaluate(
+          async () => (await chrome.storage.session.get("state")).state,
+        )) as typeof armed) ?? {};
+      if (armed.binding?.bootstrapped && armed.binding.phase === "armed") break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.equal(armed.binding?.bootstrapped, true);
+    const epoch = armed.binding?.epoch;
+    await page.reload();
+    let recovered = false;
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const state = (await worker.evaluate(
+        async () => (await chrome.storage.session.get("state")).state,
+      )) as typeof armed;
+      if (
+        state?.binding?.bootstrapped &&
+        state.binding.epoch !== epoch &&
+        state.binding.phase === "armed"
+      ) {
+        recovered = true;
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.equal(recovered, true, "Armed same-conversation binding restores without another Bind");
+    assert.equal(
+      await page.locator('[data-message-author-role="user"]').count(),
+      0,
+      "No bootstrap replay on refresh",
+    );
+    // Only the simulated ChatGPT app keeps its own fixture plan, as a real planner would.
+    await page.evaluate(() => sessionStorage.removeItem("pauseFixture"));
+    await page.locator("#prompt-textarea").fill("Implement the fixture feature");
+    await page.locator('[data-testid="send-button"]').click();
+  }
   const deadline = Date.now() + 45000;
   let state: { binding?: { phase: string; message: string; count: number } } = {};
   while (Date.now() < deadline) {
-    state = (await worker.evaluate(
-      async () => (await chrome.storage.session.get("state")).state,
-    )) as typeof state;
+    state =
+      ((await worker.evaluate(
+        async () => (await chrome.storage.session.get("state")).state,
+      )) as typeof state) ?? {};
     if (state.binding?.phase === "stopped") break;
     if (state.binding?.phase === "paused") throw new Error(state.binding.message);
     if (!state.binding && Date.now() > deadline - 35000)
-      throw new Error(`Binding failed: ${await popup.locator("#status").textContent()}`);
+      throw new Error(
+        `Binding failed: ${await popup.locator("#error").textContent()} ${await popup.locator("#status").textContent()}`,
+      );
     if (pageErrors.length) throw new Error(`Fixture page error: ${pageErrors.join("; ")}`);
     await new Promise((done) => setTimeout(done, 250));
   }
@@ -160,6 +299,7 @@ try {
     }),
   );
   assert.equal(state.binding?.count, 2);
+  if (native) executed = Number(await readFile(join(root, "executions.txt"), "utf8"));
   assert.equal(executed, 2);
   assert.equal(await readFile(join(root, "answer.txt"), "utf8"), "42");
   const messages = await page.locator('[data-message-author-role="user"]').allTextContents();
@@ -168,65 +308,100 @@ try {
   assert.match(messages[2] ?? "", /"status":"completed"/);
   assert.match(messages[1] ?? "", /"exitCode":1/);
   assert.match(messages[2] ?? "", /"exitCode":0/);
-  const pairing = parsePairing(
-    await worker.evaluate(
-      async () =>
-        ((await chrome.storage.session.get("state")).state as { pairing?: unknown }).pairing,
-    ),
-  );
+  const pairing = native
+    ? undefined
+    : parsePairing(
+        await worker.evaluate(
+          async () =>
+            ((await chrome.storage.session.get("state")).state as { pairing?: unknown }).pairing,
+        ),
+      );
   await popup.waitForFunction(() =>
     document.querySelector("#last-result")?.textContent?.includes("confirmed"),
   );
-  assert.match(await popup.locator("#bound-project").innerText(), new RegExp(project.id));
+  assert.match(await popup.locator("#project-detail").innerText(), new RegExp(project.id));
   assert.match(await popup.locator("#native").innerText(), /Ready/);
+  assert.equal(
+    await page.locator('[data-veyra-status="true"]').count(),
+    native ? 4 : 5,
+    "Current machine handoffs/results fold reversibly (native binding preceded refresh)",
+  );
+  if (native) {
+    // Finished budget stays stopped across refresh; no duplicate binding/dispatch is sent.
+    await page.reload();
+    await popup.waitForFunction(() =>
+      document.querySelector("#bound-project")?.textContent?.includes("veyra-extension-browser"),
+    );
+    assert.equal(executed, 2);
+    assert.equal(await page.locator('[data-message-author-role="user"]').count(), 0);
+    await popup.locator("#unbind").click();
+    const stored = await worker.evaluate(
+      async () => (await chrome.storage.local.get("bindings")).bindings,
+    );
+    assert.deepEqual(stored, {});
+  }
   await page.goto("https://chatgpt.com/c/b7a2b48e-eeb6-4e85-af8f-1bd2d44a28ea");
   await popup.waitForFunction(() =>
     document.querySelector("#bound-project")?.textContent?.includes("未绑定"),
   );
-  await popup.locator("#unpair").click();
-  await popup.waitForFunction(() =>
-    document.querySelector("#grant")?.textContent?.includes("已撤销"),
-  );
-  assert.equal(
-    (
-      await fetch(`${daemon.http.url}/rpc`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${pairing.token}` },
-        body: JSON.stringify({ version: 1, method: "projects.list" }),
-      })
-    ).status,
-    401,
-  );
-  assert.equal(executed, 2, "Navigation and revocation must not start another run");
-  assert.equal(
-    await worker.evaluate(
-      async () =>
-        !!((await chrome.storage.session.get("state")).state as { pairing?: unknown }).pairing,
-    ),
-    false,
-  );
-  assert.equal(
-    messages.some(
-      (message) => message.includes(pairing.token) || message.includes(invitation.code),
-    ),
-    false,
-  );
+  if (!native) {
+    assert.ok(daemon?.http);
+    assert.ok(pairing);
+    assert.ok(invitation);
+    await popup.locator("#unpair").click();
+    await popup.waitForFunction(() =>
+      document.querySelector("#grant")?.textContent?.includes("已撤销"),
+    );
+    assert.equal(
+      (
+        await fetch(`${daemon.http.url}/rpc`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${pairing.token}` },
+          body: JSON.stringify({ version: 1, method: "projects.list" }),
+        })
+      ).status,
+      401,
+    );
+    assert.equal(executed, 2, "Navigation and revocation must not start another run");
+    assert.equal(
+      await worker.evaluate(
+        async () =>
+          !!((await chrome.storage.session.get("state")).state as { pairing?: unknown }).pairing,
+      ),
+      false,
+    );
+    assert.equal(
+      messages.some(
+        (message) => message.includes(pairing.token) || message.includes(invitation.code),
+      ),
+      false,
+    );
+  }
   const regressions = await browserRegressions(context);
   console.log(
     JSON.stringify({
       regressions,
       proof: "offline Chromium extension fixture; simulated ChatGPT and executor",
+      transport: native
+        ? "chrome.runtime.connectNative → real stdio host → lazy coordinator → native adapter fixture"
+        : "loopback HTTP",
       browser: context.browser()?.version(),
       executions: executed,
       sameConversationReturns: 2,
+      ...(native
+        ? { armedRefreshRestored: true, bootstrapReplayed: false, lazyCoordinator: true }
+        : {}),
       verifier: ["failed", "passed"],
       apiKeyRequired: false,
       publicNetworkUsed: false,
-      revocationVerified: true,
+      ...(native
+        ? { nativeAuthorizationVerified: true, unbindVerified: true }
+        : { revocationVerified: true }),
     }),
   );
 } finally {
   await context?.close();
-  await daemon.stop();
+  if (daemon) await daemon.stop();
+  else await stopDaemon({ registryRoot });
   await rm(root, { recursive: true, force: true });
 }

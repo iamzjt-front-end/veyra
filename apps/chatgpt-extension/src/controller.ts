@@ -1,4 +1,5 @@
 import { isDaemonRunView, isProjectExecutionResult, isProjectId } from "@veyraoss/protocol";
+import type { NativeTransport } from "./native-client.js";
 import { exchangePairing, LocalClient } from "./client.js";
 import {
   EXTENSION_ORIGIN,
@@ -16,7 +17,9 @@ import {
 
 export interface SessionState {
   pairing?: Pairing;
+  transport?: "http" | "native";
   binding?: Binding;
+  bindings?: Record<string, Binding>;
 }
 export interface Sender {
   url?: string;
@@ -33,19 +36,24 @@ export interface ExtensionHost {
 /** Session-local bridge coordination only; all execution stays in the daemon. */
 export class BridgeController {
   private connectivity = { status: "disconnected", message: "尚未检测 Daemon。" };
+  private actionEpoch = 0;
   private readiness?: { projectId: string; at: number; view: ProjectView };
   constructor(
     private readonly host: ExtensionHost,
     private readonly request: typeof fetch = (...args) => globalThis.fetch(...args),
+    private readonly native?: NativeTransport,
   ) {}
   async handle(value: unknown, sender: Sender): Promise<unknown> {
     if (!object(value) || typeof value.type !== "string") throw new Error("无效扩展消息。");
-    const state = await this.host.read();
     const popup = sender.url === `${EXTENSION_ORIGIN}/popup.html`;
-    const client = () => {
-      if (!state.pairing) throw new Error("请先导入本机 daemon 配对文件。");
-      return new LocalClient(parsePairing(state.pairing), this.request);
-    };
+    if (popup && ["disable", "unbind"].includes(value.type)) this.actionEpoch++;
+    const actionEpoch = this.actionEpoch;
+    const state = await this.host.read();
+    const client = () => this.client(state);
+    if (!popup && value.type === "hello")
+      return actionEpoch === this.actionEpoch
+        ? this.restore(state, value, sender)
+        : { restored: false };
     if (popup) {
       if (value.type === "status" || value.type === "snapshot")
         return this.status(state, value.projectId, value.type === "status");
@@ -59,13 +67,86 @@ export class BridgeController {
           throw new Error("请先停止当前绑定。");
         const pairing = await exchangePairing(parseInvitation(value.pairing), this.request);
         this.readiness = undefined;
-        await this.host.save({ pairing });
+        await this.host.save({ pairing, transport: "http", bindings: state.bindings });
         return { paired: true };
+      }
+      if (value.type === "native") {
+        if (state.binding && !["paused", "stopped"].includes(state.binding.phase))
+          throw new Error("请先 Pause 当前绑定，再切换连接方式。");
+        state.transport = "native";
+        state.pairing = undefined;
+        await this.host.save(state);
+        return this.status(state, undefined);
+      }
+      if (value.type === "resume") {
+        const tab = await this.host.activeTab();
+        const selected = state.bindings?.[conversationUrl(tab.url ?? "") ?? ""] ?? state.binding;
+        if (!selected || selected.conversation !== conversationUrl(tab.url ?? ""))
+          throw new Error("当前对话没有可恢复的绑定。");
+        if (!selected.pausedByUser)
+          throw new Error("请先检查不确定发送或运行的证据，再显式 Unbind / Bind。");
+        selected.pausedByUser = false;
+        selected.phase =
+          selected.resumePhase === "ready_to_deliver"
+            ? "running"
+            : (selected.resumePhase ?? "armed");
+        if (actionEpoch !== this.actionEpoch) throw new Error("恢复已取消。");
+        state.binding = selected;
+        await this.host.save(state);
+        const prepared = await this.host.send(tab.id as number, { type: "prepare" });
+        if (actionEpoch !== this.actionEpoch) throw new Error("恢复已取消。");
+        const result = await this.restore(state, prepared, { tabId: tab.id, url: tab.url });
+        if (actionEpoch === this.actionEpoch && result.restored && "binding" in result)
+          await this.host.send(tab.id as number, {
+            type: "arm",
+            binding: result.binding,
+            restore: true,
+          });
+        return result;
+      }
+      if (value.type === "unbind") {
+        const tab = await this.host.activeTab();
+        const conversation = conversationUrl(tab.url ?? "");
+        const selected =
+          state.bindings?.[conversation ?? ""] ??
+          (state.binding?.conversation === conversation ? state.binding : undefined);
+        if (selected) {
+          if (state.binding?.id === selected.id) state.binding = undefined;
+          delete state.bindings?.[selected.conversation];
+          await this.host.save(state);
+          await this.host.send(selected.tabId, { type: "disarm" }).catch(() => {});
+          if (
+            selected.runId &&
+            !["completed", "failed", "cancelled"].includes(selected.runStatus ?? "")
+          ) {
+            try {
+              await client().call("runs.cancel", {
+                projectId: selected.projectId,
+                runId: selected.runId,
+              });
+            } catch {
+              throw new Error(
+                `已 Unbind；取消未确认，请在 Project 证据中检查 Run ${selected.runId}。`,
+              );
+            }
+          }
+        }
+        return { unbound: true };
       }
       if (value.type === "projects") return client().call("projects.list", undefined);
       if (["stop", "disable", "unpair"].includes(value.type)) {
         const binding = state.binding;
+        if (binding && value.type !== "unpair") {
+          const tab = await this.host.activeTab();
+          if (tab.id !== binding.tabId || conversationUrl(tab.url ?? "") !== binding.conversation)
+            throw new Error("请在已绑定的当前对话中操作。");
+        }
         if (binding) {
+          binding.pausedByUser =
+            value.type === "disable" &&
+            binding.bootstrapped === true &&
+            !["dispatching", "delivering", "paused", "stopped"].includes(binding.phase);
+          binding.resumePhase = binding.pausedByUser ? binding.phase : undefined;
           binding.phase = "stopped";
           binding.delivery = undefined;
           if (binding.lastResult?.delivery === "pending") binding.lastResult.delivery = "stopped";
@@ -92,14 +173,24 @@ export class BridgeController {
         }
         if (value.type === "unpair") {
           // Keep the grant locally on an ambiguous response so the user can retry or stop the daemon.
-          await client().revoke();
-          await this.host.save({ binding });
+          await client().revoke(state.binding?.projectId);
+          await this.host.save({
+            binding,
+            transport: state.pairing ? "http" : state.transport,
+            bindings: state.bindings,
+          });
           this.readiness = undefined;
         }
         return { binding };
       }
       if (value.type === "bind") {
-        if (state.binding && !["paused", "stopped"].includes(state.binding.phase))
+        const targetTab = await this.host.activeTab();
+        const targetConversation = conversationUrl(targetTab.url ?? "");
+        if (
+          state.binding &&
+          state.binding.conversation === targetConversation &&
+          !["paused", "stopped"].includes(state.binding.phase)
+        )
           throw new Error("请先停止当前绑定。");
         if (state.binding?.runId) {
           this.observeRun(
@@ -132,6 +223,9 @@ export class BridgeController {
           typeof prepared.epoch !== "string"
         )
           throw new Error("请刷新 ChatGPT 页面后重试。");
+        if (state.binding && state.binding.conversation !== targetConversation)
+          await this.host.send(state.binding.tabId, { type: "disarm" }).catch(() => {});
+        if (!state.pairing) await this.native?.authorize(value.projectId);
         const view = (await client().call("projects.get", {
           projectId: value.projectId,
         })) as ProjectView;
@@ -150,6 +244,7 @@ export class BridgeController {
         )
           throw new Error("Project 返回身份或路径无效。");
         this.readiness = { projectId: value.projectId, at: Date.now(), view };
+        if (actionEpoch !== this.actionEpoch) throw new Error("绑定已取消。");
         const binding: Binding = {
           id: crypto.randomUUID(),
           tabId: tab.id,
@@ -163,9 +258,15 @@ export class BridgeController {
           maxRuns: Number(value.maxRuns),
           phase: "armed",
           message: "等待新的显式 handoff。",
+          ...(!state.pairing && this.native
+            ? { installationId: await this.native.identity() }
+            : {}),
+          attached: true,
         };
+        if (actionEpoch !== this.actionEpoch) throw new Error("绑定已取消。");
         state.binding = binding;
         await this.host.save(state);
+        if (actionEpoch !== this.actionEpoch) throw new Error("绑定已取消。");
         try {
           const response = await this.host.send(tab.id, {
             type: "arm",
@@ -179,11 +280,17 @@ export class BridgeController {
                 : "输入框必须为空且 ChatGPT 已完成生成；绑定消息未确认发送。",
             );
         } catch (error) {
+          const latest = (await this.host.read()).binding;
+          if (actionEpoch !== this.actionEpoch || latest?.id !== binding.id) throw error;
           binding.phase = "paused";
           binding.message = `绑定消息发送未确认：${error instanceof Error ? error.message : "检查当前会话后重新绑定。"}`;
           await this.host.save(state);
           throw error;
         }
+        if (actionEpoch !== this.actionEpoch || (await this.host.read()).binding?.id !== binding.id)
+          throw new Error("绑定已取消；检查当前对话，不会重发。");
+        binding.bootstrapped = true;
+        await this.host.save(state);
         return { binding };
       }
       throw new Error("未知扩展操作。");
@@ -195,12 +302,16 @@ export class BridgeController {
       sender.tabId !== binding.tabId ||
       conversationUrl(sender.url ?? "") !== binding.conversation ||
       value.epoch !== binding.epoch ||
-      value.bindingId !== binding.id
+      value.bindingId !== binding.id ||
+      binding.attached === false
     )
       throw new Error("当前页面没有绑定权限。");
+    if (!state.pairing && this.native && binding.installationId !== (await this.native.identity()))
+      throw new Error("本机授权已变化；请重新绑定。");
     const tab = await this.host.tab(binding.tabId);
     if (conversationUrl(tab.url ?? "") !== binding.conversation)
       throw new Error("会话已切换；不会派发或回传。");
+    if (actionEpoch !== this.actionEpoch) throw new Error("页面操作已暂停或解绑。");
     if (["paused", "stopped"].includes(binding.phase)) return { binding };
     if (value.type === "error") {
       binding.phase = "paused";
@@ -221,6 +332,7 @@ export class BridgeController {
       binding.message = "正在派发原生执行器。";
       // Persist the intent before crossing the network; ambiguous responses are never replayed.
       await this.host.save(state);
+      if (actionEpoch !== this.actionEpoch) throw new Error("派发已取消。");
       try {
         const run = await client().call("runs.dispatch", { projectId: binding.projectId, handoff });
         this.observeRun(binding, run);
@@ -264,6 +376,7 @@ export class BridgeController {
       binding.phase = "delivering";
       binding.message = "正在向当前会话回传；未确认时不会重复发送。";
       await this.host.save(state);
+      if (actionEpoch !== this.actionEpoch) throw new Error("回传已取消。");
       return { binding, delivery: binding.delivery };
     } else if (
       value.type === "defer" &&
@@ -284,6 +397,13 @@ export class BridgeController {
           ? "已回传，自动执行次数用尽。"
           : "已回传，等待 GPT Review 或新的 repair handoff。";
     }
+    const latest = (await this.host.read()).binding;
+    if (
+      actionEpoch !== this.actionEpoch ||
+      latest?.id !== binding.id ||
+      latest.epoch !== binding.epoch
+    )
+      return { binding: latest ? { ...latest, delivery: undefined } : undefined };
     if (JSON.stringify(state) !== before) await this.host.save(state);
     // Pending result bodies are available only through an explicit one-time claim.
     return { binding: { ...binding, delivery: undefined } };
@@ -304,15 +424,17 @@ export class BridgeController {
       !!state.binding &&
       tab.id === state.binding.tabId &&
       conversation === state.binding.conversation;
-    const paired = !!state.pairing && state.pairing.expiresAt > Date.now();
+    const paired =
+      (!!state.pairing && state.pairing.expiresAt > Date.now()) ||
+      (!state.pairing && state.transport !== "http" && !!this.native);
     let connectivity = paired
       ? this.connectivity
       : { status: "disconnected", message: "未配对或授权已过期。" };
     let selected: ProjectView | undefined;
     let readinessAt: number | undefined;
-    if (paired && state.pairing) {
+    if (paired) {
       try {
-        const client = new LocalClient(parsePairing(state.pairing), this.request);
+        const client = this.client(state);
         if (inspect) {
           await client.call("projects.list", undefined);
           this.connectivity = { status: "connected", message: "本机 Daemon 已连接且授权有效。" };
@@ -360,7 +482,14 @@ export class BridgeController {
             runId: state.binding.runId,
           });
           this.observeRun(state.binding, run);
-          if (JSON.stringify(state.binding) !== before) await this.host.save(state);
+          const latest = (await this.host.read()).binding;
+          if (
+            JSON.stringify(state.binding) !== before &&
+            latest?.id === state.binding.id &&
+            latest.phase === state.binding.phase &&
+            latest.epoch === state.binding.epoch
+          )
+            await this.host.save(state);
         }
       } catch (error) {
         connectivity = {
@@ -371,6 +500,7 @@ export class BridgeController {
       }
     }
     return {
+      transport: state.pairing || state.transport === "http" ? "http" : "native",
       paired,
       expiresAt: state.pairing?.expiresAt,
       connectivity,
@@ -382,16 +512,94 @@ export class BridgeController {
       readinessAt,
     };
   }
+  private client(state: SessionState) {
+    if (state.pairing) return new LocalClient(parsePairing(state.pairing), this.request);
+    if (this.native && state.transport !== "http") return this.native;
+    throw new Error("请先导入本机 daemon 配对文件。");
+  }
+  private async restore(state: SessionState, value: unknown, sender: Sender) {
+    const actionEpoch = this.actionEpoch;
+    const conversation = conversationUrl(sender.url ?? "");
+    if (
+      !conversation ||
+      sender.tabId === undefined ||
+      !object(value) ||
+      typeof value.epoch !== "string"
+    )
+      throw new Error("页面恢复身份无效。");
+    const binding =
+      state.bindings?.[conversation] ??
+      (state.binding?.conversation === conversation ? state.binding : undefined);
+    if (!binding?.installationId || !this.native || state.pairing || state.transport === "http")
+      return { restored: false };
+    if (binding.tabId !== sender.tabId) {
+      const owner = await this.host.tab(binding.tabId).catch(() => ({}));
+      if ("url" in owner && conversationUrl(owner.url ?? "") === conversation)
+        throw new Error("该对话已在另一个标签页启用；请先关闭原标签页。");
+    }
+    const current = await this.host.tab(sender.tabId);
+    if (conversationUrl(current.url ?? "") !== conversation) throw new Error("恢复时会话已变化。");
+    if (actionEpoch !== this.actionEpoch) return { restored: false };
+    if (binding.pausedByUser || ["paused", "stopped"].includes(binding.phase)) {
+      binding.tabId = sender.tabId;
+      binding.epoch = value.epoch;
+      state.binding = binding;
+      await this.host.save(state);
+      return { restored: false };
+    }
+    try {
+      if (!binding.bootstrapped || ["dispatching", "delivering"].includes(binding.phase))
+        throw new Error("上次发送未确认；请检查当前对话和 Project 证据，不会自动重发。");
+      if ((await this.native.identity()) !== binding.installationId)
+        throw new Error("本机授权已变化，请显式重新绑定。");
+      const view = await this.native.call("projects.get", { projectId: binding.projectId });
+      if (
+        !object(view) ||
+        view.authorized !== true ||
+        !object(view.project) ||
+        view.project.id !== binding.projectId ||
+        view.project.root !== binding.projectRoot ||
+        !object(view.readiness) ||
+        view.readiness.ready !== true
+      )
+        throw new Error("Project 身份、路径或 Codex readiness 已变化。");
+      if (actionEpoch !== this.actionEpoch) return { restored: false };
+      if (binding.phase === "ready_to_deliver" && !binding.delivery) binding.phase = "running";
+      if (state.binding && state.binding.id !== binding.id)
+        await this.host.send(state.binding.tabId, { type: "disarm" }).catch(() => {});
+      if (actionEpoch !== this.actionEpoch) return { restored: false };
+      binding.tabId = sender.tabId;
+      binding.epoch = value.epoch;
+      binding.attached = true;
+      state.binding = binding;
+      await this.host.save(state);
+      return { restored: true, binding };
+    } catch (error) {
+      if (actionEpoch !== this.actionEpoch) return { restored: false };
+      binding.phase = "paused";
+      binding.attached = false;
+      binding.message = error instanceof Error ? error.message : "恢复失败，请检查 Diagnostics。";
+      state.binding = binding;
+      await this.host.save(state);
+      return { restored: false };
+    }
+  }
   async detached(tabId: number) {
     const state = await this.host.read();
-    if (state.binding?.tabId === tabId) {
-      state.binding.phase = "paused";
-      state.binding.delivery = undefined;
-      if (state.binding.lastResult?.delivery === "pending")
-        state.binding.lastResult.delivery = "stopped";
-      state.binding.message = "页面已关闭、刷新或切换；自动回传已暂停，运行证据保留在 Project。";
-      await this.host.save(state);
-      await this.host.send(tabId, { type: "disarm" }).catch(() => {});
+    if (state.binding?.tabId !== tabId) return;
+    const binding = state.binding;
+    binding.attached = false;
+    if (
+      !binding.installationId ||
+      !binding.bootstrapped ||
+      ["dispatching", "delivering"].includes(binding.phase)
+    ) {
+      binding.phase = "paused";
+      binding.delivery = undefined;
+      if (binding.lastResult?.delivery === "pending") binding.lastResult.delivery = "stopped";
+      binding.message = "页面切换，发送状态不确定；请检查当前对话，未自动重发。";
     }
+    await this.host.save(state);
+    await this.host.send(tabId, { type: "disarm" }).catch(() => {});
   }
 }

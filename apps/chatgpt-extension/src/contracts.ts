@@ -44,6 +44,11 @@ export interface Binding {
   };
   delivery?: { id: string; text: string };
   message: string;
+  installationId?: string;
+  bootstrapped?: boolean;
+  pausedByUser?: boolean;
+  resumePhase?: Binding["phase"];
+  attached?: boolean;
 }
 export function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
