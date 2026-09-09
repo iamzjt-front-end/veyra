@@ -1,5 +1,9 @@
 {
   "extends": "../../tsconfig.base.json",
-  "compilerOptions": { "types": ["chrome"], "lib": ["ES2022", "DOM", "DOM.Iterable"] },
-  "include": ["src/**/*.ts"]
+  "compilerOptions": {
+    "types": ["chrome"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }

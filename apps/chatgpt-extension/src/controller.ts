@@ -1,8 +1,8 @@
+import { isExtensionSurface } from "./surfaces.js";
 import { isDaemonRunView, isProjectExecutionResult, isProjectId } from "@veyraoss/protocol";
 import type { NativeTransport } from "./native-client.js";
 import { exchangePairing, LocalClient } from "./client.js";
 import {
-  EXTENSION_ORIGIN,
   conversationUrl,
   instruction,
   object,
@@ -45,7 +45,7 @@ export class BridgeController {
   ) {}
   async handle(value: unknown, sender: Sender): Promise<unknown> {
     if (!object(value) || typeof value.type !== "string") throw new Error("无效扩展消息。");
-    const popup = sender.url === `${EXTENSION_ORIGIN}/popup.html`;
+    const popup = isExtensionSurface(sender.url);
     if (popup && ["disable", "unbind"].includes(value.type)) this.actionEpoch++;
     const actionEpoch = this.actionEpoch;
     const state = await this.host.read();
@@ -55,6 +55,43 @@ export class BridgeController {
         ? this.restore(state, value, sender)
         : { restored: false };
     if (popup) {
+      if (
+        ["bind", "disable", "resume", "unbind", "stop"].includes(value.type) &&
+        value.expectedConversation !== undefined
+      ) {
+        const tab = await this.host.activeTab();
+        if (
+          tab.id !== value.expectedTabId ||
+          conversationUrl(tab.url ?? "") !== value.expectedConversation
+        )
+          throw new Error(
+            "Conversation changed. Return to the selected conversation; nothing was sent.",
+          );
+      }
+      if (value.type === "evidence") {
+        const tab = await this.host.activeTab();
+        const binding = state.binding;
+        if (
+          !binding?.runId ||
+          tab.id !== binding.tabId ||
+          conversationUrl(tab.url ?? "") !== binding.conversation
+        )
+          return {};
+        const locator = { projectId: binding.projectId, runId: binding.runId };
+        const run = await client().call("runs.get", locator);
+        const handoff = await client().call("handoffs.get", locator);
+        const terminal =
+          object(run) && ["completed", "failed", "cancelled"].includes(String(run.status));
+        const result = terminal ? await client().call("results.get", locator) : {};
+        const current = await this.host.activeTab();
+        if (
+          current.id !== tab.id ||
+          conversationUrl(current.url ?? "") !== binding.conversation ||
+          actionEpoch !== this.actionEpoch
+        )
+          return {};
+        return { run, handoff, ...(object(result) ? result : {}) };
+      }
       if (value.type === "status" || value.type === "snapshot")
         return this.status(state, value.projectId, value.type === "status");
       if (value.type === "inspect") {
@@ -414,6 +451,8 @@ export class BridgeController {
     if (!isDaemonRunView(run) || run.projectId !== binding.projectId || run.runId !== binding.runId)
       throw new Error("Run 身份不匹配。");
     binding.runStatus = run.status;
+    if (object(execution) && ["execute", "verify", "review"].includes(String(execution.stage)))
+      binding.stage = execution.stage as Binding["stage"];
     if (object(execution) && typeof execution.agentStatus === "string")
       binding.agentStatus = execution.agentStatus.slice(0, 128);
   }
@@ -505,6 +544,7 @@ export class BridgeController {
       expiresAt: state.pairing?.expiresAt,
       connectivity,
       conversation,
+      tabId: tab.id,
       currentBound,
       enabled: currentBound && !["paused", "stopped"].includes(state.binding?.phase ?? "stopped"),
       binding: state.binding ? { ...state.binding, delivery: undefined } : undefined,

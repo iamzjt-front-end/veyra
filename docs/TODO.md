@@ -731,7 +731,7 @@ The latest explicit product decision starts GUI productization **before** real P
 | Phase | Status | Work / acceptance                                                                                                                                                                                 | Depends on                 |
 | ----- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
 | GUI-1 | [x]    | Shared `packages/ui`: semantic light/dark tokens, typography, accessible primitives, icons and restrained motion.                                                                                 | Existing native onboarding |
-| GUI-2 | [ ]    | Chrome Side Panel, chatgpt.com only; explicit Project binding and restore; real workflow/evidence; unbound, idle, running, verification, completed, failed, paused, disconnected and dark states. | GUI-1                      |
+| GUI-2 | [x]    | Chrome Side Panel, chatgpt.com only; explicit Project binding and restore; real workflow/evidence; unbound, idle, running, verification, completed, failed, paused, disconnected and dark states. | GUI-1                      |
 | GUI-3 | [ ]    | Tiny popup: status, Open Veyra, current Project and secondary Diagnostics.                                                                                                                        | GUI-2                      |
 | GUI-4 | [ ]    | Local Control Center through `ve open`: authenticated local access; Overview, Projects, Runs and Settings; shared UI, no mock production data.                                                    | GUI-3                      |
 | GUI-5 | [ ]    | Run detail/timeline, bounded unified diff, verification, review and artifacts with truthful provenance.                                                                                           | GUI-4                      |
@@ -742,6 +742,12 @@ Each phase requires its task checks, all five baseline commands and a focused co
 ### GUI-1 verification — 2026-09-09
 
 Shared React primitives, semantic light/dark tokens, typography, spacing, iconography, workflow status, dialog/tabs/keyboard focus and reduced motion are implemented. Five new tests cover untrusted text, accessible controls, unknown/absent evidence and workflow labels. All baseline commands (`pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test`, `pnpm build`) passed. Browser visual acceptance follows in GUI-2/GUI-6.
+
+### GUI-2 verification — 2026-09-09
+
+The real extension now has a Chrome Side Panel enabled only on `chatgpt.com`. It uses shared UI, cached event-driven snapshots and scoped Project/run evidence. Exact-conversation identity accompanies controls; normal/uncertain sends retain all existing guards. Current Project/binding, workflow, execution/verification/result handback, pause/unbind/cancel and a details drawer are implemented. Machine blocks fold into reversible compact rows. No production fixture import exists.
+
+`smoke:panel` produced ten actual browser screenshots in `output/playwright/gui/`, including required light/dark states; 320/360/400/420/460 widths, no overflow, drawer focus and Escape passed. Both `smoke:native-browser` and `smoke:browser` passed in Chromium 149.0.7827.55 with real Side Panel rendering of the actual fixture run/result. Each executed twice, verified fail/pass and returned two results; native armed refresh and HTTP revocation remain intact. Both measured 3,000-turn/60-second idle with zero DOM queries; TaskDuration deltas were 0.0261s native and 0.0274s HTTP. The 14 send-normalization/safety cases and mutation burst checks still pass. Extension unit tests: 67 passed; full baseline: 1,984 passed. All five baseline commands passed. These are deterministic browser fixtures, not real ChatGPT Pro re-acceptance.
 
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 

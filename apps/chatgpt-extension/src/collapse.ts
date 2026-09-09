@@ -4,7 +4,10 @@ export function collapseMachine(element: Element, label: string) {
   if (!element.isConnected || element.getAttribute("data-veyra-folded") === "true") return;
   const button = element.ownerDocument.createElement("button");
   button.type = "button";
-  button.textContent = `${label} · Show details`;
+  button.style.cssText =
+    "display:flex;align-items:center;gap:8px;max-width:100%;padding:12px 14px;margin:12px 0;border:1px solid color-mix(in srgb,currentColor 14%,transparent);border-radius:10px;background:transparent;color:inherit;font:500 12px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;text-align:left;cursor:pointer";
+
+  button.textContent = `${label} · View raw payload`;
   button.setAttribute("aria-expanded", "false");
   button.setAttribute("data-veyra-status", "true");
   const original = (element as HTMLElement).style.display;
@@ -15,7 +18,7 @@ export function collapseMachine(element: Element, label: string) {
     const expanded = button.getAttribute("aria-expanded") === "true";
     (element as HTMLElement).style.display = expanded ? "none" : original;
     button.setAttribute("aria-expanded", String(!expanded));
-    button.textContent = `${label} · ${expanded ? "Show" : "Hide"} details`;
+    button.textContent = `${label} · ${expanded ? "View" : "Hide"} raw payload`;
   });
 }
 export function collapseHandoff(document: Document, id: string, source: string) {

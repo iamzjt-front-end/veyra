@@ -9,3 +9,5 @@ coverage/
 .veyra/runs/
 .veyra/worktrees/
 .DS_Store
+
+output/playwright/

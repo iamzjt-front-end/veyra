@@ -12,18 +12,25 @@
     "smoke:native-browser": "tsx test/manual-browser.ts --native",
     "prepare:live": "tsx test/manual-live.ts prepare",
     "inspect:live": "tsx test/manual-live.ts inspect",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "smoke:panel": "tsx test/manual-panel.ts"
   },
   "dependencies": {
-    "@veyraoss/protocol": "workspace:*"
+    "@veyraoss/protocol": "workspace:*",
+    "@veyraoss/ui": "workspace:*",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@types/chrome": "0.2.9",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "@veyraoss/config": "workspace:*",
+    "@veyraoss/daemon": "workspace:*",
+    "@veyraoss/project": "workspace:*",
     "esbuild": "0.28.2",
     "linkedom": "0.18.12",
     "playwright": "1.63.0",
-    "@veyraoss/daemon": "workspace:*",
-    "@veyraoss/project": "workspace:*",
-    "@veyraoss/config": "workspace:*"
+    "vite": "8.2.2"
   }
 }

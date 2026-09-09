@@ -36,6 +36,7 @@ export interface Binding {
   runId?: string;
   runStatus?: string;
   agentStatus?: string;
+  stage?: "execute" | "verify" | "review";
   lastResult?: {
     runId: string;
     status: string;

@@ -1,4 +1,5 @@
-import { EXTENSION_ORIGIN, object } from "./contracts.js";
+import { isExtensionSurface, supportsPanel } from "./surfaces.js";
+import { object } from "./contracts.js";
 import { NativeClient } from "./native-client.js";
 import { durableBindings } from "./persistence.js";
 import { BridgeController, type SessionState } from "./controller.js";
@@ -43,7 +44,7 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     return false;
   const action = () => controller.handle(message, { url: sender.url, tabId: sender.tab?.id });
   const urgent =
-    sender.url === `${EXTENSION_ORIGIN}/popup.html` &&
+    isExtensionSurface(sender.url) &&
     object(message) &&
     ["disable", "unbind"].includes(String(message.type));
   // Local detach must not wait behind a slow native request. Controller epochs prevent resurrection.
@@ -64,4 +65,25 @@ chrome.tabs.onUpdated.addListener((id, change) => {
   if (change.status === "loading" || change.url) void enqueue(() => controller.detached(id));
   if (change.status === "complete")
     void enqueue(() => host.send(id, { type: "restore" }).catch(() => {}));
+});
+
+// Default is disabled; enable only tabs on the supported ChatGPT origin.
+void chrome.sidePanel.setOptions({ enabled: false });
+const updatePanel = (id: number, url?: string) =>
+  chrome.sidePanel
+    .setOptions({ tabId: id, path: "sidepanel.html", enabled: supportsPanel(url) })
+    .catch(() => {});
+chrome.tabs.onUpdated.addListener((id, change, tab) => {
+  if (change.url || change.status === "complete") void updatePanel(id, tab.url);
+});
+chrome.runtime.onInstalled.addListener(() => {
+  void chrome.tabs.query({ url: "https://chatgpt.com/*" }).then((tabs) => {
+    for (const tab of tabs) if (tab.id !== undefined) void updatePanel(tab.id, tab.url);
+  });
+});
+chrome.tabs.onActivated.addListener(({ tabId }) => {
+  void chrome.tabs
+    .get(tabId)
+    .then((tab) => updatePanel(tabId, tab.url))
+    .catch(() => {});
 });

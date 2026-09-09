@@ -214,6 +214,18 @@ try {
       project.id,
     );
   }
+  const panel = await context.newPage();
+  await panel.goto(`${EXTENSION_ORIGIN}/sidepanel.html`);
+  await panel.locator(".v-panel-header").waitFor();
+  const chatTabId = await worker.evaluate(
+    async (url) => (await chrome.tabs.query({})).find((tab) => tab.url === url)?.id,
+    conversation,
+  );
+  assert.equal(typeof chatTabId, "number");
+  assert.equal(
+    (await worker.evaluate((id) => chrome.sidePanel.getOptions({ tabId: id }), chatTabId)).enabled,
+    true,
+  );
   await popup.locator("#project").selectOption(project.id);
   await popup.locator("#limit").selectOption("2");
   await page.bringToFront();
@@ -321,6 +333,13 @@ try {
   );
   assert.match(await popup.locator("#project-detail").innerText(), new RegExp(project.id));
   assert.match(await popup.locator("#native").innerText(), /Ready/);
+  await panel.waitForFunction(() =>
+    document.querySelector(".v-result-summary")?.textContent?.includes("Result returned"),
+  );
+  assert.match(await panel.locator(".v-task-title").innerText(), /Repair after failed verifier/);
+  assert.match(await panel.locator(".v-project-bound").innerText(), /veyra-extension-browser/);
+  assert.match(await panel.locator('.v-stepper [data-state="pending"]').innerText(), /Review/);
+
   assert.equal(
     await page.locator('[data-veyra-status="true"]').count(),
     native ? 4 : 5,

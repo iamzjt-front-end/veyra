@@ -347,3 +347,22 @@ describe("session-local extension coordination", () => {
     expect(missing.state().binding).toBeUndefined();
   });
 });
+
+it("rejects a stale Side Panel bind after the active conversation changes", async () => {
+  const f = fixture();
+  f.navigate();
+  await expect(
+    f.controller.handle(
+      {
+        type: "bind",
+        projectId,
+        maxRuns: 3,
+        expectedConversation: conversation,
+        expectedTabId: 10,
+      },
+      { url: `${EXTENSION_ORIGIN}/sidepanel.html` },
+    ),
+  ).rejects.toThrow("Conversation changed");
+  expect(f.request).not.toHaveBeenCalled();
+  expect(f.host.send).not.toHaveBeenCalled();
+});

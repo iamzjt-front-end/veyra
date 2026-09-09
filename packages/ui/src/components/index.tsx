@@ -84,7 +84,8 @@ export function Select({
   label: string;
   options: { value: string; label: string; disabled?: boolean }[];
 }) {
-  const id = useId();
+  const generatedId = useId();
+  const id = props.id ?? generatedId;
   return (
     <div className="v-field">
       <label htmlFor={id}>{label}</label>

@@ -92,6 +92,18 @@ export async function projectTool(
     data = {
       ...run,
       execution: {
+        stage:
+          [...events]
+            .reverse()
+            .find((event) =>
+              ["agent.started", "verification.started", "verification.completed"].includes(
+                event.type,
+              ),
+            )?.type === "verification.started"
+            ? "verify"
+            : ["completed", "failed", "cancelled"].includes(run.status)
+              ? "review"
+              : "execute",
         agentStatus:
           run.status === "cancelled"
             ? "cancelled"
