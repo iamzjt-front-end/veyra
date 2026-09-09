@@ -5,3 +5,9 @@ await cp(
   new URL("./dist/browser-extension/", import.meta.url),
   { recursive: true },
 );
+
+await cp(
+  new URL("../dashboard/dist/", import.meta.url),
+  new URL("./dist/control-center/", import.meta.url),
+  { recursive: true },
+);

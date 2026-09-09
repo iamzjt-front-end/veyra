@@ -30,6 +30,7 @@ const options = {
 } as const;
 const allowed: Record<string, string[]> = {
   setup: ["registry", "revoke"],
+  open: ["registry"],
   init: ["registry", "config", "workflow", "model", "force"],
   projects: ["registry"],
   project: ["registry", "executor", "codex-executable", "model", "session-run"],
@@ -198,6 +199,7 @@ export const help = `Veyra — one goal, many agents, verified execution.
 Usage: ve <command>
 
 Commands:
+  open        open your local Veyra Control Center
   setup       one-time native Codex and browser bridge setup (no API key)
   daemon start           run the local daemon in the foreground (Ctrl-C to stop)
   daemon stop            stop the daemon for this registry root

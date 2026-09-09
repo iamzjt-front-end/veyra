@@ -1,0 +1,430 @@
+body {
+  margin: 0;
+  background: var(--surface-base);
+}
+button,
+input {
+  font: inherit;
+}
+.v-center-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 208px minmax(0, 1fr);
+}
+.v-center-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 30px 16px 20px;
+  border-right: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+  gap: 36px;
+}
+.v-center-sidebar > .v-brand {
+  padding: 0 14px;
+}
+.v-center-sidebar nav {
+  display: grid;
+  gap: 5px;
+}
+.v-center-sidebar a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  transition:
+    background var(--motion-hover),
+    color var(--motion-hover);
+}
+.v-center-sidebar a:hover {
+  color: var(--text-primary);
+  background: var(--border-subtle);
+}
+.v-center-sidebar a[aria-current="page"] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+.v-sidebar-bottom {
+  margin-top: auto;
+  display: grid;
+  gap: 20px;
+}
+.v-local-indicator {
+  padding-left: 16px;
+  font-size: 11px;
+}
+.v-center-topbar {
+  height: 68px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 38px;
+}
+.v-center-topbar .v-caption {
+  font-size: 11px;
+}
+.v-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.v-breadcrumb .v-icon {
+  width: 12px;
+  height: 12px;
+}
+.v-breadcrumb > :last-child {
+  color: var(--text-primary);
+}
+.v-center-content {
+  max-width: 1140px;
+  padding: 40px 48px 64px;
+  margin: 0 auto;
+}
+.v-page-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 32px;
+  margin-bottom: 40px;
+}
+.v-page-heading h1 {
+  font-size: 27px;
+  letter-spacing: -0.8px;
+  font-weight: 620;
+  line-height: 1.3;
+  margin: 8px 0;
+  max-width: 850px;
+  overflow-wrap: anywhere;
+}
+.v-page-heading p {
+  font-size: 13px;
+  margin: 0;
+}
+.v-eyebrow {
+  color: var(--text-secondary);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+}
+.v-center-section {
+  margin-bottom: 32px;
+}
+.v-section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 14px;
+  min-height: 32px;
+}
+.v-section-heading h2,
+.v-settings h2 {
+  font-size: 14px;
+  letter-spacing: -0.15px;
+  font-weight: 600;
+  margin: 0;
+}
+.v-section-heading > .v-button {
+  font-size: 12px;
+  min-height: 30px;
+}
+.v-active-run {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  gap: 20px;
+  padding: 23px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-hover),
+    transform var(--motion-press);
+}
+.v-active-run + .v-active-run {
+  margin-top: 10px;
+}
+.v-active-run:hover {
+  border-color: var(--accent);
+}
+.v-active-run:active {
+  transform: translateY(1px);
+}
+.v-active-marker {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  flex-shrink: 0;
+}
+.v-active-project {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.v-active-run h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+}
+.v-active-run p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 7px 0 0;
+}
+.v-active-status {
+  margin-left: auto;
+  display: grid;
+  gap: 10px;
+  text-align: right;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.v-active-run > .v-icon {
+  width: 15px;
+  color: var(--text-secondary);
+  margin-left: 12px;
+}
+.v-project-list {
+  border-top: 1px solid var(--border-subtle);
+}
+.v-project-list-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 15px;
+  padding: 17px 10px;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.v-project-list-row:hover,
+.v-run-table-row:hover {
+  background: var(--surface-subtle);
+}
+.v-project-emblem {
+  height: 34px;
+  width: 34px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.v-project-label {
+  min-width: 0;
+  flex: 1;
+  display: grid;
+  gap: 5px;
+}
+.v-project-label strong {
+  font-size: 13px;
+  font-weight: 550;
+}
+.v-project-label .v-path {
+  font-size: 10px;
+}
+.v-project-list-row > .v-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-secondary);
+  margin-left: 6px;
+}
+.v-project-list-row > .v-caption {
+  font-size: 11px;
+}
+.v-run-table {
+  width: 100%;
+}
+.v-run-table-head,
+.v-run-table-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) minmax(115px, 1fr) 115px 65px;
+  gap: 20px;
+  align-items: center;
+}
+.v-run-table-head {
+  font-size: 10px;
+  color: var(--text-secondary);
+  padding: 0 12px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.v-run-table-row {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  background: transparent;
+  padding: 18px 12px;
+  cursor: pointer;
+  color: var(--text-primary);
+  text-align: left;
+  font-size: 12px;
+}
+.v-run-cell-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.v-run-cell-title .v-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.v-run-cell-title > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.v-duration {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.v-quiet-state {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 30px 24px;
+  background: var(--surface-subtle);
+  border-radius: var(--radius-md);
+}
+.v-quiet-state > .v-icon {
+  color: var(--accent);
+}
+.v-quiet-state h3 {
+  font-size: 14px;
+  font-weight: 550;
+  margin: 0 0 6px;
+}
+.v-quiet-state p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.v-context {
+  padding: 24px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.v-context h3 {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  margin: 0 0 8px;
+}
+.v-context p {
+  margin: 0 0 16px;
+}
+.v-context p:last-child {
+  margin-bottom: 0;
+}
+.v-context li {
+  margin: 6px 0;
+}
+.v-settings {
+  max-width: 680px;
+}
+.v-settings > section {
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 28px;
+  margin-bottom: 28px;
+  font-size: 13px;
+}
+.v-settings .v-actions {
+  margin-top: 18px;
+}
+.v-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 340px;
+  padding: 10px 12px;
+  margin-bottom: 24px;
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-raised);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+.v-search input {
+  background: transparent;
+  border: 0;
+  width: 100%;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline-offset: 6px;
+}
+.v-page-intro {
+  font-size: 13px;
+  margin-bottom: 28px;
+}
+.v-evidence-notice {
+  padding: 16px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+.v-local-loading {
+  height: 24px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: -20px 0 20px;
+}
+@media (max-width: 1100px) {
+  .v-center-shell {
+    grid-template-columns: 176px minmax(0, 1fr);
+  }
+  .v-center-content {
+    padding: 32px;
+  }
+  .v-center-topbar {
+    padding: 0 28px;
+  }
+  .v-run-table-head,
+  .v-run-table-row {
+    gap: 12px;
+    grid-template-columns: minmax(150px, 2fr) minmax(90px, 1fr) 105px 55px;
+  }
+}
+@media (max-width: 899px) {
+  .v-center-shell {
+    grid-template-columns: 148px minmax(0, 1fr);
+    min-width: 860px;
+  }
+  .v-center-sidebar {
+    padding-inline: 10px;
+  }
+  .v-center-content {
+    padding: 26px;
+  }
+}
+
+.v-run-table-row .v-badge {
+  justify-self: start;
+}

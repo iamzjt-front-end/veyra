@@ -37,6 +37,9 @@ export interface DaemonRunView {
   updatedAt: string;
   error?: { code: string; message: string };
 }
+export interface DaemonRunSummary extends DaemonRunView {
+  goal: string;
+}
 export interface ProjectRunLocator {
   projectId: ProjectId;
   runId: string;
@@ -50,6 +53,10 @@ export interface DaemonOperations {
   "runs.dispatch": {
     input: { projectId: ProjectId; handoff: ProjectHandoff };
     output: DaemonRunView;
+  };
+  "runs.list": {
+    input: { projectId: ProjectId; limit: number };
+    output: { runs: DaemonRunSummary[]; hasMore: boolean };
   };
   "runs.get": { input: ProjectRunLocator; output: DaemonRunView };
   "runs.wait": { input: ProjectRunLocator & { waitMs: number }; output: DaemonRunView };
@@ -132,6 +139,13 @@ export function isDaemonRequest(value: unknown): value is DaemonRequest {
     return keys(params, ["path"]) && text(params.path, 32768) && params.path.startsWith("/");
   if (!isProjectId(params.projectId)) return false;
   if (value.method === "projects.get") return keys(params, ["projectId"]);
+  if (value.method === "runs.list")
+    return (
+      keys(params, ["projectId", "limit"]) &&
+      Number.isInteger(params.limit) &&
+      Number(params.limit) >= 1 &&
+      Number(params.limit) <= 100
+    );
   if (value.method === "runs.dispatch")
     return (
       keys(params, ["projectId", "handoff"]) &&
@@ -195,7 +209,22 @@ export function isDaemonResponse<M extends DaemonMethod>(
     return Array.isArray(result) && result.length <= 1000 && result.every(isRegisteredProject);
   if (method === "projects.get" || method === "projects.register")
     return isRegisteredProject(result);
+  if (method === "runs.list")
+    return (
+      object(result) &&
+      keys(result, ["runs", "hasMore"]) &&
+      typeof result.hasMore === "boolean" &&
+      Array.isArray(result.runs) &&
+      result.runs.length <= 100 &&
+      result.runs.every(isDaemonRunSummary)
+    );
   if (method === "handoffs.get") return isProjectHandoff(result);
   if (method === "results.get") return result === null || isProjectExecutionResult(result);
   return isDaemonRunView(result);
+}
+
+export function isDaemonRunSummary(value: unknown): value is DaemonRunSummary {
+  if (!object(value) || !text(value.goal, 2048)) return false;
+  const { goal: _goal, ...run } = value;
+  return isDaemonRunView(run);
 }

@@ -464,6 +464,8 @@ export {
   type RegisteredProject,
   type DaemonInfo,
   type DaemonRunView,
+  type DaemonRunSummary,
+  isDaemonRunSummary,
   type ProjectRunLocator,
   type DaemonOperations,
   type DaemonMethod,

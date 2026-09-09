@@ -1,10 +1,11 @@
+import { openControlCenter } from "./control-launcher.js";
 import { CLI_VERSION } from "./version.js";
 import { startCoordinator } from "./coordinator.js";
 import { ensureCoordinator } from "./native-service.js";
 import { setupNative } from "./native-installation.js";
 import { initializeNativeProject } from "./project-init.js";
 import { stat } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { stripVTControlCharacters } from "node:util";
 import { loadConfig } from "@veyraoss/config";
 import { stopDaemon, daemonStatus, daemonProjects } from "@veyraoss/daemon";
@@ -69,6 +70,28 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
     }
     if (command === "version") {
       write({ version: CLI_VERSION, executable: "ve" }, `ve ${CLI_VERSION}`);
+      return 0;
+    }
+    if (command === "open") {
+      const registry = new ProjectRegistry({
+        root: values.registry ? resolve(cwd, values.registry) : undefined,
+      });
+      const opened = await openControlCenter(join(registry.root, "browser", "installation.json"));
+      if (!json) {
+        const launched = await (services.runProcess ?? runProcess)({
+          executable: process.platform === "darwin" ? "open" : "xdg-open",
+          args: [opened.url],
+          cwd,
+          env,
+          timeoutMs: 5000,
+        });
+        if (launched.exitCode !== 0)
+          throw new CliError(
+            "browser_unavailable",
+            "Veyra is ready, but the browser could not open. Use ve open --json to get a fresh local invitation.",
+          );
+      }
+      write(opened, "Veyra opened in your browser. Your Projects and runs stay local.");
       return 0;
     }
     if (command === "setup") {

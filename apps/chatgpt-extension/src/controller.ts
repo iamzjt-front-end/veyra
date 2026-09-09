@@ -56,7 +56,7 @@ export class BridgeController {
         : { restored: false };
     if (popup) {
       if (
-        ["bind", "disable", "resume", "unbind", "stop"].includes(value.type) &&
+        ["bind", "disable", "resume", "unbind", "stop", "control"].includes(value.type) &&
         value.expectedConversation !== undefined
       ) {
         const tab = await this.host.activeTab();
@@ -67,6 +67,36 @@ export class BridgeController {
           throw new Error(
             "Conversation changed. Return to the selected conversation; nothing was sent.",
           );
+      }
+      if (value.type === "control") {
+        const binding = state.binding,
+          tab = await this.host.activeTab();
+        if (
+          !binding ||
+          tab.id !== binding.tabId ||
+          conversationUrl(tab.url ?? "") !== binding.conversation ||
+          state.pairing ||
+          state.transport === "http" ||
+          !this.native?.openControl
+        )
+          throw new Error(
+            "Open the bound conversation using the Native Bridge to view this Project.",
+          );
+        const opened = await this.native.openControl(binding.projectId, binding.runId);
+        const current = await this.host.activeTab();
+        if (
+          actionEpoch !== this.actionEpoch ||
+          current.id !== tab.id ||
+          conversationUrl(current.url ?? "") !== binding.conversation
+        )
+          throw new Error("Conversation changed. The Control Center was not opened.");
+        if (
+          !object(opened) ||
+          typeof opened.url !== "string" ||
+          !/^http:\/\/127\.0\.0\.1:[0-9]+\/#bootstrap=[a-f0-9]{64}$/.test(opened.url)
+        )
+          throw new Error("Local GUI invitation is invalid.");
+        return { url: opened.url };
       }
       if (value.type === "evidence") {
         const tab = await this.host.activeTab();

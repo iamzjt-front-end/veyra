@@ -117,6 +117,32 @@ export class NativeService {
       }
       if (this.identity !== state.id || value.installationId !== state.id)
         throw new Error("Local authorization changed. Reconnect and explicitly bind again.");
+      if (value.method === "control.open") {
+        if (
+          !object(value.params) ||
+          !isProjectId(value.params.projectId) ||
+          Object.keys(value.params).some((key) => !["projectId", "runId"].includes(key)) ||
+          (value.params.runId !== undefined &&
+            (typeof value.params.runId !== "string" || !/^[a-f0-9-]{36}$/.test(value.params.runId)))
+        )
+          throw new Error("Invalid Control Center request.");
+        const entry = await (
+          await this.connect(this.path)
+        ).call("projects.get", { projectId: value.params.projectId });
+        const grant = state.grants[value.params.projectId];
+        if (!grant || grant.root !== entry.project.root || grant.expiresAt <= Date.now())
+          throw new Error("Project is outside the native grant.");
+        const { openControlCenter } = await import("./control-launcher.js");
+        return {
+          version: 1,
+          id,
+          ok: true,
+          data: await openControlCenter(this.path, {
+            projectId: value.params.projectId,
+            runId: value.params.runId as string | undefined,
+          }),
+        };
+      }
       const client = await this.connect(this.path);
       if (["projects.authorize", "projects.revoke"].includes(value.method)) {
         if (

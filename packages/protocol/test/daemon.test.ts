@@ -18,6 +18,7 @@ describe("versioned daemon contracts", () => {
       { version: 1, method: "projects.get", params: { projectId } },
       { version: 1, method: "projects.register", params: { path: "/tmp/project" } },
       { version: 1, method: "runs.dispatch", params: { projectId, handoff } },
+      { version: 1, method: "runs.list", params: { projectId, limit: 20 } },
       ...["runs.get", "runs.cancel", "handoffs.get", "results.get"].map((method) => ({
         version: 1,
         method,
@@ -30,6 +31,11 @@ describe("versioned daemon contracts", () => {
   });
 
   it.each([
+    ...[0, 101, 1.5, "20"].map((limit) => ({
+      version: 1,
+      method: "runs.list",
+      params: { projectId, limit },
+    })),
     { version: 2, method: "health" },
     { version: 1, method: "fs.read", params: { path: "/etc/passwd" } },
     { version: 1, method: "projects.register", params: { path: "../project" } },

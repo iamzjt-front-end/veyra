@@ -733,7 +733,7 @@ The latest explicit product decision starts GUI productization **before** real P
 | GUI-1 | [x]    | Shared `packages/ui`: semantic light/dark tokens, typography, accessible primitives, icons and restrained motion.                                                                                 | Existing native onboarding |
 | GUI-2 | [x]    | Chrome Side Panel, chatgpt.com only; explicit Project binding and restore; real workflow/evidence; unbound, idle, running, verification, completed, failed, paused, disconnected and dark states. | GUI-1                      |
 | GUI-3 | [x]    | Tiny popup: status, Open Veyra, current Project and secondary Diagnostics.                                                                                                                        | GUI-2                      |
-| GUI-4 | [ ]    | Local Control Center through `ve open`: authenticated local access; Overview, Projects, Runs and Settings; shared UI, no mock production data.                                                    | GUI-3                      |
+| GUI-4 | [x]    | Local Control Center through `ve open`: authenticated local access; Overview, Projects, Runs and Settings; shared UI, no mock production data.                                                    | GUI-3                      |
 | GUI-5 | [ ]    | Run detail/timeline, bounded unified diff, verification, review and artifacts with truthful provenance.                                                                                           | GUI-4                      |
 | GUI-6 | [ ]    | Independent `pnpm ui:dev` fixtures, fixed light/dark/narrow/wide screenshots, keyboard/reduced-motion/security/idle regressions and actual Chromium extension smoke.                              | GUI-5                      |
 
@@ -752,6 +752,12 @@ The real extension now has a Chrome Side Panel enabled only on `chatgpt.com`. It
 ### GUI-3 verification — 2026-09-09
 
 Popup now shows only Veyra/status, Open Veyra, current Project and a Diagnostics shortcut. Its Side Panel open call stays in the user gesture. Unsupported tabs cannot open it. The previous proof controls and HTTP pairing remain in the separate `diagnostics.html` page, not the happy path. Two new launcher tests passed (69 extension tests); all five baseline commands passed (1,986 total tests). `smoke:panel`, native Chromium smoke and HTTP Chromium smoke all passed after moving the diagnostic controls. `output/playwright/gui/popup.png` is the running fixture screenshot. No real Pro gate is claimed.
+
+### GUI-4 verification — 2026-09-09
+
+`ve open` now opens the built local Control Center: Overview, Projects, Runs, Project detail and Settings, sharing the Side Panel's tokens/components. A scoped Native Messaging invitation links Side Panel run details to the same Project. Existing Daemon/Core stores supply real bounded run history; no production mock exists. The GUI transport is loopback-only with one-use 60-second invitations, eight-hour HttpOnly/SameSite sessions, exact Host/Origin, CSRF, Project root/scope checks, live grant/installation revocation and no dispatch/approval/file-shell authority. SSE batches meaningful state changes; hidden/closed pages detach, retries are bounded and the GUI idles down independently of active Codex work.
+
+All five baseline commands passed. Six local-server/packaged-launch/security tests, four additional protocol rejection cases and two UI/store tests passed, including concurrent nonce reuse, cross-project denial, real saved history, logout, event batching and idle shutdown. Browser smoke exercised production assets against a real disposable local Daemon, session reload, Project navigation and logout. Five light screenshots plus dark Overview rendered without overflow at 900/1440px. Native Chromium extension smoke also passed (14 send/safety cases, two executions/handbacks, verifier fail/pass, 3,000 old turns, 60s idle, zero DOM queries, 0.0311s TaskDuration). Screenshots are in `output/playwright/gui/`. P0.12 real Pro acceptance remains pending.
 
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 

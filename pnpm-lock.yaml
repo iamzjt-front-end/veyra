@@ -170,6 +170,37 @@ importers:
       '@veyraoss/chatgpt-extension':
         specifier: workspace:*
         version: link:../chatgpt-extension
+      '@veyraoss/control-center':
+        specifier: workspace:*
+        version: link:../dashboard
+
+  apps/dashboard:
+    dependencies:
+      '@veyraoss/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@veyraoss/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@types/react':
+        specifier: 19.2.18
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: 19.2.7
+        version: 19.2.7(@types/react@19.2.18)
+      playwright:
+        specifier: 1.63.0
+        version: 1.63.0
+      vite:
+        specifier: 8.2.2
+        version: 8.2.2(@types/node@22.20.1)(esbuild@0.28.2)(tsx@4.23.13)(yaml@2.9.0)
 
   apps/tui: {}
 

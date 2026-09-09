@@ -7,6 +7,7 @@ export interface NativeTransport {
   call<M extends DaemonMethod>(method: M, params: DaemonOperations[M]["input"]): Promise<unknown>;
   authorize(projectId: string): Promise<void>;
   revoke(projectId?: string): Promise<void>;
+  openControl?(projectId: string, runId?: string): Promise<unknown>;
 }
 /** A short-lived native port; no idle keepalive and no replay of uncertain writes. */
 export class NativeClient implements NativeTransport {
@@ -124,6 +125,10 @@ export class NativeClient implements NativeTransport {
   async authorize(projectId: string) {
     await this.identity();
     await this.request("projects.authorize", { projectId });
+  }
+  async openControl(projectId: string, runId?: string) {
+    await this.identity();
+    return this.request("control.open", { projectId, ...(runId ? { runId } : {}) });
   }
   async revoke(projectId?: string) {
     if (!projectId) throw new Error("请选择要撤销授权的 Project。");

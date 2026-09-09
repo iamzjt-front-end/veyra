@@ -41,6 +41,9 @@ function Panel() {
         reconnect: () => {
           void store.connect();
         },
+        openControl: () => {
+          void store.openControl();
+        },
         diagnostics: () => {
           void chrome.tabs.create({ url: chrome.runtime.getURL("diagnostics.html") });
         },

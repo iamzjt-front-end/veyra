@@ -73,6 +73,10 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
             (directory === "apps/cli" &&
               /^dist\/browser-extension\/(manifest\.json|popup\.html|popup\.css|sidepanel\.html|sidepanel\.css|diagnostics\.html|diagnostics\.css)$/.test(
                 path,
+              )) ||
+            (directory === "apps/cli" &&
+              /^dist\/control-center\/(index\.html|assets\/[A-Za-z0-9_.-]+\.(js|css|woff2))$/.test(
+                path,
               )),
           `${directory} packs unexpected file: ${path}`,
         ).toBe(true);

@@ -12,6 +12,7 @@ import {
   isNativeSessionReference,
   serializeProjectEnvelope,
   type DaemonRunView,
+  type DaemonRunSummary,
   type ProjectDescriptor,
   type ProjectExecutionResult,
   type ProjectHandoff,
@@ -406,6 +407,31 @@ export class RunCoordinator {
         "Run finished; its detailed output exceeds the envelope contract. Inspect Core run events.";
     }
     return result;
+  }
+  async list(projectId: ProjectId, limit: number) {
+    const project = await this.available(projectId);
+    const stores = this.stores(project);
+    const persisted = await stores.run.listRuns();
+    const ids = [
+      ...new Set(
+        [...this.#active.values()]
+          .filter((run) => run.view.projectId === projectId)
+          .map((run) => run.view.runId)
+          .concat(persisted.map((run) => run.runId)),
+      ),
+    ];
+    const runs: DaemonRunSummary[] = [];
+    for (const id of ids) {
+      const handoff = await stores.archive.getHandoff(id);
+      if (!handoff) continue; // Historical optional workflow runs are not native handoff runs.
+      runs.push({
+        ...(await this.get(projectId, id)),
+        goal: stores.run.redactText(handoff.context.goal).slice(0, 2048),
+      });
+      if (runs.length > limit) break;
+    }
+    runs.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return { runs: runs.slice(0, limit), hasMore: runs.length > limit };
   }
   async handoff(projectId: ProjectId, runId: string): Promise<ProjectHandoff> {
     const project = await this.available(projectId);

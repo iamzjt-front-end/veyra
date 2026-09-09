@@ -52,6 +52,7 @@
     "registry": "https://registry.npmjs.org"
   },
   "devDependencies": {
-    "@veyraoss/chatgpt-extension": "workspace:*"
+    "@veyraoss/chatgpt-extension": "workspace:*",
+    "@veyraoss/control-center": "workspace:*"
   }
 }

@@ -165,6 +165,9 @@ export async function projectTool(
     };
   } else {
     switch (body.method) {
+      case "runs.list":
+        data = await client.call(body.method, body.params);
+        break;
       case "runs.wait":
         data = await client.call(body.method, body.params);
         break;

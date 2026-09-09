@@ -213,6 +213,9 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
             case "runs.dispatch":
               result = await coordinator.dispatch(request.params.projectId, request.params.handoff);
               break;
+            case "runs.list":
+              result = await coordinator.list(request.params.projectId, request.params.limit);
+              break;
             case "runs.get":
               result = await coordinator.get(request.params.projectId, request.params.runId);
               break;

@@ -63,6 +63,25 @@ export class PanelStore {
     this.state = state;
     for (const listener of this.listeners) listener();
   }
+  async openControl() {
+    try {
+      const value = await this.call("control", {
+        expectedConversation: this.state.conversation,
+        expectedTabId: this.state.tabId,
+      });
+      if (
+        !object(value) ||
+        typeof value.url !== "string" ||
+        !/^http:\/\/127\.0\.0\.1:[0-9]+\/#bootstrap=[a-f0-9]{64}$/.test(value.url)
+      )
+        throw new Error("The local GUI invitation was not confirmed.");
+      await chrome.tabs.create({ url: value.url });
+    } catch (error) {
+      this.set({
+        error: error instanceof Error ? error.message : "The Control Center could not open.",
+      });
+    }
+  }
   close() {
     this.closed = true;
     this.listeners.clear();

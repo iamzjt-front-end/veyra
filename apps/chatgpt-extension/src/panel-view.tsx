@@ -30,6 +30,7 @@ export interface PanelActions {
   reconnect: () => void;
   diagnostics: () => void;
   theme: () => void;
+  openControl?: () => void;
 }
 export function PanelView({ state, actions }: { state: PanelSnapshot; actions: PanelActions }) {
   const [details, setDetails] = useState(false);
@@ -332,6 +333,11 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
       <Drawer open={details} onClose={() => setDetails(false)} title="Run details">
         <div className="v-detail-content">
           <h2>{goal ?? "Current run"}</h2>
+          {actions.openControl && state.transport !== "http" && (
+            <Button onClick={actions.openControl}>
+              Open Control Center <Icon name="arrow" />
+            </Button>
+          )}
           <RunStatus status={evidence.run?.status ?? "pending"} />
           <section>
             <h3>Changed files</h3>
