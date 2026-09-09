@@ -6,6 +6,10 @@ This document defines the target user interaction for Veyra's ChatGPT ↔ native
 
 ## Product UX principle
 
+Veyra is **GUI-first**.
+
+The primary product surface is a polished, persistent graphical interface beside ChatGPT, not a terminal UI. The CLI remains important for installation, project initialization, diagnostics and automation, but **TUI is not a product requirement and is deferred unless a strong future use case appears**.
+
 A normal user should not need to understand or manually operate:
 
 - daemon ports;
@@ -27,7 +31,7 @@ First time          Per project           Daily use
 ──────────          ───────────           ─────────
 ve setup      →     ve init         →     Open ChatGPT
                                             ↓
-                                      Click Veyra
+                                      Open Veyra panel
                                             ↓
                                       Select/confirm Project
                                             ↓
@@ -65,7 +69,57 @@ API key    Not required
 
 The user should not manually choose a pairing JSON file during normal setup.
 
-## 2. Preferred browser transport: Chrome Native Messaging
+## 2. Primary browser UI: Chrome Side Panel
+
+The primary daily surface should use **Chrome Side Panel**, not a cramped popup.
+
+Target layout:
+
+```text
+┌──────────────────────────────────┐
+│ Veyra                     ● Ready│
+├──────────────────────────────────┤
+│ Project                          │
+│ veyra                    ▾       │
+│ ~/Projects/veyra                 │
+├──────────────────────────────────┤
+│ Current workflow                 │
+│                                  │
+│  ✓ Plan                          │
+│      ↓                           │
+│  ● Codex                         │
+│      ↓                           │
+│  ○ Verify                        │
+│      ↓                           │
+│  ○ Review                        │
+│                                  │
+├──────────────────────────────────┤
+│ Codex is implementing…           │
+│ 6 files changed                  │
+│                                  │
+│ [View activity]      [Pause]     │
+└──────────────────────────────────┘
+```
+
+The panel should feel like a native product surface alongside ChatGPT:
+
+- persistent while the user stays in the bound conversation;
+- enough room for workflow state, activity and controls;
+- no modal-heavy setup flow;
+- no giant diagnostics dump in the default view;
+- visual state transitions instead of raw text refreshes;
+- clear empty/loading/working/success/failure states;
+- responsive to narrow and wide side-panel widths.
+
+The toolbar popup, if retained, should become only a tiny launcher/status shortcut:
+
+```text
+Veyra · Ready
+Project: veyra
+[Open panel]
+```
+
+## 3. Preferred browser transport: Chrome Native Messaging
 
 For the browser-extension path, the preferred production UX is **Chrome Native Messaging**, not a manually managed localhost HTTP pairing flow.
 
@@ -74,7 +128,7 @@ Target architecture:
 ```text
 ChatGPT Web
     │
-Veyra Extension
+Veyra Side Panel / Extension
     │ chrome.runtime.connectNative
     ▼
 Veyra Native Messaging Host
@@ -99,7 +153,7 @@ Benefits:
 
 The existing loopback HTTP/pairing implementation remains valuable as deterministic test infrastructure and fallback transport. Do not delete it merely to implement Native Messaging.
 
-## 3. Local coordinator lifecycle
+## 4. Local coordinator lifecycle
 
 The user should not run `ve daemon start` during normal use.
 
@@ -111,15 +165,15 @@ Preferred behavior:
 - `ve daemon status/start/stop` remain advanced/debug commands;
 - an optional background service may be offered later, but is not required for the happy path.
 
-The extension should display simply:
+The GUI should display simply:
 
 ```text
-Veyra  ● Ready
+● Ready
 ```
 
 not daemon implementation details unless the user opens Diagnostics.
 
-## 4. Per-project setup
+## 5. Per-project setup
 
 Inside a repository/project folder, one command:
 
@@ -148,19 +202,20 @@ Path: ~/Projects/my-app
 
 No additional daemon or pairing step should be necessary.
 
-## 5. Daily ChatGPT flow
+## 6. Daily ChatGPT flow
 
-Normal use should require only the extension popup.
+Normal use should require only the Veyra side panel.
 
 ### Unbound conversation
 
 ```text
-Veyra
-
-● Ready
+Veyra                                      ● Ready
 
 Project
-[ my-app ▾ ]
+┌──────────────────────────────────────────────┐
+│ my-app                                   ▾  │
+│ ~/Projects/my-app                           │
+└──────────────────────────────────────────────┘
 
 [ Bind this conversation ]
 ```
@@ -176,21 +231,53 @@ Rules:
 ### Bound conversation
 
 ```text
-Veyra
+Veyra                                  ● Connected
 
-● Connected
-Project  my-app
-Codex    Ready
-Run      Idle
+my-app
+ChatGPT ↔ Codex
 
-[ Pause ]  [ Unbind ]
+Run
+● Working
+Codex is implementing authentication
+
+Plan       ✓
+Execute    ●
+Verify     ○
+Review     ○
+
+[ Pause ]                         [ Unbind ]
 ```
 
 The user then simply talks to ChatGPT normally.
 
 No separate "detect daemon", "refresh readiness", "pair", or "enable automation" steps should appear in the normal flow.
 
-## 6. Conversation binding persistence
+## 7. GUI interaction and motion quality
+
+Veyra should feel calm, fast and intentional, not like a dashboard full of status noise.
+
+Interaction requirements:
+
+- prefer direct manipulation and one-primary-action screens;
+- use optimistic visual feedback only where execution semantics remain safe;
+- transition between Idle → Planning → Executing → Verifying → Reviewing without layout jumps;
+- animate progress/state changes with short, restrained motion;
+- preserve scroll position when run data updates;
+- avoid full-panel rerenders and flashing loading states;
+- use skeleton/loading placeholders only when a user is actually waiting for data;
+- surface errors inline with recovery actions instead of raw stack traces;
+- keep destructive/cancel actions visually distinct;
+- support keyboard navigation and `prefers-reduced-motion`.
+
+Motion target:
+
+- micro-interactions: ~120–180 ms;
+- panel/card transitions: ~180–260 ms;
+- spring motion only for intentional user-triggered movement, not telemetry/status churn;
+- status dots/progress should not animate continuously while idle;
+- no gratuitous glow/spinner loops.
+
+## 8. Conversation binding persistence
 
 A page refresh must not force the user to bind again.
 
@@ -213,7 +300,7 @@ Requirements:
 
 Tab refresh/navigation within the same conversation should re-arm the content script automatically rather than permanently pausing the UX.
 
-## 7. Project selection should be persistent and fast
+## 9. Project selection should be persistent and fast
 
 The extension should remember:
 
@@ -223,11 +310,11 @@ The extension should remember:
 
 but Project identity/state remains owned by `.veyra/` and the Project registry.
 
-The popup should not repeatedly require `Detect daemon / Refresh Project readiness`.
+The GUI should not repeatedly require `Detect daemon / Refresh Project readiness`.
 
 Use event-driven snapshots and refresh automatically when:
 
-- extension opens;
+- panel opens;
 - native host reconnects;
 - Project registry changes;
 - Codex readiness changes;
@@ -235,7 +322,7 @@ Use event-driven snapshots and refresh automatically when:
 
 A manual Refresh action can live under Diagnostics.
 
-## 8. Hide machine plumbing from the conversation
+## 10. Hide machine plumbing from the conversation
 
 Structured handoff/result blocks are necessary for the experimental bridge but should not dominate the human conversation.
 
@@ -255,7 +342,71 @@ Veyra · Codex result returned   ✓  tests 12/12
 
 The normal visible conversation should remain focused on GPT's plan/review and the user's intent.
 
-## 9. Automatic recovery
+## 11. Local GUI / Control Center
+
+A local graphical Control Center should become Veyra's secondary surface for deeper project/run management.
+
+It should reuse the same design system and state/event contracts as the side panel.
+
+Core sections:
+
+```text
+Projects
+Runs
+Workflow
+Activity
+Settings
+Diagnostics
+```
+
+Typical use:
+
+- see all registered Projects;
+- inspect historical runs;
+- view plan/execution/verification/review timeline;
+- inspect changed files and diff summaries;
+- inspect failures/retries/approvals;
+- change Project-level Veyra settings;
+- manage local integration health.
+
+It should not duplicate ChatGPT as another chat app.
+
+The GUI may initially run as a local web app, with a desktop shell considered later only if it materially improves installation/system integration. Do not block P0 on Electron/Tauri packaging.
+
+## 12. Shared design system
+
+Side Panel and Control Center should share one visual/component system rather than diverging.
+
+Recommended ownership:
+
+```text
+packages/ui/
+  components/
+  tokens/
+  icons/
+  motion/
+```
+
+Recommended implementation direction:
+
+- React + TypeScript;
+- accessible headless primitives where useful;
+- CSS variables/design tokens for light/dark themes;
+- one animation layer shared by browser panel and GUI;
+- avoid heavy chart/dashboard dependencies until the product needs them.
+
+Visual language:
+
+- developer-tool precision, not enterprise-dashboard density;
+- restrained neutral surfaces with strong hierarchy;
+- one clear accent color for active/interactive state;
+- soft separators instead of excessive card borders;
+- monospace only for IDs/code/diffs, not the whole interface;
+- excellent dark mode and equally intentional light mode;
+- compact but not cramped;
+- status represented by icon + wording, not color alone.
+
+## 13. Automatic recovery
 
 Common transient failures should self-heal without forcing setup from scratch.
 
@@ -266,19 +417,20 @@ Examples:
 - coordinator stopped while idle -> restart lazily;
 - Codex temporarily busy -> show Waiting, do not make user re-pair;
 - native host updated -> reconnect;
-- popup closed -> automation continues only for the explicitly bound conversation/run.
+- side panel closed/reopened -> restore visual state from the current bound conversation/run.
 
 Require user action again only when security identity/scope actually changes.
 
-## 10. Progressive disclosure
+## 14. Progressive disclosure
 
-Default popup should show only:
+Default side panel should show only:
 
 ```text
 Veyra
 ● Ready / Working / Needs attention
 Project
-Run
+Workflow progress
+Current task/run
 Primary action
 ```
 
@@ -296,7 +448,7 @@ Move the following under **Diagnostics**:
 
 Experimental/debug builds may expose more details, but product UX should follow this hierarchy.
 
-## 11. Desired command surface
+## 15. Desired command surface
 
 Primary commands:
 
@@ -305,6 +457,7 @@ ve setup          # one-time machine/browser/native setup
 ve init           # initialize/register current Project
 ve status         # simple current health/project/run status
 ve doctor         # diagnostics when something is wrong
+ve open           # open the local GUI / Control Center
 ```
 
 Advanced/debug commands remain available but should not be taught in the primary onboarding:
@@ -316,7 +469,9 @@ ve review ...
 ve resume ...
 ```
 
-## 12. Target end-to-end experience
+No TUI command is required for the product roadmap.
+
+## 16. Target end-to-end experience
 
 ### First day
 
@@ -333,7 +488,7 @@ Then install/enable the Veyra browser extension once if setup cannot automate th
 
 ```text
 1. Open ChatGPT.
-2. Click Veyra.
+2. Open the Veyra side panel.
 3. Confirm/select Project and Bind (once per conversation).
 4. Ask ChatGPT what you want.
 5. Veyra coordinates Codex automatically.
@@ -341,7 +496,7 @@ Then install/enable the Veyra browser extension once if setup cannot automate th
 
 No terminal is required after Project initialization unless the user wants diagnostics.
 
-## 13. Acceptance criteria for UX simplification
+## 17. Acceptance criteria for UX simplification
 
 Before calling the browser-bridge onboarding stable, demonstrate on a clean user profile:
 
@@ -359,21 +514,29 @@ Before calling the browser-bridge onboarding stable, demonstrate on a clean user
 - idle CPU is near zero;
 - no `OPENAI_API_KEY` for the golden path;
 - normal conversation remains readable, with machine payloads collapsed or clearly secondary;
+- primary side-panel UI is polished in both light and dark mode;
+- state transitions are smooth and avoid layout jump/flicker;
+- keyboard navigation and reduced-motion behavior are tested;
 - Diagnostics still exposes enough evidence to debug failures.
 
-## 14. Implementation priority
+## 18. Implementation priority
 
-Do not derail the P0 product proof by rebuilding unrelated providers/UI.
+Do not derail the P0 product proof by rebuilding unrelated providers.
 
 Recommended order:
 
 1. finish the current real P0.12 transport proof;
 2. implement one-command `ve setup`;
 3. implement Chrome Native Messaging host + extension transport while retaining loopback fallback/tests;
-4. lazy coordinator lifecycle;
-5. persistent same-conversation Project binding;
-6. simplify popup to Ready / Project / Bind / Run;
-7. collapse machine handoff/result plumbing;
-8. rerun P0.13–P0.15 product demo using the simplified happy path.
+4. convert the extension popup into a Side Panel-first GUI;
+5. lazy coordinator lifecycle;
+6. persistent same-conversation Project binding;
+7. shared `packages/ui` design system and motion primitives;
+8. simplify the primary GUI to Ready / Project / Workflow / Run;
+9. collapse machine handoff/result plumbing;
+10. implement the local Control Center GUI after the golden loop is reliable;
+11. rerun P0.13–P0.15 product demo using the simplified happy path.
+
+TUI is explicitly **not** on the critical path.
 
 The final product metric is simple: **after initial setup, the user should not feel like they are operating Veyra. They should feel like ChatGPT and Codex simply know how to work together on the selected Project.**
