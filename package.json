@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-  "description": "Veyra — one goal, many agents, verified execution.",
+  "description": "Veyra \u2014 one goal, many agents, verified execution.",
   "packageManager": "pnpm@10.15.1",
   "engines": {
     "node": ">=20"
@@ -29,7 +29,10 @@
     "release-ci:check": "vitest run --config vitest.config.ts test/release.test.ts",
     "installation:check": "pnpm build && node scripts/verify-install.mjs",
     "evaluate": "pnpm build && tsx test/evaluation/manual-evaluation.ts",
-    "telemetry:check": "TURBO_TELEMETRY_DISABLED=1 turbo telemetry status"
+    "telemetry:check": "TURBO_TELEMETRY_DISABLED=1 turbo telemetry status",
+    "ui:dev": "pnpm --filter @veyraoss/control-center exec vite ./dev --host 127.0.0.1 --port 4173",
+    "ui:test": "pnpm --filter @veyraoss/control-center exec tsx test/manual-visual.ts",
+    "ui:update": "pnpm --filter @veyraoss/control-center exec tsx test/manual-visual.ts --update"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.12",

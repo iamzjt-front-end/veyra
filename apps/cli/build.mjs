@@ -1,13 +1,10 @@
-import { cp } from "node:fs/promises";
-// Ship the experimental unpacked extension with the installed CLI; no source checkout needed.
-await cp(
-  new URL("../chatgpt-extension/dist/", import.meta.url),
-  new URL("./dist/browser-extension/", import.meta.url),
-  { recursive: true },
-);
-
-await cp(
-  new URL("../dashboard/dist/", import.meta.url),
-  new URL("./dist/control-center/", import.meta.url),
-  { recursive: true },
-);
+import { cp, rm } from "node:fs/promises";
+// Copy only the current generated assets; obsolete hashed bundles must not accumulate.
+for (const [source, target] of [
+  ["../chatgpt-extension/dist/", "./dist/browser-extension/"],
+  ["../dashboard/dist/", "./dist/control-center/"],
+]) {
+  const destination = new URL(target, import.meta.url);
+  await rm(destination, { recursive: true, force: true });
+  await cp(new URL(source, import.meta.url), destination, { recursive: true });
+}

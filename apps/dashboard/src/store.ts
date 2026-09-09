@@ -122,6 +122,11 @@ export class WorkspaceStore {
   }
   async logout() {
     await this.client.logout();
+    this.set({
+      data: { projects: [], runs: [], issues: [], hasMore: false },
+      route: "/overview",
+      loading: false,
+    });
     this.close();
   }
   close() {

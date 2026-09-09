@@ -3,10 +3,10 @@ export function watchPopup(refresh: () => void): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let closed = false;
   const changed = () => {
-    if (closed || timer !== undefined) return;
+    if (closed || document.hidden || timer !== undefined) return;
     timer = setTimeout(() => {
       timer = undefined;
-      if (!closed) refresh();
+      if (!closed && !document.hidden) refresh();
     }, 100);
   };
   const storage = (_changes: unknown, area: string) => {
@@ -16,6 +16,13 @@ export function watchPopup(refresh: () => void): () => void {
   chrome.tabs.onActivated.addListener(changed);
   chrome.tabs.onUpdated.addListener(changed);
   window.addEventListener("focus", changed);
+  const visibility = () => {
+    if (document.hidden) {
+      clearTimeout(timer);
+      timer = undefined;
+    } else changed();
+  };
+  document.addEventListener("visibilitychange", visibility);
   const close = () => {
     closed = true;
     clearTimeout(timer);
@@ -24,6 +31,7 @@ export function watchPopup(refresh: () => void): () => void {
     chrome.tabs.onUpdated.removeListener(changed);
     window.removeEventListener("focus", changed);
     window.removeEventListener("pagehide", close);
+    document.removeEventListener("visibilitychange", visibility);
   };
   window.addEventListener("pagehide", close);
   return close;

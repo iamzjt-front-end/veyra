@@ -1,5 +1,7 @@
 /// <reference types="chrome" />
 import { initializeNativeProject } from "../../cli/src/project-init.js";
+import { readControlMetadata } from "../../cli/src/control-launcher.js";
+import { setTimeout as delay } from "node:timers/promises";
 import { setupNative } from "../../cli/src/native-installation.js";
 import { browserRegressions } from "./browser-regressions.js";
 import assert from "node:assert/strict";
@@ -138,6 +140,7 @@ const daemon = native
       }),
     });
 let context: Awaited<ReturnType<typeof chromium.launchPersistentContext>> | undefined;
+let controlPid: number | undefined;
 try {
   const extension = resolve("dist");
   if (native)
@@ -171,6 +174,8 @@ try {
   const conversation = "https://chatgpt.com/c/412bdbd3-48e2-45d1-947e-f4f865488614";
   await page.goto(conversation);
   const popup = await context.newPage();
+  // Standalone test tabs emulate visible docked extension surfaces while ChatGPT stays active.
+  await popup.addInitScript(() => Object.defineProperty(document, "hidden", { get: () => false }));
   await popup.goto(`${EXTENSION_ORIGIN}/diagnostics.html`);
   let invitation: { code: string } | undefined;
   if (!native) {
@@ -215,6 +220,7 @@ try {
     );
   }
   const panel = await context.newPage();
+  await panel.addInitScript(() => Object.defineProperty(document, "hidden", { get: () => false }));
   await panel.goto(`${EXTENSION_ORIGIN}/sidepanel.html`);
   await panel.locator(".v-panel-header").waitFor();
   const chatTabId = await worker.evaluate(
@@ -346,6 +352,24 @@ try {
     "Current machine handoffs/results fold reversibly (native binding preceded refresh)",
   );
   if (native) {
+    await panel
+      .getByRole("button", { name: "View run", exact: true })
+      .evaluate((node) => (node as HTMLButtonElement).click());
+    const opened = context.waitForEvent("page");
+    await panel
+      .getByRole("button", { name: "Open Control Center" })
+      .evaluate((node) => (node as HTMLButtonElement).click());
+    const control = await opened;
+    await control
+      .getByRole("heading", { name: "Repair after failed verifier", exact: true })
+      .waitFor();
+    controlPid = (await readControlMetadata(join(registryRoot, "browser", "control.json")))?.pid;
+    assert.ok(controlPid);
+    await control.getByRole("heading", { name: "Verification", exact: true }).waitFor();
+    assert.match(await control.locator(".v-review").innerText(), /Review pending/);
+    assert.match(new URL(control.url()).hash, new RegExp(project.id));
+    await control.close();
+    await page.bringToFront();
     // Finished budget stays stopped across refresh; no duplicate binding/dispatch is sent.
     await page.reload();
     await popup.waitForFunction(() =>
@@ -414,12 +438,29 @@ try {
       apiKeyRequired: false,
       publicNetworkUsed: false,
       ...(native
-        ? { nativeAuthorizationVerified: true, unbindVerified: true }
+        ? {
+            nativeAuthorizationVerified: true,
+            unbindVerified: true,
+            scopedControlCenterVerified: true,
+          }
         : { revocationVerified: true }),
     }),
   );
 } finally {
   await context?.close();
+  const remainingControl = await readControlMetadata(join(registryRoot, "browser", "control.json"));
+  controlPid ??= remainingControl?.pid;
+  if (controlPid && remainingControl?.pid === controlPid) {
+    try {
+      process.kill(controlPid, "SIGTERM");
+    } catch {
+      /* Already idle-stopped. */
+    }
+    for (let i = 0; i < 100; i++) {
+      if (!(await readControlMetadata(join(registryRoot, "browser", "control.json")))) break;
+      await delay(30);
+    }
+  }
   if (daemon) await daemon.stop();
   else await stopDaemon({ registryRoot });
   await rm(root, { recursive: true, force: true });

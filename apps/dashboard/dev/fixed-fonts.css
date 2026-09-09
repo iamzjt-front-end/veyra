@@ -1,0 +1,6 @@
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/jetbrains-mono";
+[data-fixture-font="fixed"] {
+  --font-ui: "Inter Variable", sans-serif;
+  --font-code: "JetBrains Mono Variable", monospace;
+}

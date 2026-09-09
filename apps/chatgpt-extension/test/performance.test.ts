@@ -104,6 +104,8 @@ it("popup refreshes on coalesced events only and removes all listeners/work when
     tabs: { onActivated: activated, onUpdated: updated },
   });
   vi.stubGlobal("window", new EventTarget());
+  const visibility = Object.assign(new EventTarget(), { hidden: false });
+  vi.stubGlobal("document", visibility);
   const refresh = vi.fn();
   const close = watchPopup(refresh);
   await vi.advanceTimersByTimeAsync(60000);
@@ -112,13 +114,22 @@ it("popup refreshes on coalesced events only and removes all listeners/work when
   for (let n = 0; n < 1000; n++) storage.emit({}, "session");
   await vi.advanceTimersByTimeAsync(100);
   expect(refresh).toHaveBeenCalledTimes(1);
+  visibility.hidden = true;
+  visibility.dispatchEvent(new Event("visibilitychange"));
+  for (let n = 0; n < 1000; n++) storage.emit({}, "session");
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(refresh).toHaveBeenCalledTimes(1);
+  visibility.hidden = false;
+  visibility.dispatchEvent(new Event("visibilitychange"));
+  await vi.advanceTimersByTimeAsync(100);
+  expect(refresh).toHaveBeenCalledTimes(2);
   storage.emit({}, "session");
   close();
   await vi.advanceTimersByTimeAsync(60000);
   updated.emit();
   activated.emit();
   storage.emit({}, "session");
-  expect(refresh).toHaveBeenCalledTimes(1);
+  expect(refresh).toHaveBeenCalledTimes(2);
   expect(vi.getTimerCount()).toBe(0);
   expect(storage.listeners.size + activated.listeners.size + updated.listeners.size).toBe(0);
 });

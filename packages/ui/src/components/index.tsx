@@ -431,3 +431,86 @@ export function VerificationStatus({
     </Status>
   );
 }
+
+export function Dropdown({
+  label,
+  icon = "down",
+  items,
+  onSelect,
+}: {
+  label: string;
+  icon?: IconName;
+  items: { id: string; label: string }[];
+  onSelect: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false),
+    root = useRef<HTMLDivElement>(null),
+    id = useId();
+  useEffect(() => {
+    if (!open) return;
+    root.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    const outside = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [open]);
+  const close = () => {
+    setOpen(false);
+    root.current?.querySelector<HTMLButtonElement>("[aria-haspopup]")?.focus();
+  };
+  return (
+    <div className="v-dropdown" ref={root}>
+      <IconButton
+        icon={icon}
+        label={label}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen(!open)}
+      />
+      <div
+        id={id}
+        role="menu"
+        aria-label={label}
+        hidden={!open}
+        className="v-dropdown-menu"
+        onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            close();
+          }
+          if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+            event.preventDefault();
+            const buttons = [
+              ...(root.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? []),
+            ];
+            const current = buttons.indexOf(document.activeElement as HTMLElement);
+            const next =
+              event.key === "Home"
+                ? 0
+                : event.key === "End"
+                  ? buttons.length - 1
+                  : (current + (event.key === "ArrowDown" ? 1 : -1) + buttons.length) %
+                    buttons.length;
+            buttons[next]?.focus();
+          }
+        }}
+      >
+        {items.map((item) => (
+          <button
+            type="button"
+            role="menuitem"
+            key={item.id}
+            onClick={() => {
+              onSelect(item.id);
+              close();
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}

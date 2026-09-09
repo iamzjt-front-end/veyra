@@ -58,3 +58,28 @@ it("coalesces in-flight updates, ignores stale route evidence, and has zero idle
     vi.useRealTimers();
   }
 });
+it("clears the local snapshot on sign-out and ignores a late evidence reply", async () => {
+  let release = () => {};
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const data = { ...empty, issues: [randomUUID()] };
+  const workspace = vi
+    .fn(async () => data)
+    .mockImplementationOnce(async () => data)
+    .mockImplementationOnce(async () => {
+      await pending;
+      return data;
+    });
+  const logout = vi.fn(async () => {});
+  const store = new WorkspaceStore({ workspace, logout } as unknown as ControlClient);
+  await store.refresh();
+  expect(store.snapshot().data.issues).toHaveLength(1);
+  const late = store.refresh();
+  await store.logout();
+  expect(store.snapshot().data).toEqual(empty);
+  release();
+  await late;
+  expect(store.snapshot().data).toEqual(empty);
+  expect(logout).toHaveBeenCalledOnce();
+});

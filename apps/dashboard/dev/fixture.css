@@ -1,0 +1,55 @@
+.v-fixture-gallery {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 64px 48px;
+}
+.v-fixture-gallery h1 {
+  font-size: 34px;
+  font-weight: 550;
+  letter-spacing: -1px;
+  margin: 50px 0 12px;
+}
+.v-fixture-gallery p {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.v-fixture-note {
+  margin: 28px 0 42px;
+  padding: 16px 20px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12px;
+  border-radius: 8px;
+}
+.v-fixture-gallery h2 {
+  margin: 30px 0 14px;
+  font-size: 16px;
+  font-weight: 500;
+}
+.v-fixture-gallery section > div {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px 24px;
+}
+.v-fixture-gallery a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 13px;
+  text-transform: capitalize;
+}
+.v-fixture-gallery a:hover {
+  color: var(--accent);
+}
+/* Preserve the real docked-panel proportions when a fixture is opened in a wide browser tab. */
+@media (min-width: 461px) {
+  #root > .v-panel {
+    max-width: 420px;
+    margin: 0 auto;
+    border-inline: 1px solid var(--border-subtle);
+  }
+}

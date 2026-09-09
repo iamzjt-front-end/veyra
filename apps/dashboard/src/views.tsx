@@ -2,7 +2,8 @@ import {
   Brand,
   Button,
   Icon,
-  IconButton,
+  Dropdown,
+  VirtualList,
   EmptyState,
   ErrorState,
   PathText,
@@ -45,7 +46,24 @@ export function RunRows({
   projects: RegisteredProject[];
   navigate: (route: string) => void;
 }) {
-  const [limit, setLimit] = useState(30);
+  const render = (run: DaemonRunSummary) => (
+    <button
+      type="button"
+      className="v-run-table-row"
+      key={`${run.projectId}/${run.runId}`}
+      onClick={() => navigate(runRoute(run))}
+    >
+      <span className="v-run-cell-title">
+        <Icon name={run.status === "failed" ? "warning" : "runs"} />
+        <span>{run.goal}</span>
+      </span>
+      <span className="v-secondary">
+        {projects.find((entry) => entry.project.id === run.projectId)?.project.name ?? "Project"}
+      </span>
+      <RunStatus status={run.status} />
+      <span className="v-duration">{elapsed(run.createdAt, run.updatedAt)}</span>
+    </button>
+  );
   return (
     <div className="v-run-table">
       <div className="v-run-table-head">
@@ -54,29 +72,16 @@ export function RunRows({
         <span>Status</span>
         <span>Duration</span>
       </div>
-      {runs.slice(0, limit).map((run) => (
-        <button
-          type="button"
-          className="v-run-table-row"
-          key={`${run.projectId}/${run.runId}`}
-          onClick={() => navigate(runRoute(run))}
-        >
-          <span className="v-run-cell-title">
-            <Icon name={run.status === "failed" ? "warning" : "runs"} />
-            <span>{run.goal}</span>
-          </span>
-          <span className="v-secondary">
-            {projects.find((entry) => entry.project.id === run.projectId)?.project.name ??
-              "Project"}
-          </span>
-          <RunStatus status={run.status} />
-          <span className="v-duration">{elapsed(run.createdAt, run.updatedAt)}</span>
-        </button>
-      ))}
-      {runs.length > limit && (
-        <Button variant="ghost" onClick={() => setLimit(limit + 30)}>
-          Show more runs
-        </Button>
+      {runs.length > 30 ? (
+        <VirtualList
+          items={runs}
+          label="Run history"
+          rowHeight={60}
+          itemKey={(run) => `${run.projectId}/${run.runId}`}
+          render={render}
+        />
+      ) : (
+        runs.map(render)
       )}
     </div>
   );
@@ -94,7 +99,39 @@ function ProjectRows({
   const projects = data.projects.filter((entry) =>
     entry.project.name.toLowerCase().includes(query.toLowerCase()),
   );
-  const [limit, setLimit] = useState(30);
+  const render = (entry: RegisteredProject) => {
+    const last = data.runs.find((run) => run.projectId === entry.project.id);
+    return (
+      <button
+        type="button"
+        className="v-project-list-row"
+        key={entry.project.id}
+        onClick={() => navigate(`/projects/${entry.project.id}`)}
+      >
+        <span className="v-project-emblem">
+          <Icon name="folder" />
+        </span>
+        <span className="v-project-label">
+          <strong>{entry.project.name}</strong>
+          <PathText path={entry.project.root} />
+        </span>
+        {entry.status === "stale" ? (
+          <Status tone="warning">Location unavailable</Status>
+        ) : last?.status === "running" || last?.status === "queued" ? (
+          <RunStatus status={last.status} />
+        ) : (
+          <span className="v-caption">
+            {last?.status === "completed"
+              ? "Last run completed"
+              : last?.status === "failed"
+                ? "Needs attention"
+                : "Ready"}
+          </span>
+        )}
+        <Icon name="chevron" />
+      </button>
+    );
+  };
   return (
     <div>
       {!compact && (
@@ -104,54 +141,53 @@ function ProjectRows({
             aria-label="Search projects"
             placeholder="Find a Project…"
             value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setLimit(30);
-            }}
+            onChange={(event) => setQuery(event.target.value)}
           />
         </label>
       )}
       <div className="v-project-list">
-        {projects.slice(0, compact ? 6 : limit).map((entry) => {
-          const last = data.runs.find((run) => run.projectId === entry.project.id);
-          return (
-            <button
-              type="button"
-              className="v-project-list-row"
-              key={entry.project.id}
-              onClick={() => navigate(`/projects/${entry.project.id}`)}
-            >
-              <span className="v-project-emblem">
-                <Icon name="folder" />
-              </span>
-              <span className="v-project-label">
-                <strong>{entry.project.name}</strong>
-                <PathText path={entry.project.root} />
-              </span>
-              {entry.status === "stale" ? (
-                <Status tone="warning">Location unavailable</Status>
-              ) : last?.status === "running" || last?.status === "queued" ? (
-                <RunStatus status={last.status} />
-              ) : (
-                <span className="v-caption">
-                  {last?.status === "completed"
-                    ? "Last run completed"
-                    : last?.status === "failed"
-                      ? "Needs attention"
-                      : "Ready"}
-                </span>
-              )}
-              <Icon name="chevron" />
-            </button>
-          );
-        })}
+        {projects.length ? (
+          !compact && projects.length > 30 ? (
+            <VirtualList
+              key={query}
+              items={projects}
+              label="Projects"
+              rowHeight={78}
+              itemKey={(entry) => entry.project.id}
+              render={render}
+            />
+          ) : (
+            projects.slice(0, compact ? 6 : 30).map(render)
+          )
+        ) : (
+          <EmptyState title={query ? "No matching Projects" : "Your first Project"}>
+            Create a local Project with ve init, or adjust your search.
+          </EmptyState>
+        )}
       </div>
-      {!compact && projects.length > limit && (
-        <Button variant="ghost" onClick={() => setLimit(limit + 30)}>
-          Show more Projects
-        </Button>
-      )}
     </div>
+  );
+}
+function SettingsLink({
+  navigate,
+  active,
+}: {
+  navigate: (route: string) => void;
+  active: boolean;
+}) {
+  const destination = "/settings";
+  return (
+    <a
+      href={`#${destination}`}
+      aria-current={active ? "page" : undefined}
+      onClick={(event) => {
+        event.preventDefault();
+        navigate(destination);
+      }}
+    >
+      <Icon name="settings" />
+      Settings
+    </a>
   );
 }
 export function WorkspaceView(props: WorkspaceViewProps) {
@@ -206,10 +242,7 @@ export function WorkspaceView(props: WorkspaceViewProps) {
           ))}
         </nav>
         <div className="v-sidebar-bottom">
-          <a href="/#/settings" aria-current={page === "settings" ? "page" : undefined}>
-            <Icon name="settings" />
-            Settings
-          </a>
+          <SettingsLink navigate={navigate} active={page === "settings"} />
           <div className="v-local-indicator">
             <Status tone={props.error ? "warning" : "accent"}>
               {props.error ? "Needs attention" : "Local workspace"}
@@ -232,12 +265,15 @@ export function WorkspaceView(props: WorkspaceViewProps) {
           </div>
           <div className="v-actions">
             <span className="v-caption">Your project. Your agents.</span>
-            <IconButton
+            <Dropdown
               icon="sun"
-              label="Switch theme"
-              onClick={() =>
-                props.theme(document.documentElement.dataset.theme === "dark" ? "light" : "dark")
-              }
+              label="Appearance"
+              items={[
+                { id: "light", label: "Light" },
+                { id: "dark", label: "Dark" },
+                { id: "system", label: "System" },
+              ]}
+              onSelect={props.theme}
             />
           </div>
         </header>

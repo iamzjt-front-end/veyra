@@ -5,3 +5,5 @@
 **/.veyra/runs/**
 **/.veyra/state/**
 pnpm-lock.yaml
+
+output/playwright/**

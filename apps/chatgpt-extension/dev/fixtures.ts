@@ -12,6 +12,13 @@ const provenance = {
   contentTrust: "untrusted",
 } as const;
 export function panelFixture(name: string): PanelSnapshot {
+  if (["codex-unavailable", "project-missing", "loading"].includes(name)) {
+    const state = panelFixture("unbound");
+    if (name === "codex-unavailable" && state.selected) state.selected.readiness.ready = false;
+    if (name === "project-missing" && state.projects[0]) state.projects[0].status = "stale";
+    if (name === "loading") state.loading = true;
+    return state;
+  }
   const projects = ["veyra-pro-proof", "kidney-care", "photo-tools"].map((name, i) => ({
     project: {
       version: 1 as const,
@@ -165,6 +172,10 @@ export function panelFixture(name: string): PanelSnapshot {
         },
       ],
     }));
+  }
+  if (name === "waiting-codex" && state.evidence.run) {
+    state.evidence.run.status = "queued";
+    state.binding.runStatus = "queued";
   }
   if (name === "paused") {
     state.enabled = false;

@@ -44,6 +44,8 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
   const paused = binding?.pausedByUser === true;
   const uncertain = binding?.phase === "paused" || !!state.error;
   const failed = evidence.run?.status === "failed";
+  const cancelled = evidence.run?.status === "cancelled";
+  const queued = evidence.run?.status === "queued";
   const working =
     currentBound &&
     ["running", "dispatching", "ready_to_deliver", "delivering"].includes(binding?.phase ?? "");
@@ -73,7 +75,11 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
           <IconButton icon="settings" label="Diagnostics" onClick={actions.diagnostics} />
         </div>
       </header>
-      <main className="v-panel-main">
+      <main
+        className="v-panel-main"
+        // biome-ignore lint/a11y/noNoninteractiveTabindex: The panel scroll region needs a keyboard focus entry.
+        tabIndex={0}
+      >
         <section className="v-project-picker">
           {currentBound && selected ? (
             <>
@@ -145,6 +151,18 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             Run <CodeText>ve init</CodeText> in a local project. It will appear here when you
             reconnect.
           </EmptyState>
+        ) : project?.status === "stale" ? (
+          <ErrorState title="Project location unavailable">
+            Restore the local folder, or choose another Project. Saved evidence stays with the
+            Project.
+          </ErrorState>
+        ) : state.selected?.readiness.ready === false && !working ? (
+          <ErrorState title="Codex needs your attention">
+            Open Codex and sign in with your existing account.
+            <div className="v-actions">
+              <Button onClick={actions.reconnect}>Reconnect</Button>
+            </div>
+          </ErrorState>
         ) : !currentBound ? (
           <div className="v-unbound v-enter">
             <span className="v-link-art" aria-hidden="true">
@@ -173,8 +191,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 !state.projectId ||
                 !state.conversation ||
                 state.busy ||
-                state.selected?.readiness.ready === false ||
-                project?.status === "stale"
+                state.selected?.readiness.ready === false
               }
               onClick={actions.bind}
             >
@@ -228,9 +245,11 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 ? "Needs attention"
                 : paused
                   ? "Automation paused"
-                  : result
-                    ? "Execution completed"
-                    : "Current task"}
+                  : cancelled
+                    ? "Run cancelled"
+                    : result
+                      ? "Execution completed"
+                      : "Current task"}
             </div>
             <h1 className="v-task-title">{goal ?? "Loading the current task"}</h1>
             {goal && evidence.handoff?.context.plan?.summary !== goal && (
@@ -242,7 +261,11 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 <div>
                   <Icon name={failed ? "warning" : "check"} />
                   <strong>
-                    {failed ? "Verification needs attention" : "Work is ready for review"}
+                    {cancelled
+                      ? "Run cancelled"
+                      : failed
+                        ? "Verification needs attention"
+                        : "Work is ready for review"}
                   </strong>
                 </div>
                 <p>
@@ -269,7 +292,9 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                       ? "Checking the work"
                       : paused
                         ? "Automation paused"
-                        : "Codex is working"}
+                        : queued
+                          ? "Waiting for Codex"
+                          : "Codex is working"}
                   </strong>
                   <p className="v-caption">
                     {paused

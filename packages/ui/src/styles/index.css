@@ -5,8 +5,8 @@
   --surface-subtle: #f0f3f0;
   --surface-elevated: #ffffff;
   --text-primary: #171b18;
-  --text-secondary: #667069;
-  --text-muted: #6c766f;
+  --text-secondary: #5f6962;
+  --text-muted: #5f6962;
   --border-subtle: #e3e8e4;
   --accent: #3b735c;
   --accent-strong: #285440;
@@ -663,4 +663,42 @@
     /* biome-ignore lint/complexity/noImportantStyles: accessibility preference must override every component. */
     scroll-behavior: auto !important;
   }
+}
+.v-virtual-list {
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.v-virtual-row > button {
+  height: 100%;
+}
+.v-dropdown {
+  position: relative;
+}
+.v-dropdown-menu:not([hidden]) {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 144px;
+  padding: 5px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  background: var(--surface-elevated);
+  box-shadow: var(--shadow-float);
+  z-index: 30;
+}
+.v-dropdown-menu > button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+.v-dropdown-menu > button:hover,
+.v-dropdown-menu > button:focus-visible {
+  background: var(--accent-soft);
 }
