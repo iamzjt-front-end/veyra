@@ -33,6 +33,7 @@ import {
 
 export { DaemonError, type DaemonMetadata } from "./files.js";
 export type { ExecutionSetup, ExecutionResolver } from "./runs.js";
+export { projectTool, type LocalToolClient } from "./project-tool.js";
 export type { LoopbackOptions } from "./loopback.js";
 export interface DaemonOptions {
   registryRoot?: string;
@@ -41,6 +42,8 @@ export interface DaemonOptions {
   onLog?: (entry: DaemonLog) => void;
   resolveExecution?: ExecutionResolver;
   http?: LoopbackOptions;
+  /** Opt-in lazy-service idle shutdown; never interrupts admitted runs. */
+  idleTimeoutMs?: number;
 }
 export interface DaemonLog {
   at: string;
@@ -63,6 +66,11 @@ export type DaemonStatus =
 export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHandle> {
   if (options.signal?.aborted)
     throw new DaemonError("daemon_unavailable", "Daemon start was cancelled.");
+  if (
+    options.idleTimeoutMs !== undefined &&
+    (!Number.isInteger(options.idleTimeoutMs) || options.idleTimeoutMs < 10)
+  )
+    throw new DaemonError("invalid_request", "Idle timeout must be at least 10 ms.");
   const location = (await locateDaemon(options.registryRoot, true)) as DaemonLocation;
   const lock = await acquireLocalLock({
     directory: join(location.directory, ".instance-lock"),
@@ -80,6 +88,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
     registry,
     resolveExecution: options.resolveExecution,
     env: options.env,
+    onActivity: () => scheduleIdle(),
   });
   const metadata: DaemonMetadata = {
     version: 1,
@@ -123,6 +132,20 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
   const controller = new AbortController();
   const sockets = new Set<Socket>();
   const operations = new Set<Promise<void>>();
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  const scheduleIdle = () => {
+    clearTimeout(idleTimer);
+    if (
+      options.idleTimeoutMs &&
+      !shutdown &&
+      !controller.signal.aborted &&
+      !operations.size &&
+      !coordinator.activeCount
+    )
+      idleTimer = setTimeout(() => {
+        void stop().catch(() => {});
+      }, options.idleTimeoutMs);
+  };
   let shutdown: Promise<void> | undefined;
   let http: LoopbackHandle | undefined;
   let resolveClosed: () => void = () => {};
@@ -236,12 +259,19 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
         }
       })();
       operations.add(work);
-      void work.finally(() => operations.delete(work)).catch(() => socket.destroy());
+      scheduleIdle();
+      void work
+        .finally(() => {
+          operations.delete(work);
+          scheduleIdle();
+        })
+        .catch(() => socket.destroy());
     });
   });
   server.maxConnections = 32;
   const stop = (): Promise<void> =>
     (shutdown ??= (async () => {
+      clearTimeout(idleTimer);
       controller.abort();
       const executionShutdown = coordinator.stop();
       options.signal?.removeEventListener("abort", onAbort);
@@ -311,6 +341,7 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
         location.directory,
         options.env,
       );
+    scheduleIdle();
     await log(
       "daemon.ready",
       "Local daemon ready; no provider authentication or cloud service required.",

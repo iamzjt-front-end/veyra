@@ -16,7 +16,13 @@ import {
 import type { ProjectDescriptor, ProjectId } from "@veyraoss/protocol";
 import { fixtureProjectState } from "../../../test/helpers/project-state.js";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
-import { DaemonClient, startDaemon, stopDaemon, type ExecutionSetup } from "../src/index.js";
+import {
+  DaemonClient,
+  daemonStatus,
+  startDaemon,
+  stopDaemon,
+  type ExecutionSetup,
+} from "../src/index.js";
 
 const exec = promisify(execFile);
 const moduleUrl = new URL("../dist/index.js", import.meta.url).href;
@@ -41,6 +47,44 @@ function setup(run: ExecutionSetup["agents"][string]["run"]): ExecutionSetup {
 }
 
 describe("local daemon tool API", { timeout: 30000 }, () => {
+  it("shuts down an idle lazy coordinator without polling and preserves active runs across idle deadlines", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const registryRoot = join(path, "registry");
+      const idle = await startDaemon({ registryRoot, idleTimeoutMs: 40 });
+      await idle.closed;
+      expect(await daemonStatus({ registryRoot })).toEqual({ status: "stopped" });
+      let release = () => {};
+      const active = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const daemon = await startDaemon({
+        registryRoot,
+        idleTimeoutMs: 200,
+        resolveExecution: () =>
+          setup(async () => {
+            await active;
+            return { status: "success", summary: "finished" };
+          }),
+      });
+      try {
+        const client = new DaemonClient({ registryRoot });
+        const project = await initializeProject(path);
+        await client.call("projects.register", { path });
+        const request = handoff(project);
+        await client.call("runs.dispatch", { projectId: project.id, handoff: request });
+        await delay(450);
+        expect((await daemonStatus({ registryRoot })).status).toBe("running");
+        release();
+        await daemon.closed;
+        expect((await new ProjectHandoffStore({ project }).getResult(request.runId))?.status).toBe(
+          "completed",
+        );
+      } finally {
+        release();
+        await daemon.stop();
+      }
+    });
+  });
   it("does not start new execution when shutdown races with intent persistence", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const project = await initializeProject(path);

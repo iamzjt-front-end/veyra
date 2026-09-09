@@ -45,8 +45,13 @@ export class RunCoordinator {
       registry: ProjectRegistry;
       resolveExecution?: ExecutionResolver;
       env?: Readonly<Record<string, string | undefined>>;
+      onActivity?: () => void;
     },
   ) {}
+
+  get activeCount() {
+    return this.#admitted.size;
+  }
 
   async project(id: ProjectId): Promise<RegisteredProject> {
     const entry = await this.options.registry.get(id);
@@ -88,6 +93,7 @@ export class RunCoordinator {
         "No local execution composition is configured for this daemon.",
       );
     this.#admitted.add(projectId);
+    this.options.onActivity?.();
     try {
       const project = await this.available(projectId);
       const setup = await this.options.resolveExecution(project, requested);
@@ -149,12 +155,14 @@ export class RunCoordinator {
       job.done = this.execute(project, handoff, setup, job).finally(() => {
         this.#active.delete(key);
         this.#admitted.delete(projectId);
+        this.options.onActivity?.();
       });
       // Completion remains observable through persisted state even when a requesting socket closes.
       void job.done.catch(() => {});
       return { ...job.view };
     } catch (error) {
       this.#admitted.delete(projectId);
+      this.options.onActivity?.();
       throw error;
     }
   }
