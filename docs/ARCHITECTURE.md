@@ -111,13 +111,16 @@ Its job is to let an explicitly selected/current ChatGPT workflow communicate wi
 Preference order:
 
 1. official supported ChatGPT App/Plugin/tool integration;
-2. supported local/tunneled bridge;
-3. isolated experimental browser bridge for the product proof;
-4. desktop UI/accessibility automation only as a last-resort experiment.
+2. isolated experimental browser bridge for the current ChatGPT Pro product proof;
+3. desktop UI/accessibility automation only as a last-resort experiment requiring a separate decision.
 
 The bridge must not assume that identity OAuth grants chat-history access and must not silently harvest unrelated conversations.
 
 For the current ChatGPT Pro proof, [ADR 001](ADR-001-CHATGPT-BRIDGE.md) selects `apps/chatgpt-extension`: all DOM/composer code stays in that replaceable experimental app. Its service worker uses the daemon's optional authenticated `127.0.0.1` HTTP transport, with a local Project allowlist and temporary conversation binding. The daemon contains only transport/Project/evidence logic; the CLI composes native readiness. `apps/chatgpt-bridge` retains the future official Full MCP implementation. No tunnel or API key is part of the current proof.
+
+Full MCP is the preferred future official production path after verifying write/action entitlement. Replacing the browser surface must preserve the existing handoff protocol, shared Project `.veyra/` state, native Codex integration and Project/Daemon/Core/Runtime/Protocol/Verifier responsibilities. No browser selectors or composer operations belong in those packages.
+
+The current transport exchanges a private, ten-minute single-use pairing invitation for an eight-hour local grant scoped to the launcher's Project allowlist. Explicit extension confirmation is required; authenticated revocation, expiry and daemon restart invalidate access. Host/Origin/CORS, request validation and Project scope are independent checks; localhost alone is not trusted. The page never receives pairing material. The current conversation's new completed assistant turn is inspected only for `VEYRA_HANDOFF_BEGIN/END`; only that bounded canonical envelope crosses to the daemon. Results use `VEYRA_RESULT_BEGIN/END` and an explicit Reviewer instruction. Review framing is reserved for P0.14; it is not a second workflow engine in the extension.
 
 ### Native Codex
 

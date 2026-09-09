@@ -22,12 +22,14 @@ Goal: let a real ChatGPT workflow hand work to an already-authenticated native C
 - [x] canonical planner/executor/reviewer handoff protocol
 - [x] real native Codex Project dispatch E2E with `OPENAI_API_KEY` unset
 - [x] ChatGPT bridge feasibility ADR/spike
-- [ ] selected ChatGPT bridge proof
+- [ ] P0.12 Experimental ChatGPT Web Bridge for Pro product proof (real installation/acceptance pending)
 - [ ] **real ChatGPT → Codex → ChatGPT closed loop (MVP gate)**
 - [ ] automatic review/fix loop
 - [ ] stable onboarding/demo
 
 The exact implementation order and acceptance criteria are in [`TODO.md`](TODO.md).
+
+Current Pro P0 uses the isolated Chrome/Chromium **Experimental Browser Bridge**, directly paired with `127.0.0.1`; it reads only explicit handoffs in the bound current conversation, never full ChatGPT history. Native Codex reuses existing login and Project `.veyra/` owns shared engineering state. API providers remain optional; `OPENAI_API_KEY` and public tunnels are not prerequisites. The retained `apps/chatgpt-bridge` is the **preferred future official Full MCP production path** after verified account write/action entitlement. Deterministic extension tests do not complete the real Pro gate or unlock P0.13–P0.15.
 
 ## P1 — TUI / Agent Mission Control
 

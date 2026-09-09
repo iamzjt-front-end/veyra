@@ -7,7 +7,7 @@ Evidence rechecked: 2026-09-09. Target account: ChatGPT Pro, confirmed by the us
 
 Implement P0.12 in independent `apps/chatgpt-extension/`: an **Experimental Browser Bridge**, initially Chrome/Chromium and `https://chatgpt.com` only. It connects from its extension service worker directly to the optional authenticated Veyra daemon transport at `http://127.0.0.1:<port>`. No cloudflared, temporary HTTPS tunnel, public server or `OPENAI_API_KEY` is used. All DOM inspection/composer interaction stays inside this app.
 
-Retain `apps/chatgpt-bridge` and its OAuth/MCP implementation and tests as the **future official Full MCP path**. Official supported integration remains the long-term preference, subject to verified account entitlement. Network reachability is not write authorization. Do not disguise dispatch/cancel as read/fetch tools to bypass plan limitations.
+Retain `apps/chatgpt-bridge` and its OAuth/MCP implementation and tests as the **preferred future official Full MCP production path**. Official supported integration remains the long-term preference, subject to verified account entitlement. Network reachability is not write authorization. Do not disguise dispatch/cancel as read/fetch tools to bypass plan limitations.
 
 ## Official capability evidence and discrepancy
 
@@ -20,14 +20,20 @@ Retain `apps/chatgpt-bridge` and its OAuth/MCP implementation and tests as the *
 
 The five required operations—binding, planner handoff submission, native dispatch, cancellation and automatic handback—include state-changing actions. Read/fetch-only access is insufficient. No real Pro MCP write trial is claimed. If official documentation or account capabilities change, re-evaluate the retained Full MCP path with an actual entitled account before changing this decision.
 
+Revalidation on 2026-09-09 again found the plan-specific restriction under the Help Center's plan-specific Pro FAQ and the conflicting general guide's “What is ChatGPT developer mode” / “Eligibility” sections. This is evidence of inconsistent official documentation, not proof that every Pro account has identical capabilities. The explicit product decision remains the experimental browser proof; do not try a tunnel as a substitute for write entitlement.
+
 ## Experimental browser boundary
 
 - Manifest V3 content scripts run in an isolated world on `chatgpt.com` only. Network access is delegated to the extension service worker with only the loopback host permission. [Chrome content scripts](https://developer.chrome.com/docs/extensions/develop/concepts/content-scripts), [cross-origin requests](https://developer.chrome.com/docs/extensions/develop/concepts/network-requests).
-- User installation, a daemon-issued process-local pairing secret, a local Project allowlist and an explicit current-conversation bind are required. Pairing material and bindings use extension session storage; no native credentials, cookies or ChatGPT authentication headers are read. [Chrome session storage](https://developer.chrome.com/docs/extensions/reference/api/storage).
-- Only new, completed assistant code blocks explicitly labelled `veyra-handoff` are eligible. Canonical schema and Project identity are checked again before daemon dispatch. Existing messages, user messages, other conversations and streaming fragments are never task input.
+- User installation, a daemon-issued local pairing invitation, a local Project allowlist and an explicit current-conversation bind are required. A mode-0600 file contains a random single-use invitation valid for ten minutes. The popup displays the local address, Project UUID scope and expiry before the user confirms an exchange for an eight-hour in-memory daemon grant. The consumed file is deleted. Grants are explicitly revocable and expire on daemon restart; secrets/bindings use trusted-context extension session storage. No native credentials, cookies or ChatGPT authentication headers are read. [Chrome session storage](https://developer.chrome.com/docs/extensions/reference/api/storage).
+- Only a new completed assistant turn containing exactly one standalone-line `VEYRA_HANDOFF_BEGIN` / `VEYRA_HANDOFF_END` pair is eligible. Only the enclosed JSON is forwarded after canonical schema, Project identity and fresh run-lease validation. A language-labelled fence without those markers is insufficient. Existing messages, user messages, other conversations and streaming fragments are never task input.
 - Binding is local and temporary. Navigation, tab closure, stop/unbind and browser restart must not route results into another conversation. Dispatch IDs are deduplicated and repairs have a user-visible bound; no guessed replay after an ambiguous response.
 - Result delivery uses the current conversation's ordinary composer, only when empty and idle. Structured execution output remains untrusted data. No hidden ChatGPT backend API, full-history scraping, confirmation bypass or native login extraction is used.
 - DOM selectors are experimental and may change. Failure must pause visibly, preserve Project evidence and require a deliberate retry/rebind where appropriate. This design is not an official OpenAI browser integration or a claim of platform approval.
+
+The popup explicitly distinguishes Enabled/Disabled and whether **Current** conversation is bound. It shows Project name, absolute root and UUID; Run ID/status; agent lifecycle projected from persisted events; native readiness and last check time; authenticated daemon connectivity; last result and delivery acknowledgement. Disable halts automation while admitted work may continue. Stop/Cancel also requests cancellation; Unpair cancels then revokes the local grant. An unconfirmed cancellation is displayed and requires local inspection. Changing Project cannot discard an unfinished run.
+
+The local transport checks exact Host, configured extension Origin when supplied, exact-origin CORS, JSON/request shape, grant validity and Project allowlist. Web page origins (including `https://chatgpt.com`) cannot invoke it directly. Origin absence is not authentication: a valid invitation/grant is still required. The service worker owns network calls; page data cannot choose URLs or commands. Grant validity is rechecked after asynchronous readiness inspection before dispatch, including a concurrent revocation. Same-OS-user applications are outside this local bearer boundary, as documented for Unix IPC.
 
 ## P0.12 implementation boundary
 
@@ -42,6 +48,16 @@ The bridge adapts existing Project/daemon/protocol contracts. It must not run Co
 Every call checks the local Project allowlist; no generic file reader, shell executor, approval-granting tool, native credential/history endpoint or arbitrary chat reader is exposed. The model supplies validated task data and chooses existing checks, never transport credentials or executable definitions. Dispatch/cancel annotations must reflect writes. Native sandbox and Veyra human gates remain effective. Paused/gated work returns a clear state for local human action.
 
 The daemon keeps provider-neutral HTTP transport, Project scoping, bounded responses and authentication; the CLI composes native readiness and trusted execution. The extension never supplies executable definitions or runs Codex itself. The existing MCP SDK/OAuth implementation remains isolated and available for future entitled Full MCP installations.
+
+## Wire framing and future review boundary
+
+Markers are an app-level transport framing of the existing version-1 canonical envelopes in [Handoff Protocol](HANDOFF.md). Project UUID, run UUID, provenance and the nested `context.plan` remain unchanged; the informal flattened examples in product discussions do not replace that contract. No browser DOM logic or duplicate handoff model is added to shared packages.
+
+- `VEYRA_HANDOFF_BEGIN/END`: one canonical `kind: handoff` envelope; planning and repair both use this shape.
+- `VEYRA_RESULT_BEGIN/END`: canonical result fields plus bounded resolved `verificationEvidence` and a labelled current `workspaceDiff`. A machine-origin message instructs GPT to act as Reviewer, compare the plan/acceptance criteria, prioritize actual verification/diff evidence over executor summary, and emit a structured verdict. It is not presented as a new natural-language user task.
+- `VEYRA_REVIEW_BEGIN/END`: reserved review intent with `verdict: PASS | FAIL | HUMAN_DECISION`, `summary`, severity-labelled `findings` and `nextAction: complete | repair | human`. Each pipe-separated enum denotes alternatives, not a literal value. P0.14 will validate/map this to the existing Project review envelope (`pass/fail/needs_input`, `complete/repair/wait`, result identity and provenance), persist the verdict and coordinate bounded/no-progress/human-gated repair. P0.12 does not auto-dispatch from review text; GPT must separately emit a valid explicit repair handoff.
+
+The current user-selected dispatch budget defaults to three total runs including the initial attempt (hard range 1–5). It is a bridge safety bound, not completion of P0.14's configurable repair iteration policy. P0.14's default target is at most three automatic repair iterations, with no-progress detection, pause/cancel, human decision gates and full provenance. Long-term engineering state remains exclusively in `<project>/.veyra/`; neither conversation is shared memory. Native Codex uses its existing login and API providers remain optional.
 
 ## Acceptance still required
 

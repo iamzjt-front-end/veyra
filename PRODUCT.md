@@ -206,6 +206,10 @@ The long-term preference is an official, supported ChatGPT App/Plugin/tool integ
 
 Until then, an experimental local/browser bridge may be used to prove the product loop, but it must be isolated from Core and treated as replaceable infrastructure.
 
+For the current **ChatGPT Pro** P0 proof, the selected path is `apps/chatgpt-extension`: an **Experimental Browser Bridge** for Chrome/Chromium + `chatgpt.com`, connected directly to the authenticated local daemon at `http://127.0.0.1:<port>`. Explicit pairing and current-conversation Project binding are required. Only validated `VEYRA_HANDOFF_BEGIN/END` data can dispatch; structured `VEYRA_RESULT_BEGIN/END` evidence returns to that same conversation for review. The bridge does not read full ChatGPT history or native credentials, and does not use a public server, tunnel or API key.
+
+The retained `apps/chatgpt-bridge` is the **preferred future official Full MCP production path**, conditional on verified write/action entitlement. Reachability alone does not prove that entitlement; the [ADR](docs/ADR-001-CHATGPT-BRIDGE.md) records conflicting official plan documentation. Native Codex keeps its existing login, API providers stay optional, and `<project>/.veyra/` remains the shared-state center regardless of bridge replacement. P0.12's real Chrome/Pro acceptance is pending; local fixtures are not a product-loop proof.
+
 Bridge rules:
 
 - explicit user installation/permission;

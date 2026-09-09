@@ -24,7 +24,7 @@ The golden path is **native-auth-first**. It should reuse Codex's normal existin
 
 Read [`PRODUCT.md`](PRODUCT.md) for the canonical product definition.
 
-The current ChatGPT Pro proof uses the [Experimental Browser Bridge](apps/chatgpt-extension/README.md), connecting Chrome/Chromium directly to the local daemon. The official MCP adapter remains available for future verified Full MCP access. Real-account acceptance is still pending in P0.12.
+The current ChatGPT Pro proof uses the [Experimental Browser Bridge](apps/chatgpt-extension/README.md), connecting Chrome/Chromium directly to the local daemon with explicit, expiring, revocable Project-scoped pairing. It processes only delimited handoffs in the explicitly bound current conversation; it does not read full ChatGPT history. Native Codex uses its existing login and Project `.veyra/` owns shared state. The retained official MCP adapter is the **preferred future Full MCP production path** after verified action entitlement. Real Chrome/Pro acceptance is still pending in P0.12; the [installation and test guide](apps/chatgpt-extension/README.md) includes a disposable Project setup command. No tunnel or public server is required.
 
 The product is **Veyra**. Its command is **`ve`**, its official npm scope is **`@veyraoss`**, and project-owned state lives under **`.veyra/`**.
 

@@ -24,6 +24,10 @@ The user should not have to copy messages between ChatGPT and Codex. The core pa
 
 API providers and additional agents remain supported infrastructure, but they are optional until the native GPT ↔ Codex loop is proven.
 
+Current P0.12 for **ChatGPT Pro** uses the replaceable **Experimental Browser Bridge** in `apps/chatgpt-extension`, Chrome/Chromium + `chatgpt.com` only. Keep all DOM/composer logic there. It connects directly to the local daemon with explicit, expiring, revocable Project-scoped pairing and an explicit current-conversation binding. Require validated `VEYRA_HANDOFF_BEGIN/END` framing before dispatch; return labelled `VEYRA_RESULT_BEGIN/END` evidence to the same conversation. Do not read full ChatGPT history or credentials. Native Codex uses its existing login; Project `.veyra/` remains the shared-state authority.
+
+Retain `apps/chatgpt-bridge` as the **preferred future official Full MCP production path**; do not conflate tunnel reachability with Pro write/action permission. No Cloudflare, ngrok, public server or API-key prerequisite in P0. Complete deterministic Stage A before requesting user installation/authorization and real Pro Stage B acceptance. Do not mark P0.12 complete or start dependent P0.13–P0.15 on fixture evidence alone.
+
 ## Product-first rules
 
 1. **Project is first-class.** A Veyra Project maps to a real local folder and owns its `.veyra/` shared state.

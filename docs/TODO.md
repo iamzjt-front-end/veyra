@@ -620,9 +620,9 @@ Initial P0.11 verification selected official ChatGPT web Developer mode + authen
 
 ---
 
-## P0.12 — Implement the selected ChatGPT Bridge proof
+## P0.12 — Experimental ChatGPT Web Bridge for Pro product proof
 
-**Status:** [!] Experimental Browser Bridge locally verified; awaiting user installation/authorization and real ChatGPT Pro conversation acceptance. The existing MCP app is retained as the future official Full MCP path; no tunnel or public server is selected.
+**Status:** [!] Stage A complete and verified. The only remaining blocker is user installation/authorization of the real Chrome extension and ChatGPT Pro conversation acceptance (Stage B). The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
 
 **Depends on:** P0.11
 
@@ -654,15 +654,27 @@ Allow one real ChatGPT workflow to interact with the local Veyra daemon/project.
 
 A real ChatGPT session can submit a task to a disposable registered project and receive the native Codex result through the bridge without the user manually copying either direction.
 
-### Local implementation and verification
+### Stage A — deterministic local acceptance
 
-The current Pro proof is the independent `apps/chatgpt-extension` Experimental Browser Bridge. It imports a daemon-issued local pairing grant, lists/selects authorized Projects, temporarily binds one current `chatgpt.com` conversation, validates only new completed explicit `veyra-handoff` blocks and uses the daemon's authenticated `http://127.0.0.1:<port>` API. Canonical run identity prevents replay. It polls execution, returns structured results/actual Verifier evidence/artifact references/current Git evidence through the same conversation's empty composer, and accepts subsequent repair handoffs up to the selected 1–5 run bound. Navigation, duplicate/ambiguous dispatch, busy composers and uncertain delivery fail closed or wait visibly. Human approvals stay in Veyra/native execution.
+- [x] actual MV3 manifest/build/content script/service worker and fixed extension identity;
+- [x] direct loopback daemon client and explicit authorized Project selection/binding;
+- [x] ten-minute single-use pairing invitation, explicit scope confirmation, eight-hour Project-scoped grant, expiry/revocation and trusted-context session storage;
+- [x] mandatory standalone `VEYRA_HANDOFF_BEGIN/END`, JSON/canonical schema validation, fresh run identity, native readiness and no dispatch from ordinary prose;
+- [x] native dispatch API reuse, polling, one-time acknowledged `VEYRA_RESULT_BEGIN/END` handback and explicit Reviewer instructions;
+- [x] current-conversation binding, Project name/root/UUID, Enabled/Disabled, Run ID/status, agent event status, Codex readiness, daemon connectivity, Last Result and cancellation controls;
+- [x] bounded explicit repair handoffs (default three total executions), reserved review framing without implementing the P0.14 workflow;
+- [x] deterministic DOM, unit/integration/security tests; actual Chromium extension fixture; disposable live-test preparation and independent protected-file/test/build inspection;
+- [x] all seven product/status documents updated, retained official MCP app and complete twelve-step Stage B guide.
 
-`apps/chatgpt-bridge` and its 16 OAuth/MCP tests are retained as the future official **Full MCP** path. [ADR 001](ADR-001-CHATGPT-BRIDGE.md) records the Help Center's Pro read/fetch limitation, the conflicting general Developer mode guide, and why transport connectivity cannot prove action entitlement. No cloudflared, HTTPS tunnel, public server or API key is used by the selected proof.
+The independent `apps/chatgpt-extension` is the current Pro **Experimental Browser Bridge**. Only a new completed assistant turn's explicitly delimited canonical handoff is sent to the authenticated `http://127.0.0.1:<port>` daemon. Project `.veyra/` owns engineering state; no complete conversation, native credentials, cookies or tokens are harvested. The popup distinguishes current binding from a previous/other page. Disable stops automation; Stop/Cancel also cancels the run; Unpair revokes the grant. Navigation, duplicate/ambiguous dispatch, busy composers and uncertain delivery pause or wait without guessed replay. Existing native execution, Verifier and human gates are reused.
 
-Local verification on 2026-09-09: 11 extension tests, 4 added daemon HTTP tests and 2 added CLI tests cover schema/identity, origin/Host/auth/project scope, native readiness, streaming/old/user-message exclusion, duplicate suppression, acknowledgement/navigation, cancellation and bounded repairs. The manual browser fixture loaded the actual unpacked MV3 extension in Chromium **149.0.7827.55**, used simulated ChatGPT/executor with the real daemon/Verifier, executed twice, observed actual verifier failure then success, and automatically submitted exactly two result messages in the same fixture conversation. Its owned browser profile, daemon and pairing file were cleaned up. This is **not a real ChatGPT/native-account acceptance run**; the real-host capability checkboxes remain pending.
+`apps/chatgpt-bridge` and its 16 OAuth/MCP tests remain the **preferred future official Full MCP production path**. [ADR 001](ADR-001-CHATGPT-BRIDGE.md) records the freshly rechecked Help Center Pro read/fetch restriction and the conflicting general Developer mode guide. Transport reachability does not prove write/action entitlement. No cloudflared, ngrok, public server or API key is used by this proof.
 
-All five baseline commands passed: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,911 passed**) and `pnpm build`.
+Verification on 2026-09-09: **24 extension tests** and **6 loopback HTTP tests** pass, covering malformed/missing/multiple markers, schema/identity, Host/Origin/auth/Project boundaries, invitation/grant expiry, single-use pairing, cancellation, revocation during pending native readiness, response bounds, old/user/streaming exclusion, navigation, acknowledgement, bounded repairs and protected-fixture tampering. The actual unpacked MV3 extension in Chromium **149.0.7827.55**, with simulated ChatGPT/executor and real daemon/Verifier, executed twice, observed failed then passed verification, and automatically returned exactly two results to the same fixture conversation. Current Project/readiness/Last Result UI, navigation isolation and UI-driven grant revocation also passed. Its owned browser/profile/daemon were cleaned up. These are deterministic transport/DOM tests, **not real ChatGPT/native-account acceptance**.
+
+A separate disposable `veyra-pro-proof` Project was prepared with trusted test/build/diff commands and independent registry. Its generated production-daemon start/status/health/stop scripts passed. With `OPENAI_API_KEY` unset, native **Codex 0.153.4** reported installed, authenticated and ready without credential-file access. That daemon was stopped; only the disposable Project and scripts remain for Stage B. This readiness probe does not claim a model invocation or real ChatGPT handback.
+
+All five baseline commands passed: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,926 passed**) and `pnpm build`. See the [extension guide](../apps/chatgpt-extension/README.md) for reproducible build, fixture, native-ready checks, real-account prompt, evidence locations and stop/uninstall steps.
 
 ### Blocker, attempts and unlock
 
@@ -851,7 +863,7 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**P0.12 — Implement the selected ChatGPT Bridge proof.**
+**P0.12 — Experimental ChatGPT Web Bridge for Pro product proof.**
 
 Blocked on the explicit user installation/authorization boundary described above. Resume this task's real ChatGPT acceptance before P0.13; local fixture success does not complete the gate.
 

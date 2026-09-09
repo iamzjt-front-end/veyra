@@ -9,6 +9,8 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --maxWorkers=2",
     "smoke:browser": "tsx test/manual-browser.ts",
+    "prepare:live": "tsx test/manual-live.ts prepare",
+    "inspect:live": "tsx test/manual-live.ts inspect",
     "clean": "rm -rf dist"
   },
   "dependencies": {
