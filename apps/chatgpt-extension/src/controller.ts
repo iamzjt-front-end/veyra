@@ -2,6 +2,7 @@ import { isExtensionSurface } from "./surfaces.js";
 import { isDaemonRunView, isProjectExecutionResult, isProjectId } from "@veyraoss/protocol";
 import type { NativeTransport } from "./native-client.js";
 import { exchangePairing, LocalClient } from "./client.js";
+import { PAGE_CONNECTION_CHANGED } from "./page-connection.js";
 import {
   conversationUrl,
   instruction,
@@ -152,6 +153,11 @@ export class BridgeController {
           throw new Error("当前对话没有可恢复的绑定。");
         if (!selected.pausedByUser)
           throw new Error("请先检查不确定发送或运行的证据，再显式 Unbind / Bind。");
+        const prepared = await this.host.send(tab.id as number, {
+          type: "prepare",
+          conversation: selected.conversation,
+        });
+        if (actionEpoch !== this.actionEpoch) throw new Error("恢复已取消。");
         selected.pausedByUser = false;
         selected.phase =
           selected.resumePhase === "ready_to_deliver"
@@ -160,7 +166,6 @@ export class BridgeController {
         if (actionEpoch !== this.actionEpoch) throw new Error("恢复已取消。");
         state.binding = selected;
         await this.host.save(state);
-        const prepared = await this.host.send(tab.id as number, { type: "prepare" });
         if (actionEpoch !== this.actionEpoch) throw new Error("恢复已取消。");
         const result = await this.restore(state, prepared, { tabId: tab.id, url: tab.url });
         if (actionEpoch === this.actionEpoch && result.restored && "binding" in result)
@@ -283,7 +288,8 @@ export class BridgeController {
         const conversation = conversationUrl(tab.url ?? "");
         if (tab.id === undefined || !conversation)
           throw new Error("请先打开 chatgpt.com 上已有 conversation（/c/...），再绑定。");
-        const prepared = await this.host.send(tab.id, { type: "prepare" });
+        const prepared = await this.host.send(tab.id, { type: "prepare", conversation });
+        if (actionEpoch !== this.actionEpoch) throw new Error("绑定已取消。");
         if (
           !object(prepared) ||
           prepared.conversation !== conversation ||
@@ -311,6 +317,9 @@ export class BridgeController {
         )
           throw new Error("Project 返回身份或路径无效。");
         this.readiness = { projectId: value.projectId, at: Date.now(), view };
+        const currentTab = await this.host.activeTab();
+        if (currentTab.id !== tab.id || conversationUrl(currentTab.url ?? "") !== conversation)
+          throw new Error(PAGE_CONNECTION_CHANGED);
         if (actionEpoch !== this.actionEpoch) throw new Error("绑定已取消。");
         const binding: Binding = {
           id: crypto.randomUUID(),

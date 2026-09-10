@@ -4,6 +4,7 @@ import { object } from "./contracts.js";
 import { NativeClient } from "./native-client.js";
 import { durableBindings } from "./persistence.js";
 import { BridgeController, type SessionState } from "./controller.js";
+import { sendToPage } from "./page-connection.js";
 
 let locale: Locale = DEFAULT_LOCALE;
 let saving: Promise<void> = Promise.resolve();
@@ -29,7 +30,7 @@ const host = {
     (await chrome.tabs.query({ active: true, currentWindow: true }))[0] ?? {},
   tab: (id: number) => chrome.tabs.get(id),
   send: (id: number, message: unknown) =>
-    chrome.tabs.sendMessage(id, object(message) ? { ...message, locale } : message),
+    sendToPage(id, object(message) ? { ...message, locale } : message),
 };
 const controller = new BridgeController(host, undefined, new NativeClient());
 // Default session storage is not exposed to content scripts. Make that boundary explicit.

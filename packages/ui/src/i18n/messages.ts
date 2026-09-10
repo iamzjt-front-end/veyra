@@ -280,6 +280,11 @@ export const chinese: Readonly<Record<string, string>> = {
   "Run ve init inside a local project, then open Veyra again.":
     "在本地项目中运行 ve init，然后重新打开 Veyra。",
   "Original error": "原始错误",
+  "Connect to this conversation": "连接当前对话",
+  "The ChatGPT page connection is unavailable. Refresh this conversation, then bind again. This attempt did not send a task.":
+    "当前 ChatGPT 页面尚未连接到扩展。请刷新这个对话页面，再点击绑定。本次没有发送任务。",
+  "The selected conversation changed while connecting. Return to it and bind again. This attempt did not send a task.":
+    "连接时当前对话发生了变化。请回到刚才选择的对话，再点击绑定。本次没有发送任务。",
   "Veyra Diagnostics": "Veyra 诊断",
   Bind: "绑定",
   "Choose a local Project": "选择本地项目",

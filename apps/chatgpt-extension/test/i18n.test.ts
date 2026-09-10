@@ -4,6 +4,12 @@ import { afterEach, expect, it, vi } from "vitest";
 import { machinePresentation } from "../src/collapse.js";
 import { extensionLocale } from "../src/ui-locale.js";
 import { diagnosticText, stateLabel } from "../src/diagnostic-copy.js";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { I18nProvider, LocaleStore } from "@veyraoss/ui";
+import { PanelView, type PanelActions } from "../src/panel-view.js";
+import { panelFixture } from "../dev/fixtures.js";
+import { PAGE_CONNECTION_CHANGED, PAGE_CONNECTION_UNAVAILABLE } from "../src/page-connection.js";
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -88,3 +94,36 @@ it("translates known diagnostics and state labels without rewriting unknown evid
     "src/test.ts:16 actual=failed",
   );
 });
+it.each([PAGE_CONNECTION_UNAVAILABLE, PAGE_CONNECTION_CHANGED])(
+  "shows the page connection remedy directly in Chinese and English: %s",
+  (error) => {
+    const state = { ...panelFixture("unbound"), connected: true, error };
+    const actions: PanelActions = {
+      select() {},
+      bind() {},
+      pause() {},
+      unbind() {},
+      cancel() {},
+      reconnect() {},
+      diagnostics() {},
+      theme() {},
+    };
+    for (const locale of ["zh-CN", "en"] as const) {
+      const html = renderToStaticMarkup(
+        createElement(
+          I18nProvider,
+          { store: new LocaleStore(undefined, locale) },
+          createElement(PanelView, { state, actions }),
+        ),
+      );
+      expect(html).toContain(
+        locale === "zh-CN" ? "本次没有发送任务" : "This attempt did not send a task",
+      );
+      expect(html).not.toContain("Receiving end does not exist");
+      expect(html).not.toContain("An action could not be confirmed");
+      expect(diagnosticText(locale, error)).toEqual(
+        locale === "en" ? error : expect.stringContaining("本次没有发送任务"),
+      );
+    }
+  },
+);

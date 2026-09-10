@@ -22,6 +22,7 @@ import {
   runSteps,
 } from "@veyraoss/ui";
 import type { PanelSnapshot } from "./panel-store.js";
+import { PAGE_CONNECTION_CHANGED, PAGE_CONNECTION_UNAVAILABLE } from "./page-connection.js";
 
 export interface PanelActions {
   select: (id: string) => void;
@@ -46,6 +47,8 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
   const result = evidence.result;
   const paused = binding?.pausedByUser === true;
   const uncertain = binding?.phase === "paused" || !!state.error;
+  const pageConnectionIssue =
+    state.error === PAGE_CONNECTION_CHANGED || state.error === PAGE_CONNECTION_UNAVAILABLE;
   const failed = evidence.run?.status === "failed";
   const cancelled = evidence.run?.status === "cancelled";
   const queued = evidence.run?.status === "queued";
@@ -322,11 +325,19 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
           </section>
         )}
         {uncertain && state.connected && (
-          <ErrorState title={t("Check this conversation before continuing")}>
-            {t(
-              "An action could not be confirmed. Nothing will be resent automatically. Your work remains in the Project.",
+          <ErrorState
+            title={t(
+              pageConnectionIssue
+                ? "Connect to this conversation"
+                : "Check this conversation before continuing",
             )}
-            {state.error && (
+          >
+            {t(
+              pageConnectionIssue
+                ? (state.error ?? "")
+                : "An action could not be confirmed. Nothing will be resent automatically. Your work remains in the Project.",
+            )}
+            {state.error && !pageConnectionIssue && (
               <Collapsible title={t("Original error")}>
                 <CodeText>{state.error}</CodeText>
               </Collapsible>

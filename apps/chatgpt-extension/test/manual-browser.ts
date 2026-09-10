@@ -41,6 +41,7 @@ document.querySelector('button').onclick=()=>{
 </script></body></html>`;
 
 const root = await mkdtemp(join(tmpdir(), "veyra-extension-browser-"));
+console.log(`Disposable browser fixture: ${root}`);
 const project = await initializeProject(root);
 const registryRoot = join(root, "registry");
 if (native) {
@@ -159,8 +160,48 @@ try {
     executablePath: process.env.CHROMIUM_EXECUTABLE,
     headless: true,
     env,
-    args: [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
+    ignoreDefaultArgs: native ? ["--disable-extensions"] : undefined,
+    args: native
+      ? ["--enable-unsafe-extension-debugging"]
+      : [`--disable-extensions-except=${extension}`, `--load-extension=${extension}`],
   });
+  if (native) {
+    // Only this disposable test profile: reproduce the user's Developer Mode + Load unpacked.
+    // In this Chromium, command-line loading alone is disabled on runtime.reload. Writing a
+    // Preferences file is insufficient: use Chrome's own profile configuration operation.
+    const manager = await context.newPage();
+    await manager.goto("chrome://extensions/");
+    await manager.evaluate(async () => {
+      const api = (
+        chrome as unknown as {
+          developerPrivate: {
+            updateProfileConfiguration(
+              options: { inDeveloperMode: boolean },
+              done: () => void,
+            ): void;
+            getProfileConfiguration(done: (value: { inDeveloperMode: boolean }) => void): void;
+          };
+        }
+      ).developerPrivate;
+      await new Promise<void>((done) =>
+        api.updateProfileConfiguration({ inDeveloperMode: true }, done),
+      );
+      const profile = await new Promise<{ inDeveloperMode: boolean }>((done) =>
+        api.getProfileConfiguration(done),
+      );
+      if (!profile.inDeveloperMode) throw new Error("Fixture Developer Mode was not enabled");
+    });
+    const browser = context.browser();
+    assert.ok(browser);
+    const extensions = await browser.newBrowserCDPSession();
+    try {
+      const loaded = await extensions.send("Extensions.loadUnpacked", { path: extension });
+      assert.equal(`chrome-extension://${loaded.id}`, EXTENSION_ORIGIN);
+    } finally {
+      await extensions.detach();
+      await manager.close();
+    }
+  }
   await context.route("**/*", (route) => {
     const url = new URL(route.request().url());
     if (url.origin === "https://chatgpt.com")
@@ -179,7 +220,7 @@ try {
   page.on("pageerror", (error) => pageErrors.push(error.message));
   const conversation = "https://chatgpt.com/c/412bdbd3-48e2-45d1-947e-f4f865488614";
   await page.goto(conversation);
-  const popup = await context.newPage();
+  let popup = await context.newPage();
   // Standalone test tabs emulate visible docked extension surfaces while ChatGPT stays active.
   await popup.addInitScript(() => Object.defineProperty(document, "hidden", { get: () => false }));
   await popup.goto(`${EXTENSION_ORIGIN}/diagnostics.html`);
@@ -229,7 +270,7 @@ try {
       project.id,
     );
   }
-  const panel = await context.newPage();
+  let panel = await context.newPage();
   await panel.addInitScript(() => Object.defineProperty(document, "hidden", { get: () => false }));
   await panel.goto(`${EXTENSION_ORIGIN}/sidepanel.html`);
   await panel.locator(".v-panel-header").waitFor();
@@ -242,6 +283,83 @@ try {
     (await worker.evaluate((id) => chrome.sidePanel.getOptions({ tabId: id }), chatTabId)).enabled,
     true,
   );
+  if (native) {
+    // Match the real report: reload the extension while keeping the existing ChatGPT document.
+    await page.bringToFront();
+    const pageIdentity = await page.evaluate(() => {
+      const id = crypto.randomUUID();
+      Object.assign(window, { fixtureDocumentIdentity: id });
+      return id;
+    });
+    const workerUrl = worker.url();
+    await worker.evaluate(() => {
+      Object.assign(globalThis, { fixtureBeforeExtensionReload: true });
+      // Return the evaluation before Chrome destroys its execution context.
+      setTimeout(() => chrome.runtime.reload(), 50);
+    });
+    await delay(200);
+    // Reopen only the extension's surfaces; the ChatGPT page is deliberately not refreshed.
+    if (!popup.isClosed()) await popup.close();
+    if (!panel.isClosed()) await panel.close();
+    popup = await context.newPage();
+    await popup.addInitScript(() =>
+      Object.defineProperty(document, "hidden", { get: () => false }),
+    );
+    await popup.goto(`${EXTENSION_ORIGIN}/diagnostics.html`);
+    panel = await context.newPage();
+    await panel.addInitScript(() =>
+      Object.defineProperty(document, "hidden", { get: () => false }),
+    );
+    await panel.goto(`${EXTENSION_ORIGIN}/sidepanel.html`);
+    await panel.locator(".v-panel-header").waitFor();
+    await popup.waitForFunction(
+      () => (document.querySelector<HTMLSelectElement>("#project")?.options.length ?? 0) > 1,
+    );
+    await popup.locator("#diagnostics").evaluate((node) => {
+      (node as HTMLDetailsElement).open = true;
+    });
+    let restarted = false;
+    const reloadDeadline = Date.now() + 15000;
+    while (Date.now() < reloadDeadline) {
+      await delay(100);
+      const candidate = [...context.serviceWorkers()]
+        .reverse()
+        .find((item) => item.url() === workerUrl);
+      if (!candidate) continue;
+      // Chromium can reuse its worker target object. Prove lost globals, not object identity.
+      const fresh = await Promise.race([
+        candidate
+          .evaluate(() => !!chrome.runtime.id && !("fixtureBeforeExtensionReload" in globalThis))
+          .catch(() => false),
+        delay(1000).then(() => false),
+      ]);
+      if (fresh) {
+        worker = candidate;
+        restarted = true;
+        break;
+      }
+    }
+    assert.equal(restarted, true, "The extension must actually reload with fresh worker globals");
+    const absent = await worker.evaluate(async (id) => {
+      try {
+        await chrome.tabs.sendMessage(id as number, { type: "prepare" }, { frameId: 0 });
+        return "unexpected receiver";
+      } catch (error) {
+        return error instanceof Error ? error.message : String(error);
+      }
+    }, chatTabId);
+    assert.equal(absent, "Could not establish connection. Receiving end does not exist.");
+    assert.equal(
+      await page.evaluate(
+        () => (window as unknown as { fixtureDocumentIdentity: string }).fixtureDocumentIdentity,
+      ),
+      pageIdentity,
+    );
+    assert.equal(await page.locator('[data-message-author-role="user"]').count(), 0);
+    console.log(
+      "Page recovery: real extension reload reproduced the missing receiver; binding without page refresh.",
+    );
+  }
   await popup.locator("#project").selectOption(project.id);
   await popup.locator("#limit").selectOption("2");
   await page.bringToFront();
@@ -565,7 +683,13 @@ try {
       streamingControlReused: true,
       assistantLayout: native ? "observed section with nested sibling toolbar" : "legacy article",
       ...(native
-        ? { armedRefreshRestored: true, bootstrapReplayed: false, lazyCoordinator: true }
+        ? {
+            extensionReloadRecovered: true,
+            pageRefreshRequiredForBind: false,
+            armedRefreshRestored: true,
+            bootstrapReplayed: false,
+            lazyCoordinator: true,
+          }
         : {}),
       verifier: ["failed", "passed"],
       apiKeyRequired: false,

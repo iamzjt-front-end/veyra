@@ -97,6 +97,29 @@ function fixture() {
     },
   };
 }
+it("keeps an explicitly paused binding paused when page preparation fails", async () => {
+  const f = fixture();
+  await f.bind();
+  await f.controller().handle({ type: "disable" }, popup);
+  const before = structuredClone(f.state());
+  vi.mocked(f.host.send).mockRejectedValueOnce(new Error("Page receiver unavailable"));
+  await expect(f.controller().handle({ type: "resume" }, popup)).rejects.toThrow("Page receiver");
+  expect(f.state()).toEqual(before);
+  expect(f.state().binding?.pausedByUser).toBe(true);
+});
+it("does not bind or send bootstrap after the selected conversation changes during readiness", async () => {
+  const f = fixture();
+  const call = f.native.call;
+  f.native.call = vi.fn(async (method, params) => {
+    const result = await call(method, params);
+    if (method === "projects.get") f.navigate();
+    return result;
+  });
+  await expect(f.bind()).rejects.toThrow("conversation changed");
+  expect(f.state().binding).toBeUndefined();
+  expect(vi.mocked(f.host.send).mock.calls).toHaveLength(1);
+  expect(vi.mocked(f.host.send).mock.calls[0]?.[1]).toMatchObject({ type: "prepare" });
+});
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();

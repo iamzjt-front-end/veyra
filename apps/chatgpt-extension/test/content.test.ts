@@ -5,6 +5,11 @@ import type { ProjectId } from "@veyraoss/protocol";
 import { sectionTurn } from "./fixtures/chatgpt-turn.js";
 
 afterEach(() => {
+  // Linkedom's window proxy delegates custom globals to this test realm; real browser
+  // documents have separate isolated worlds. Dispose that explicit per-document lease.
+  const scope = window as Window & { __veyraContent?: { dispose(): void } };
+  scope.__veyraContent?.dispose();
+  delete scope.__veyraContent;
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.resetModules();
@@ -91,6 +96,11 @@ it.each(["article", "section"])(
       editor.textContent = "";
     });
     await import("../src/content.js");
+    // Re-injection in the same isolated document must not add listeners or send another hello.
+    const installedListener = listener;
+    vi.resetModules();
+    await import("../src/content.js");
+    expect(listener).toBe(installedListener);
     listener({ type: "prepare" }, { id: "extension" }, (value) => {
       epoch = (value as { epoch: string }).epoch;
     });
