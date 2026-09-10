@@ -115,6 +115,54 @@ it("backs off only active-run queries and leaves no timer when finished or disab
   runs.stop();
   expect(vi.getTimerCount()).toBe(0);
 });
+it("captures only a new completed review, deduplicates mutation bursts and never replays history after refresh", async () => {
+  const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const main = document.querySelector("main");
+  if (!main) throw new Error("Missing main");
+  const review =
+    'VEYRA_REVIEW_BEGIN\n{"verdict":"PASS","summary":"只读验收 English","findings":[],"nextAction":"complete"}\nVEYRA_REVIEW_END';
+  for (let n = 0; n < 3000; n++)
+    main.append(sectionTurn(document, `old-${n}`, n === 2999 ? review : "old"));
+  const turn = vi.fn(),
+    error = vi.fn();
+  let active = true;
+  let stop = watchConversation(document, turn, vi.fn(), error, () => active);
+  const scans = vi.spyOn(document, "querySelectorAll");
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(scans).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+  const fresh = sectionTurn(document, "review-new", review);
+  const toolbar = fresh.querySelector('[role="group"]');
+  if (!toolbar) throw new Error("Missing toolbar");
+  toolbar.remove();
+  main.append(fresh);
+  for (let n = 0; n < 1000; n++) fresh.setAttribute("class", `stream-${n}`);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(turn).not.toHaveBeenCalled();
+  fresh.append(toolbar);
+  for (let n = 0; n < 1000; n++) toolbar.setAttribute("class", `complete-${n}`);
+  await vi.advanceTimersByTimeAsync(500);
+  expect(turn).toHaveBeenCalledExactlyOnceWith({ id: "review-new", source: "", review });
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(scans).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+  stop();
+  turn.mockClear();
+  stop = watchConversation(document, turn, vi.fn(), error, () => active);
+  fresh.setAttribute("class", "after-refresh");
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(turn).not.toHaveBeenCalled();
+  main.append(sectionTurn(document, "navigation-race", review));
+  await vi.advanceTimersByTimeAsync(200);
+  active = false;
+  await vi.advanceTimersByTimeAsync(500);
+  expect(turn).not.toHaveBeenCalled();
+  expect(error).not.toHaveBeenCalled();
+  stop();
+  expect(vi.getTimerCount()).toBe(0);
+});
 it.each([
   ["data-testid", "stop-button", "composer-speech-button"],
   ["data-testid", "stop-generation-button", "send-button"],

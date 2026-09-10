@@ -31,6 +31,7 @@ export function durableBindings(state: SessionState): Record<string, Binding> {
           pausedByUser: b.pausedByUser,
           resumePhase: b.resumePhase,
           attached: false,
+          review: b.review,
           message: "绑定已保存。",
           ...(b.lastResult
             ? {

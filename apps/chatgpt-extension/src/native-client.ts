@@ -9,6 +9,7 @@ const readMethods = new Set<DaemonMethod>([
   "runs.get",
   "handoffs.get",
   "results.get",
+  "reviews.get",
 ]);
 const reconnectDelay = () => new Promise<void>((resolve) => setTimeout(resolve, 200));
 export interface NativeTransport {

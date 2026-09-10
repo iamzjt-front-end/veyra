@@ -258,14 +258,15 @@ describe("session-local extension coordination", () => {
       expect(f.state().binding?.phase).toBe("delivering");
       await f.message("ack", { deliveryId: claim.delivery.id });
     }
-    expect(f.state().binding?.phase).toBe("stopped");
+    expect(f.state().binding?.phase).toBe("armed");
+    expect(f.state().binding?.review?.phase).toBe("pending");
     expect(f.state().binding?.lastResult).toMatchObject({
       status: "failed",
       delivery: "confirmed",
     });
     expect(f.state().binding?.runId).toBeTruthy();
     expect(f.calls.filter((method) => method === "runs.dispatch")).toHaveLength(2);
-    await f.dispatch();
+    await expect(f.dispatch()).rejects.toThrow("不能继续派发");
     expect(f.calls.filter((method) => method === "runs.dispatch")).toHaveLength(2);
   });
   it("preserves a result while the composer is busy and does not deliver after navigation or restart", async () => {

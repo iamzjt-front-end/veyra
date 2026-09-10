@@ -10,7 +10,7 @@ installContentOnce((restoreOnLoad) => {
   const presentation = machinePresentation();
   const epoch = crypto.randomUUID();
   let binding: Binding | undefined;
-  let candidate: { id: string; source: string } | undefined;
+  let candidate: { id: string; source: string; review?: string } | undefined;
   let busy = false;
   let composerChanged = false;
   let unwatch: (() => void) | undefined;
@@ -164,6 +164,16 @@ installContentOnce((restoreOnLoad) => {
       if (current.phase === "armed" && candidate) {
         const next = candidate;
         candidate = undefined;
+        if (next.review) {
+          if (!accept(await send("review", { source: next.review }), current.id)) return;
+          try {
+            presentation.review(document, next.id, next.review);
+          } catch {
+            /* Cosmetic only. */
+          }
+          if (binding?.phase !== "armed") return;
+        }
+        if (!next.source) return;
         parseHandoff(next.source, current.projectId, current.nextRunId);
         if (!accept(await send("dispatch", { source: next.source }), current.id)) return;
         if (binding?.phase === "running") {
@@ -201,13 +211,13 @@ installContentOnce((restoreOnLoad) => {
       await fail(error, current.id);
     } finally {
       busy = false;
+      // A completed turn may arrive while a review is being saved or a result acknowledged.
+      if (
+        (binding?.phase === "armed" && candidate) ||
+        (binding?.phase === "ready_to_deliver" && composerChanged)
+      )
+        queueMicrotask(() => void work());
     }
-    // A completed assistant turn can arrive while the one-time delivery is being acknowledged.
-    if (
-      (binding?.phase === "armed" && candidate) ||
-      (binding?.phase === "ready_to_deliver" && composerChanged)
-    )
-      void work();
   }
   window.addEventListener("pagehide", disarm);
   const navigated = () => {

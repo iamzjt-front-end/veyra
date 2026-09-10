@@ -36,16 +36,17 @@ export function collapseHandoff(
   id: string,
   source: string,
   fold = collapseMachine,
+  label = "Plan sent to Codex",
 ) {
   const owner = document.querySelector(`[data-message-id="${CSS.escape(id)}"]`);
   if (!owner) return;
   for (const block of owner.querySelectorAll("pre")) {
     if (turnText(block).trim() === source.trim()) {
-      fold(block, "Plan sent to Codex");
+      fold(block, label);
       return;
     }
   }
-  if (turnText(owner).trim() === source.trim()) fold(owner, "Plan sent to Codex");
+  if (turnText(owner).trim() === source.trim()) fold(owner, label);
 }
 
 /** Track only controls created in this document; language changes never scan conversation text. */
@@ -69,6 +70,8 @@ export function machinePresentation() {
     fold,
     handoff: (document: Document, id: string, source: string) =>
       collapseHandoff(document, id, source, fold),
+    review: (document: Document, id: string, source: string) =>
+      collapseHandoff(document, id, source, fold, "Review saved"),
     language: (value: unknown) => {
       if (!isLocale(value) || value === locale) return;
       locale = value;

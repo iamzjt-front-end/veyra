@@ -154,6 +154,16 @@ it.each(["article", "section"])(
     await vi.advanceTimersByTimeAsync(60000);
     expect(call).toHaveBeenCalledTimes(count);
     expect(vi.getTimerCount()).toBe(0);
+    // The reviewer response is a separate completed assistant turn in this same document.
+    const review =
+      'VEYRA_REVIEW_BEGIN\n{"verdict":"PASS","summary":"Evidence collected","findings":[],"nextAction":"complete"}\nVEYRA_REVIEW_END';
+    document.querySelector("main")?.append(sectionTurn(document, "review-new", review));
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(call.mock.calls.at(-1)?.[0]).toMatchObject({ type: "review", source: review });
+    expect(call.mock.calls.filter(([message]) => message.type === "review")).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(call.mock.calls.filter(([message]) => message.type === "dispatch")).toHaveLength(1);
+    expect(vi.getTimerCount()).toBe(0);
     listener({ type: "disarm" }, { id: "extension" }, () => {});
   },
 );

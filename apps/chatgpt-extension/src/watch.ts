@@ -1,5 +1,5 @@
 import { assistantId, assistantIds, conversationTurn, generating, turnText } from "./page.js";
-import { extractHandoffBlock } from "./contracts.js";
+import { extractHandoffBlock, extractMachineBlock } from "./contracts.js";
 
 const assistant = '[data-message-author-role="assistant"]';
 const composer =
@@ -25,7 +25,7 @@ function wasStreaming(record: MutationRecord): boolean {
 /** One identity snapshot on explicit binding; thereafter inspect only changed/new subtrees. */
 export function watchConversation(
   document: Document,
-  onHandoff: (turn: { id: string; source: string }) => void,
+  onHandoff: (turn: { id: string; source: string; review?: string }) => void,
   onComposer: () => void,
   onError: (error: unknown) => void,
   active: () => boolean = () => true,
@@ -60,10 +60,13 @@ export function watchConversation(
       const turn = conversationTurn(current);
       if (!id || ignored.has(id) || !turn?.querySelector(completion)) return;
       try {
-        const source = extractHandoffBlock(turnText(current));
+        const text = turnText(current);
+        const source = extractHandoffBlock(text);
+        const review = extractMachineBlock(text, "REVIEW");
         ignored.add(id);
         newest = undefined;
-        if (source !== undefined) onHandoff({ id, source });
+        if (source !== undefined || review !== undefined)
+          onHandoff({ id, source: source ?? "", ...(review ? { review } : {}) });
       } catch (error) {
         onError(error);
       }

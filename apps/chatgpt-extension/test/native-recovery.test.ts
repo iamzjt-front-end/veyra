@@ -144,3 +144,38 @@ it.each(["permanent", "invalid"] as const)(
     expect(vi.getTimerCount()).toBe(0);
   },
 );
+it("never replays a review write after native disconnect", async () => {
+  const f = transport("write");
+  const projectId = "62bf60b0-5646-4195-9f47-a4ea70140859" as ProjectId;
+  const runId = "7f208d63-7bb7-435e-9ebd-1556a253dba6";
+  const result = expect(
+    f.client.call("reviews.submit", {
+      projectId,
+      runId,
+      review: {
+        version: 1,
+        kind: "review",
+        id: "review-1",
+        projectId,
+        runId,
+        resultId: "result-1",
+        verdict: "pass",
+        summary: "Evidence collected",
+        nextAction: "complete",
+        evidence: [],
+        provenance: {
+          role: "reviewer",
+          actor: "ChatGPT",
+          surface: "chatgpt-extension",
+          at: new Date().toISOString(),
+          contentTrust: "untrusted",
+        },
+      },
+    }),
+  ).rejects.toThrow();
+  await vi.advanceTimersByTimeAsync(60000);
+  await result;
+  expect(f.sent.map((message) => message.method)).toEqual(["hello", "reviews.submit"]);
+  expect(f.connect).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+});

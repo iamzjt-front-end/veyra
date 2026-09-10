@@ -1,5 +1,10 @@
 import { isExtensionSurface } from "./surfaces.js";
-import { isDaemonRunView, isProjectExecutionResult, isProjectId } from "@veyraoss/protocol";
+import {
+  isDaemonRunView,
+  isProjectExecutionResult,
+  isProjectId,
+  isProjectReview,
+} from "@veyraoss/protocol";
 import type { NativeTransport } from "./native-client.js";
 import { exchangePairing, LocalClient } from "./client.js";
 import { PAGE_CONNECTION_CHANGED } from "./page-connection.js";
@@ -8,6 +13,7 @@ import {
   instruction,
   object,
   parseHandoff,
+  parseReview,
   parsePairing,
   parseInvitation,
   resultMessage,
@@ -404,6 +410,7 @@ export class BridgeController {
       binding.runId = handoff.runId;
       binding.runStatus = "dispatching";
       binding.agentStatus = "unknown";
+      binding.review = undefined;
       binding.count++;
       binding.message = "正在派发原生执行器。";
       // Persist the intent before crossing the network; ambiguous responses are never replayed.
@@ -436,6 +443,14 @@ export class BridgeController {
           )
             throw new Error("执行结果缺失或身份不匹配；请检查本机证据。");
           binding.nextRunId = crypto.randomUUID();
+          binding.review = {
+            id: crypto.randomUUID(),
+            runId: data.result.runId,
+            resultId: data.result.id,
+            handoffId: data.result.handoffId,
+            at: new Date().toISOString(),
+            phase: "pending",
+          };
           const id = crypto.randomUUID();
           binding.delivery = { id, text: resultMessage(binding, data, id) };
           binding.lastResult = {
@@ -467,11 +482,56 @@ export class BridgeController {
     ) {
       binding.delivery = undefined;
       if (binding.lastResult) binding.lastResult.delivery = "confirmed";
-      binding.phase = binding.count >= binding.maxRuns ? "stopped" : "armed";
+      // The final allowed execution still needs its review. The dispatch guard alone
+      // enforces the budget; keeping this observer armed adds no polling or execution.
+      binding.phase = "armed";
       binding.message =
-        binding.phase === "stopped"
+        binding.count >= binding.maxRuns
           ? "已回传，自动执行次数用尽。"
           : "已回传，等待 GPT Review 或新的 repair handoff。";
+    } else if (value.type === "review") {
+      const target = binding.review;
+      if (
+        binding.phase !== "armed" ||
+        !target ||
+        target.runId !== binding.runId ||
+        binding.lastResult?.runId !== target.runId ||
+        binding.lastResult.delivery !== "confirmed" ||
+        typeof value.source !== "string"
+      )
+        throw new Error("Review 只能关联当前对话已确认收到的执行结果。");
+      if (target.phase === "pending") target.at = new Date().toISOString();
+      const review = parseReview(value.source, binding.projectId, target);
+      if (target.phase === "recorded") return { binding };
+      if (target.phase !== "pending")
+        throw new Error("审查提交未确认，请检查 Project 记录；不会重发。");
+      target.phase = "submitting";
+      await this.host.save(state);
+      if (
+        actionEpoch !== this.actionEpoch ||
+        conversationUrl((await this.host.tab(binding.tabId)).url ?? "") !== binding.conversation
+      )
+        throw new Error("会话已切换；审查未提交。");
+      const saved = await client().call("reviews.submit", {
+        projectId: binding.projectId,
+        runId: target.runId,
+        review,
+      });
+      if (
+        !isProjectReview(saved) ||
+        saved.id !== target.id ||
+        saved.projectId !== binding.projectId ||
+        saved.runId !== target.runId ||
+        saved.resultId !== target.resultId ||
+        (saved.handoffId !== undefined && saved.handoffId !== target.handoffId)
+      )
+        throw new Error("审查保存响应身份不匹配；请检查 Project 记录。");
+      target.phase = "recorded";
+      binding.message = "审查已保存到 Project。";
+      if (saved.verdict === "needs_input") {
+        binding.phase = "stopped";
+        binding.message = "审查需要你的决定；自动桥接已停止。";
+      }
     }
     const latest = (await this.host.read()).binding;
     if (
@@ -664,7 +724,68 @@ export class BridgeController {
       )
         throw new Error("Project 身份、路径或 Codex readiness 已变化。");
       if (actionEpoch !== this.actionEpoch) return { restored: false };
+      const legacyReview = !binding.review;
+      if (
+        !binding.review &&
+        binding.runId &&
+        binding.lastResult?.runId === binding.runId &&
+        binding.lastResult.delivery === "confirmed"
+      ) {
+        // Upgrade routing from an older extension using exact persisted result identity;
+        // no old assistant messages are read, submitted or replayed.
+        const data = await this.native.call("results.get", {
+          projectId: binding.projectId,
+          runId: binding.runId,
+        });
+        if (
+          !object(data) ||
+          !isProjectExecutionResult(data.result) ||
+          data.result.projectId !== binding.projectId ||
+          data.result.runId !== binding.runId
+        )
+          throw new Error("执行结果缺失或身份不匹配；请检查本机证据。");
+        binding.review = {
+          id: crypto.randomUUID(),
+          runId: data.result.runId,
+          resultId: data.result.id,
+          handoffId: data.result.handoffId,
+          at: new Date().toISOString(),
+          phase: "pending",
+        };
+      }
+      if (binding.review && binding.lastResult?.delivery === "confirmed") {
+        // Read-only reconciliation: after a lost reply never resubmit the review body.
+        const target = binding.review;
+        const saved = await this.native.call("reviews.get", {
+          projectId: binding.projectId,
+          runId: target.runId,
+        });
+        if (
+          saved !== null &&
+          (!isProjectReview(saved) ||
+            saved.projectId !== binding.projectId ||
+            saved.runId !== target.runId ||
+            saved.resultId !== target.resultId ||
+            (saved.handoffId !== undefined && saved.handoffId !== target.handoffId) ||
+            (!legacyReview && saved.id !== target.id))
+        )
+          throw new Error("审查保存响应身份不匹配；请检查 Project 记录。");
+        if (saved) {
+          if (legacyReview && isProjectReview(saved)) {
+            target.id = saved.id;
+            target.at = saved.provenance.at;
+          }
+          target.phase = "recorded";
+          if (isProjectReview(saved) && saved.verdict === "needs_input") {
+            binding.phase = "stopped";
+            binding.message = "审查需要你的决定；自动桥接已停止。";
+          }
+        } else if (target.phase !== "pending")
+          throw new Error("审查提交未确认，请检查 Project 记录；不会重发。");
+      }
       if (binding.phase === "ready_to_deliver" && !binding.delivery) binding.phase = "running";
+      if (conversationUrl((await this.host.tab(sender.tabId)).url ?? "") !== conversation)
+        throw new Error("恢复时会话已变化。");
       if (state.binding && state.binding.id !== binding.id)
         await this.host.send(state.binding.tabId, { type: "disarm" }).catch(() => {});
       if (actionEpoch !== this.actionEpoch) return { restored: false };
@@ -673,7 +794,7 @@ export class BridgeController {
       binding.attached = true;
       state.binding = binding;
       await this.host.save(state);
-      return { restored: true, binding };
+      return { restored: binding.phase !== "stopped", binding };
     } catch (error) {
       if (actionEpoch !== this.actionEpoch) return { restored: false };
       binding.phase = "paused";
