@@ -29,12 +29,13 @@ const metadata = {
   platform: process.platform,
   fonts: "Inter Variable 5.3.0 / JetBrains Mono Variable 5.3.0",
   locale: "en-US",
+  languages: ["en", "zh-CN"],
   timezone: "UTC",
   time: "2026-09-09T10:29:14.000Z",
   reducedMotion: true,
   scale: 1,
 };
-const cases = [
+const layouts = [
   ...[
     "unbound",
     "idle",
@@ -80,6 +81,10 @@ const cases = [
   },
   { name: "popup", route: "/popup", width: 300, height: 310, dark: false },
 ];
+const cases = layouts.flatMap((sample) => [
+  { ...sample, locale: "en" },
+  { ...sample, name: `${sample.name}-zh`, locale: "zh-CN" },
+]);
 const results: { name: string; changedPixels: number; ratio: number }[] = [];
 try {
   if (!update)
@@ -108,16 +113,17 @@ try {
     } else await route.continue();
   });
   await page.clock.setFixedTime(new Date(metadata.time));
-  const visit = async (route: string, dark = false) => {
+  const visit = async (route: string, dark = false, locale = "en") => {
     await page.goto(
-      `http://127.0.0.1:${address.port}${route}?fixed=1&theme=${dark ? "dark" : "light"}`,
+      `http://127.0.0.1:${address.port}${route}?fixed=1&lang=${locale}&theme=${dark ? "dark" : "light"}`,
     );
     await page.locator(".v-brand").first().waitFor();
     await page.evaluate(() => document.fonts.ready);
   };
   for (const sample of cases) {
     await page.setViewportSize({ width: sample.width, height: sample.height });
-    await visit(sample.route, sample.dark);
+    await visit(sample.route, sample.dark, sample.locale);
+    assert.equal(await page.locator("html").getAttribute("lang"), sample.locale);
     assert.ok(
       await page.locator("body").evaluate((body) => body.scrollWidth <= innerWidth),
       `${sample.name}: overflow`,
@@ -168,11 +174,12 @@ try {
     }
     results.push({ name: sample.name, changedPixels, ratio });
   }
-  for (const width of [320, 360, 400, 420, 460]) {
-    await page.setViewportSize({ width, height: 820 });
-    await visit("/side-panel/running");
-    assert.ok(await page.locator("body").evaluate((body) => body.scrollWidth <= innerWidth));
-  }
+  for (const locale of ["en", "zh-CN"])
+    for (const width of [320, 360, 400, 420, 460]) {
+      await page.setViewportSize({ width, height: 820 });
+      await visit("/side-panel/running", false, locale);
+      assert.ok(await page.locator("body").evaluate((body) => body.scrollWidth <= innerWidth));
+    }
   await page.setViewportSize({ width: 900, height: 980 });
   await visit("/control-center/run");
   assert.ok(await page.locator("body").evaluate((body) => body.scrollWidth <= innerWidth));

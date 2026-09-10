@@ -38,7 +38,7 @@ try {
     "disconnected",
     "no-projects",
   ]) {
-    await page.goto(`http://127.0.0.1:${address.port}/side-panel/${state}`);
+    await page.goto(`http://127.0.0.1:${address.port}/side-panel/${state}?lang=en`);
     await page.locator(".v-panel-header").waitFor();
     assert.equal(
       await page.locator("body").evaluate((body) => body.scrollWidth <= innerWidth),
@@ -52,7 +52,7 @@ try {
       animations: "disabled",
     });
   }
-  await page.goto(`http://127.0.0.1:${address.port}/side-panel/running?theme=dark`);
+  await page.goto(`http://127.0.0.1:${address.port}/side-panel/running?lang=en&theme=dark`);
   await page.locator(".v-panel-header").waitFor();
   await page.screenshot({
     path: resolve(directory, "side-panel-dark.png"),
@@ -78,7 +78,7 @@ try {
     false,
   );
   await page.setViewportSize({ width: 300, height: 290 });
-  await page.goto(`http://127.0.0.1:${address.port}/popup`);
+  await page.goto(`http://127.0.0.1:${address.port}/popup?lang=en`);
   await page.getByRole("button", { name: "Open Veyra" }).waitFor();
   await page.screenshot({
     path: resolve(directory, "popup.png"),

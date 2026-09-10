@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement, type ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import { expect, it, vi } from "vitest";
 import { WorkspaceView } from "../src/views.js";
 import { WorkspaceStore } from "../src/store.js";
@@ -83,3 +83,10 @@ it("clears the local snapshot on sign-out and ignores a late evidence reply", as
   expect(store.snapshot().data).toEqual(empty);
   expect(logout).toHaveBeenCalledOnce();
 });
+
+import { I18nProvider, LocaleStore } from "@veyraoss/ui";
+function renderToStaticMarkup(node: ReactNode) {
+  return renderMarkup(
+    createElement(I18nProvider, { store: new LocaleStore(undefined, "en") }, node),
+  );
+}

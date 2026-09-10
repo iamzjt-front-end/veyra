@@ -2,55 +2,69 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <title>Veyra Diagnostics</title>
+    <title data-i18n="Veyra Diagnostics">Veyra 诊断</title>
     <link rel="stylesheet" href="diagnostics.css" />
   </head>
   <body>
-    <h1>Veyra <small>Diagnostics</small></h1>
-    <p id="enabled" role="status">Needs attention</p>
-    <label for="project">Project</label>
-    <select id="project">
-      <option value="">选择本地 Project</option>
+    <h1>Veyra <small data-i18n="Diagnostics">诊断</small></h1>
+    <label for="locale" data-i18n="Language / 语言">语言 / Language</label
+    ><select id="locale">
+      <option value="zh-CN">简体中文</option>
+      <option value="en">English</option>
     </select>
-    <p id="bound-project">当前对话未绑定</p>
-    <p id="run">尚无 Run</p>
+    <p id="locale-error" role="alert"></p>
+    <p id="enabled" role="status" data-i18n="Needs attention">需要处理</p>
+    <label for="project" data-i18n="Project">项目</label>
+    <select id="project">
+      <option value="" data-i18n="Choose a local Project">选择本地项目</option>
+    </select>
+    <p id="bound-project" data-i18n="Current conversation is unbound">当前对话未绑定</p>
+    <p id="run" data-i18n="No run yet">暂无运行</p>
     <div class="controls">
-      <button id="bind" type="button">Bind</button>
-      <button id="disable" type="button">Pause</button>
-      <button id="unbind" type="button">Unbind</button>
+      <button id="bind" type="button" data-i18n="Bind">绑定</button>
+      <button id="disable" type="button" data-i18n="Pause">暂停</button>
+      <button id="unbind" type="button" data-i18n="Unbind">解除绑定</button>
     </div>
     <p id="error" role="alert"></p>
-    <p id="status" role="status" aria-live="polite">正在连接 Veyra…</p>
-    <p class="note">
-      Bind 一次，之后正常聊天。绑定会将该 Project 的工程状态发送到当前对话；不读取聊天历史。
+    <p id="status" role="status" aria-live="polite" data-i18n="Connecting to Veyra">
+      正在连接 Veyra
+    </p>
+    <p
+      class="note"
+      data-i18n="Bind once, then just talk. Binding shares this Project’s engineering state with the current conversation; it does not read chat history."
+    >
+      绑定一次，之后正常聊天。绑定会把项目工程状态共享给当前对话，不读取完整聊天历史。
     </p>
     <details id="diagnostics">
-      <summary>Diagnostics</summary>
-      <p>
-        首次使用请运行一次 <code>ve setup</code>；每个项目运行一次 <code>ve init</code>。不需要 API
-        Key。
+      <summary data-i18n="Diagnostics">诊断</summary>
+      <p
+        data-i18n="Run ve setup once on this machine, and ve init once in each Project. No API key is required."
+      >
+        首次使用在本机运行一次 ve setup，每个项目运行一次 ve init。无需 API 密钥。
       </p>
       <dl>
-        <dt>Conversation</dt>
+        <dt data-i18n="Conversation">对话</dt>
         <dd id="conversation"></dd>
-        <dt>Project ID / path</dt>
+        <dt data-i18n="Project ID / path">项目 ID / 路径</dt>
         <dd id="project-detail"></dd>
-        <dt>Transport / coordinator</dt>
+        <dt data-i18n="Transport / coordinator">连接方式 / 协调器</dt>
         <dd id="daemon"></dd>
-        <dt>Native readiness</dt>
+        <dt data-i18n="Native readiness">原生执行器就绪状态</dt>
         <dd id="native"></dd>
-        <dt>Run ID / status</dt>
+        <dt data-i18n="Run ID / status">运行 ID / 状态</dt>
         <dd id="run-detail"></dd>
-        <dt>Agent</dt>
+        <dt data-i18n="Agent">执行器</dt>
         <dd id="agent"></dd>
-        <dt>Last Result</dt>
+        <dt data-i18n="Last Result">最近结果</dt>
         <dd id="last-result"></dd>
       </dl>
       <p id="previous-binding" class="note"></p>
       <p id="grant" class="note"></p>
-      <button id="detect" type="button">Refresh diagnostics</button>
-      <button id="stop" type="button">Cancel Run</button>
-      <label for="limit">最多执行次数（含 repair）</label>
+      <button id="detect" type="button" data-i18n="Refresh diagnostics">刷新诊断</button>
+      <button id="stop" type="button" data-i18n="Cancel Run">取消运行</button>
+      <label for="limit" data-i18n="Maximum executions (including repairs)"
+        >最多执行次数（含修复）</label
+      >
       <select id="limit">
         <option>1</option>
         <option>2</option>
@@ -59,17 +73,30 @@
         <option>5</option>
       </select>
       <details>
-        <summary>Loopback HTTP fallback（开发/诊断）</summary>
-        <label for="pairing">导入本机短期 pairing JSON</label>
+        <summary data-i18n="Loopback HTTP fallback (development / diagnostics)">
+          本机 HTTP 备用连接（开发 / 诊断）
+        </summary>
+        <label for="pairing" data-i18n="Import a short-lived local pairing JSON"
+          >导入本机短期配对 JSON 文件</label
+        >
         <input id="pairing" type="file" accept="application/json,.json" />
         <p id="pairing-scope" class="note"></p>
-        <button id="pair" type="button" disabled>确认项目范围并配对</button>
-        <button id="unpair" type="button">取消 Run 并撤销授权</button>
-        <button id="use-native" type="button">使用 Native Messaging</button>
+        <button id="pair" type="button" disabled data-i18n="Confirm Project scope and pair">
+          确认项目范围并配对
+        </button>
+        <button id="unpair" type="button" data-i18n="Cancel run and revoke authorization">
+          取消运行并撤销授权
+        </button>
+        <button id="use-native" type="button" data-i18n="Use Native Messaging">
+          使用原生消息桥接
+        </button>
       </details>
-      <p class="note">
-        详细日志和证据位于 Project/.veyra/runs；coordinator 日志位于
-        ~/.veyra/daemon/daemon.jsonl。Native grant 可通过 ve setup --revoke 撤销。
+      <p
+        class="note"
+        data-i18n="Evidence: Project/.veyra/runs. Coordinator logs: ~/.veyra/daemon/daemon.jsonl. Revoke native grants with ve setup --revoke."
+      >
+        执行证据：项目/.veyra/runs。协调器日志：~/.veyra/daemon/daemon.jsonl。可用 ve setup --revoke
+        撤销原生授权。
       </p>
     </details>
     <script src="diagnostics.js"></script>

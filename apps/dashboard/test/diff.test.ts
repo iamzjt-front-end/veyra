@@ -1,5 +1,5 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement, type ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import { parseDiff, codeTokens } from "../src/diff.js";
 import { DiffView } from "../src/diff-view.js";
@@ -136,3 +136,10 @@ it("shows recorded review verdicts and links only matching diff-file evidence", 
     ),
   ).toContain("Review pending");
 });
+
+import { I18nProvider, LocaleStore } from "@veyraoss/ui";
+function renderToStaticMarkup(node: ReactNode) {
+  return renderMarkup(
+    createElement(I18nProvider, { store: new LocaleStore(undefined, "en") }, node),
+  );
+}

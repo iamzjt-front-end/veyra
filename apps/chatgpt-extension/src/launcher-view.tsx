@@ -1,4 +1,5 @@
-import { Brand, Button, Icon, Status } from "@veyraoss/ui";
+import { useI18n } from "@veyraoss/ui";
+import { Brand, Button, Icon, Status, LanguageSelect } from "@veyraoss/ui";
 export interface LauncherState {
   status: "Ready" | "Working" | "Needs attention";
   project?: string;
@@ -14,12 +15,13 @@ export function LauncherView({
   open: () => void;
   diagnostics: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <main className="v-launcher">
       <header>
         <Brand />
         <Status tone={state.status === "Needs attention" ? "warning" : "accent"}>
-          {state.status}
+          {t(state.status)}
         </Status>
       </header>
       <Button
@@ -28,23 +30,27 @@ export function LauncherView({
         disabled={!state.allowed}
         onClick={open}
       >
-        Open Veyra <Icon name="panel" />
+        {t("Open Veyra")}
+        <Icon name="panel" />
       </Button>
       <section>
-        <span className="v-eyebrow">Project</span>
-        <p>{state.project ?? "Choose a Project in Veyra"}</p>
+        <span className="v-eyebrow">{t("Project")}</span>
+        <p>{state.project ?? t("Choose a Project in Veyra")}</p>
       </section>
-      {!state.allowed && <p className="v-caption">Open chatgpt.com to use the Side Panel.</p>}
+      {!state.allowed && (
+        <p className="v-caption">{t("Open chatgpt.com to use the Side Panel.")}</p>
+      )}
       {state.error && (
         <p role="alert" className="v-caption">
-          The panel could not open. Reopen it from this conversation.
+          {t("The panel could not open. Reopen it from this conversation.")}
         </p>
       )}
       <footer>
         <Button variant="ghost" onClick={diagnostics}>
-          Diagnostics <Icon name="chevron" />
+          {t("Diagnostics")}
+          <Icon name="chevron" />
         </Button>
-        <span>Experimental</span>
+        <LanguageSelect />
       </footer>
     </main>
   );

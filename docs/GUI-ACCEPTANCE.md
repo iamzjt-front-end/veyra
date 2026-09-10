@@ -1,4 +1,4 @@
-# GUI productization acceptance — 2026-09-09
+# GUI productization acceptance — updated 2026-09-10
 
 GUI-1–GUI-6 implement the shared design system, Chrome Side Panel, tiny popup launcher, local Control Center and run evidence/Diff views. This delivery stops for the first **user visual review**. P0.12 remains blocked on repaired real ChatGPT Pro re-acceptance; P0.13–P0.15 were not started. Deterministic screenshots and native-host fixtures do not constitute a real ChatGPT account or model proof.
 
@@ -21,6 +21,14 @@ Open `http://127.0.0.1:4173`. This independent gallery renders the same UI compo
 Use `?theme=dark` for dark previews. Ordinary previews use system fonts. The dev server listens only on loopback; stop it with Ctrl+C. It is a visual-development entry, not an onboarding requirement.
 
 For actual registered local Projects, use **`ve open`** after the one-time `ve setup`. From this built source checkout, use `pnpm ve -- open`. The CLI opens an authenticated local session automatically; no port, daemon command or pairing file is needed. The Side Panel's **View run → Open Control Center** opens the corresponding Project/run through Native Messaging. A scoped invitation never expands that Project grant.
+
+## Chinese / English interface
+
+The GUI defaults to **简体中文**. Use the **语言 / Language** icon at the top of the Side Panel or Control Center, or in the popup footer, to select **English**. Control Center **设置 / Settings → 语言 / Language** and extension Diagnostics provide the same explicit choice. The preview gallery also supports language selection; `?lang=zh-CN` and `?lang=en` pin a fixture's language.
+
+Side Panel, popup and Diagnostics share a trusted `chrome.storage.local` UI preference. The background sends cosmetic locale updates only to the current supported ChatGPT tab; only Veyra's own machine-message controls are repainted. The Control Center keeps its own preference at `<registryRoot>/ui-preferences.json` (0600), so it survives an ephemeral port change. Its authenticated endpoint retains the existing session, exact Origin/Host, CSRF and live revocation checks, and accepts only a valid locale field. Language changes add no polling or execution authority.
+
+Buttons, statuses, workflow steps, empty/error explanations, verification labels, Diff controls, accessible names and Diagnostics are localized. Project names/goals, code, raw errors/logs and protocol values retain their source text; English task titles in the fixed examples are sample engineering data. Switching never changes binding/run identity, replays an unconfirmed delivery, or substitutes a translation for saved evidence. `.veyra/` remains engineering memory.
 
 ## Chrome installation and update
 
@@ -50,7 +58,7 @@ Versioned baseline images: [`apps/dashboard/test/visual/baseline/`](../apps/dash
 | Dark Control Center | `control-center-dark.png`, `control-center-run-dark.png`                                                                                                                                                               |
 | Popup               | `popup.png`                                                                                                                                                                                                            |
 
-The 24 screenshots use Chromium **149.0.7827.55**, macOS, scale 1, fixed viewports (400×820 panel, 1440×980 GUI, 300×310 popup; full-page captures may be taller), en-US/UTC, time `2026-09-09T10:29:14Z`, disabled motion and bundled **Inter Variable / JetBrains Mono Variable 5.3.0**. Only fixture visual tests use these fonts; production retains the design's system font stacks. The runner refuses a different recorded browser/platform rather than silently replacing baselines. Side Panel additionally checks 320/360/400/420/460px; Control Center checks 900/1440px.
+Each image above has a Simplified Chinese counterpart ending in `-zh.png`, for **48 screenshots** covering 24 layouts in two languages. The screenshots use Chromium **149.0.7827.55**, macOS, scale 1, fixed viewports (400×820 panel, 1440×980 GUI, 300×310 popup; full-page captures may be taller), en-US/UTC, time `2026-09-09T10:29:14Z`, disabled motion and bundled **Inter Variable / JetBrains Mono Variable 5.3.0**. Chinese glyphs use the local macOS CJK fallback. Only fixture visual tests use these fonts; production retains the design's system font stacks. The runner refuses a different recorded browser/platform rather than silently replacing baselines. Side Panel additionally checks 320/360/400/420/460px; Control Center checks 900/1440px.
 
 The verified existing browser can be selected without downloading another one:
 
@@ -67,7 +75,7 @@ The suite also exercises automated WCAG A/AA rules, keyboard focus/Enter/Escape,
 
 Large Project/run lists render at most **14 rows**, tested with **3,000** entries. Unified diff source is bounded to 32 KiB/128 files/1,600 parsed lines and a maximum 640 mounted lines for the selected file; unchanged context folds. Source is rendered as text, not executable markup. Saved verifier evidence and matching review identity are checked separately from Codex's summary. No fictional test count or ChatGPT approval is displayed. Current-workspace diff is labelled as including pre-existing edits.
 
-A production-asset browser session against a real disposable local Daemon, with 36 Projects, measured **60 idle seconds: zero API requests, zero UI mutations, 0.0199s browser TaskDuration**. See `output/playwright/gui/control-center-performance.json`. This measures isolated main-thread work, not whole-machine CPU in the user's personal Chrome profile.
+A production-asset browser session against a real disposable local Daemon, with 36 Projects, measured **60 idle seconds: zero API requests, zero UI mutations, 0.0150s browser TaskDuration**. See `output/playwright/gui/control-center-performance.json`. This measures isolated main-thread work, not whole-machine CPU in the user's personal Chrome profile.
 
 Stable idle has no UI polling, full conversation scan or repeating animation:
 
@@ -93,7 +101,7 @@ pnpm test
 pnpm build
 ```
 
-All five baseline commands passed on the final GUI code (**2,005 tests**). The final browser checks below also passed, including **24 screenshots with zero differing pixels** and all captured automated WCAG A/AA checks. Native and HTTP 3,000-turn/60s idle fixtures issued zero DOM queries (TaskDuration 0.0224s / 0.0164s). They use the selected `CHROMIUM_EXECUTABLE`:
+All five baseline commands passed on the final GUI code (**2,016 tests**). The final browser checks below also passed, including **48 bilingual screenshots with zero differing pixels** and all captured automated WCAG A/AA checks. Native and HTTP 3,000-turn/60s idle fixtures issued zero DOM queries (TaskDuration 0.0191s / 0.0217s). They use the selected `CHROMIUM_EXECUTABLE`:
 
 ```sh
 pnpm --filter @veyraoss/chatgpt-extension smoke:native-browser
@@ -102,5 +110,7 @@ pnpm --filter @veyraoss/chatgpt-extension smoke:panel
 pnpm --filter @veyraoss/control-center smoke:gui
 pnpm ui:test
 ```
+
+Localization regression also covers catalog parameter parity, unknown/prototype-like text, private preference files, failed saves, late reads, refresh/restoration, and no idle language timers. The real MV3 fixtures switch Diagnostics and Side Panel languages without changing binding records or execution count. The production GUI fixture switches from Chinese to English and restores English after refresh and a real local-server restart at a different port. These remain deterministic local tests; repaired real ChatGPT Pro re-acceptance is still pending.
 
 Run the fixed visual comparison last because the other screenshot smoke scripts render ordinary system-font previews into the same output directory. Test-owned browser profiles, hosts, daemons and disposable Projects are cleaned up; no personal Chrome profile or ChatGPT credentials are accessed. Per-phase results and the outstanding real-account gate are recorded in [TODO](TODO.md).

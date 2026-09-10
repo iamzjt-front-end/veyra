@@ -94,6 +94,8 @@ pnpm build
 
 With the installed CLI, run `ve setup` once. In each project folder, run `ve init` once. Then open an existing ChatGPT conversation → Veyra → select Project → **Bind**. Wait for the binding confirmation, then describe the feature normally. Refresh restores the same binding; Pause/Resume and Unbind remain explicit.
 
+The GUI defaults to **简体中文**. Use the **语言 / Language** icon in the Side Panel, popup or Control Center to switch to **English**; Control Center Settings and extension Diagnostics also provide a language selector. The choice persists locally across refresh/reopening. Interface copy changes immediately; Project names, code, protocol fields and original execution evidence retain their source text. Changing language never rebinds a conversation or repeats an action.
+
 Packages are not published yet. From this built checkout the equivalent setup is `pnpm ve -- setup`; the printed unpacked extension directory ships with the CLI. Install it once in `chrome://extensions` (Developer Mode → Load unpacked). For a project outside the checkout, run `node /absolute/path/to/veyra/apps/cli/dist/index.js init` from that project. Already installed development extensions need Reload and a ChatGPT page refresh after code updates; this is an experimental update step, not a daily workflow.
 
 Setup reports an extension as pending until its native handshake is observed; it never infers an installed extension from a manifest file. Native Codex must already be installed/logged in. Normal operation does not require `ve daemon start`, a port, a pairing file or optional API providers. See the [native onboarding guide](apps/chatgpt-extension/README.md#native-messaging-产品流程).

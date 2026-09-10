@@ -1,3 +1,4 @@
+import { useI18n } from "@veyraoss/ui";
 import { useMemo, useRef, useState } from "react";
 import {
   Button,
@@ -24,6 +25,7 @@ export function RunDetail({
   projectRoot: string;
   cancel: () => void;
 }) {
+  const { t, locale } = useI18n();
   const { run, handoff, result, workspaceDiff, verificationEvidence } = evidence;
   const [selected, select] = useState<string>();
   const diffRef = useRef<HTMLElement>(null);
@@ -48,50 +50,52 @@ export function RunDetail({
         <div className="v-actions">
           <span className="v-caption">
             <Icon name="clock" />
-            {elapsed(run?.createdAt, run?.updatedAt)}{" "}
-            {run?.status === "running" ? "at last update" : "total"}
+            {elapsed(run?.createdAt, run?.updatedAt, locale)}{" "}
+            {run?.status === "running" ? t("at last update") : t("total")}
           </span>
-          <span className="v-caption">Codex · Native executor</span>
+          <span className="v-caption">{t("Codex · Native executor")}</span>
         </div>
         {run && ["running", "queued"].includes(run.status) && (
           <Button variant="danger" onClick={cancel}>
             <Icon name="stop" />
-            Cancel run
+            {t("Cancel run")}
           </Button>
         )}
       </div>
-      <section className="v-run-workflow" aria-label="Workflow timeline">
-        <Stepper horizontal steps={runSteps(evidence)} />
+      <section className="v-run-workflow" aria-label={t("Workflow timeline")}>
+        <Stepper horizontal steps={runSteps(evidence, locale)} />
       </section>
       <div className="v-run-outcome">
         <div>
           <h2>
             {result?.verification?.some((check) => check.status === "failed")
-              ? "Verification needs attention"
+              ? t("Verification needs attention")
               : result?.status === "completed"
-                ? "Execution completed"
+                ? t("Execution completed")
                 : result?.status === "cancelled"
-                  ? "Run cancelled"
+                  ? t("Run cancelled")
                   : result?.status === "failed"
-                    ? "Execution needs attention"
+                    ? t("Execution needs attention")
                     : evidence.stage === "verify"
-                      ? "Checking the work"
-                      : "Work is in progress"}
+                      ? t("Checking the work")
+                      : t("Work is in progress")}
           </h2>
           <p>
             {result?.summary ??
               handoff?.context.plan?.summary ??
-              "Waiting for the next Project update."}
+              t("Waiting for the next Project update.")}
           </p>
         </div>
         {result && (
-          <span className="v-caption">{result.changedFiles.length} files reported changed</span>
+          <span className="v-caption">
+            {t("{count} files reported changed", { count: result.changedFiles.length })}
+          </span>
         )}
       </div>
       <section className="v-center-section" ref={diffRef}>
         <div className="v-section-heading">
-          <h2>Changes</h2>
-          <span className="v-caption">Code and evidence, together</span>
+          <h2>{t("Changes")}</h2>
+          <span className="v-caption">{t("Code and evidence, together")}</span>
         </div>
         {workspaceDiff?.available && workspaceDiff.patch ? (
           <>
@@ -102,8 +106,9 @@ export function RunDetail({
               upstreamTruncated={workspaceDiff.truncated}
             />
             <p className="v-caption v-workspace-scope">
-              Current workspace snapshot · Includes pre-existing edits. Compare with the run’s
-              reported files and verification before reviewing.
+              {t(
+                "Current workspace snapshot · Includes pre-existing edits. Compare with the run’s reported files and verification before reviewing.",
+              )}
             </p>
           </>
         ) : (
@@ -111,13 +116,17 @@ export function RunDetail({
             <Icon name="file" />
             <p>
               {run?.status === "running"
-                ? "The workspace diff becomes available with the execution result."
-                : (workspaceDiff?.reason ?? "No Git patch was captured for this run.")}
+                ? t("The workspace diff becomes available with the execution result.")
+                : (workspaceDiff?.reason ?? t("No Git patch was captured for this run."))}
             </p>
           </div>
         )}
         {!!result?.changedFiles.length && (
-          <Collapsible title={`${result.changedFiles.length} files reported by the executor`}>
+          <Collapsible
+            title={t("{count} files reported by the executor", {
+              count: result.changedFiles.length,
+            })}
+          >
             <div className="v-reported-files">
               {result.changedFiles.slice(0, 128).map((path) => (
                 <div key={path}>
@@ -129,7 +138,7 @@ export function RunDetail({
                   ) : (
                     <PathText path={path} />
                   )}
-                  <CopyButton text={path} label={`Copy ${path}`} />
+                  <CopyButton text={path} label={t("Copy {path}", { path })} />
                 </div>
               ))}
             </div>
@@ -137,7 +146,9 @@ export function RunDetail({
         )}
         {!!workspaceDiff?.untrackedFiles?.length && (
           <Collapsible
-            title={`${workspaceDiff.untrackedFiles.length} untracked files (content not included in Git patch)`}
+            title={t("{count} untracked files (content not included in Git patch)", {
+              count: workspaceDiff.untrackedFiles.length,
+            })}
           >
             {workspaceDiff.untrackedFiles.slice(0, 128).map((path) => (
               <p key={path}>
@@ -150,8 +161,8 @@ export function RunDetail({
       <div className="v-run-evidence-columns">
         <section className="v-center-section">
           <div className="v-section-heading">
-            <h2>Verification</h2>
-            <span className="v-caption">Independent checks</span>
+            <h2>{t("Verification")}</h2>
+            <span className="v-caption">{t("Independent checks")}</span>
           </div>
           {result?.verification?.length ? (
             <div className="v-verification-list">
@@ -169,10 +180,10 @@ export function RunDetail({
                 const label =
                   (
                     {
-                      test: "Tests",
-                      build: "Build",
-                      typecheck: "Typecheck",
-                      lint: "Lint",
+                      test: t("Tests"),
+                      build: t("Build"),
+                      typecheck: t("Typecheck"),
+                      lint: t("Lint"),
                     } as Record<string, string>
                   )[check.id] ?? check.id;
                 return (
@@ -183,7 +194,9 @@ export function RunDetail({
                         <span>{label}</span>
                         <VerificationStatus status={check.status} />
                         {duration ? (
-                          <span className="v-caption">{(duration / 1000).toFixed(1)}s</span>
+                          <span className="v-caption">
+                            {t("{seconds}s", { seconds: (duration / 1000).toFixed(1) })}
+                          </span>
                         ) : null}
                       </span>
                     }
@@ -191,7 +204,9 @@ export function RunDetail({
                     <div className="v-check-evidence">
                       <VerificationStatus status={check.status} />
                       {duration ? (
-                        <span className="v-caption">{(duration / 1000).toFixed(1)}s</span>
+                        <span className="v-caption">
+                          {t("{seconds}s", { seconds: (duration / 1000).toFixed(1) })}
+                        </span>
                       ) : null}
                     </div>
                     {captured?.results.map((item, index) => (
@@ -199,17 +214,19 @@ export function RunDetail({
                       <div key={`${item.command}-${index}`} className="v-command-evidence">
                         <CodeText>{item.command}</CodeText>
                         <p className="v-caption">
-                          Exit {item.exitCode ?? "unavailable"} ·{" "}
-                          {item.success ? "Completed successfully" : "Check failed"}
+                          {t("Exit {code}", { code: item.exitCode ?? t("unavailable") })} ·{" "}
+                          {item.success ? t("Completed successfully") : t("Check failed")}
                         </p>
-                        <pre>{item.stderr || item.stdout || "No text output captured."}</pre>
+                        <pre>{item.stderr || item.stdout || t("No text output captured.")}</pre>
                         {item.truncated && (
                           <p className="v-caption">
-                            Output truncated; complete evidence remains in the Project.
+                            {t("Output truncated; complete evidence remains in the Project.")}
                           </p>
                         )}
                       </div>
-                    )) ?? <p className="v-caption">Detailed command evidence is unavailable.</p>}
+                    )) ?? (
+                      <p className="v-caption">{t("Detailed command evidence is unavailable.")}</p>
+                    )}
                   </Collapsible>
                 );
               })}
@@ -218,16 +235,16 @@ export function RunDetail({
             <div className="v-evidence-empty">
               <Status tone={evidence.stage === "verify" ? "accent" : "neutral"}>
                 {evidence.stage === "verify"
-                  ? "Running Project checks"
-                  : "No verification result yet"}
+                  ? t("Running Project checks")
+                  : t("No verification result yet")}
               </Status>
-              <p>Only checks with recorded evidence appear here.</p>
+              <p>{t("Only checks with recorded evidence appear here.")}</p>
             </div>
           )}
         </section>
         <section className="v-center-section">
           <div className="v-section-heading">
-            <h2>Review</h2>
+            <h2>{t("Review")}</h2>
             <span className="v-caption">{review?.provenance.actor ?? "ChatGPT"}</span>
           </div>
           <div className="v-review">
@@ -243,16 +260,18 @@ export function RunDetail({
               }
             >
               {review?.verdict === "pass"
-                ? "Approved"
+                ? t("Approved")
                 : review?.verdict === "fail"
-                  ? "Changes requested"
+                  ? t("Changes requested")
                   : review?.verdict === "needs_input"
-                    ? "Human decision needed"
-                    : "Review pending"}
+                    ? t("Human decision needed")
+                    : t("Review pending")}
             </Status>
             <p>
               {review?.summary ??
-                "ChatGPT reviews the returned result in the bound conversation. No review verdict has been recorded for this result yet."}
+                t(
+                  "ChatGPT reviews the returned result in the bound conversation. No review verdict has been recorded for this result yet.",
+                )}
             </p>
             {review?.evidence.map((ref) => {
               const path = relativeFile(ref.path);
@@ -268,7 +287,7 @@ export function RunDetail({
               ) : (
                 <Collapsible
                   key={`${ref.source}:${ref.eventId}:${ref.path}:${ref.selector}`}
-                  title="Review evidence reference"
+                  title={t("Review evidence reference")}
                 >
                   <PathText path={ref.path} />
                   <p className="v-caption">{ref.selector}</p>
@@ -276,11 +295,13 @@ export function RunDetail({
               );
             })}
             {review?.nextAction === "repair" && (
-              <p className="v-caption">Continue the repair in the bound ChatGPT conversation.</p>
+              <p className="v-caption">
+                {t("Continue the repair in the bound ChatGPT conversation.")}
+              </p>
             )}
           </div>
           {!!result?.risks?.length && (
-            <Collapsible title="Execution findings">
+            <Collapsible title={t("Execution findings")}>
               {result.risks.map((risk) => (
                 <div key={risk.code}>
                   <span className="v-caption">{risk.source}</span>
@@ -293,8 +314,8 @@ export function RunDetail({
       </div>
       <section className="v-center-section">
         <div className="v-section-heading">
-          <h2>Artifacts</h2>
-          <span className="v-caption">Saved with your Project</span>
+          <h2>{t("Artifacts")}</h2>
+          <span className="v-caption">{t("Saved with your Project")}</span>
         </div>
         {result?.artifacts.length ? (
           <div className="v-artifact-list">
@@ -303,20 +324,23 @@ export function RunDetail({
                 <Icon name="file" />
                 <span>
                   <strong>{artifact.id}</strong>
-                  <PathText path={artifact.path ?? "Path not recorded"} />
+                  <PathText path={artifact.path ?? t("Path not recorded")} />
                 </span>
                 <span className="v-caption">{artifact.kind}</span>
                 {artifact.path && (
-                  <CopyButton text={artifact.path} label={`Copy artifact ${artifact.id} path`} />
+                  <CopyButton
+                    text={artifact.path}
+                    label={t("Copy artifact {id} path", { id: artifact.id })}
+                  />
                 )}
               </div>
             ))}
           </div>
         ) : (
-          <p className="v-secondary v-caption">No artifacts recorded for this run.</p>
+          <p className="v-secondary v-caption">{t("No artifacts recorded for this run.")}</p>
         )}
       </section>
-      <Collapsible title="Plan and acceptance criteria">
+      <Collapsible title={t("Plan and acceptance criteria")}>
         <p>{handoff?.context.plan?.summary ?? handoff?.context.goal}</p>
         <ul>
           {handoff?.context.plan?.acceptanceCriteria.map((criterion) => (
@@ -327,22 +351,22 @@ export function RunDetail({
           <p key={constraint}>{constraint}</p>
         ))}
       </Collapsible>
-      <Collapsible title="Run metadata">
+      <Collapsible title={t("Run metadata")}>
         <div className="v-metadata">
-          <span>Run</span>
+          <span>{t("Run")}</span>
           <CodeText>{run?.runId}</CodeText>
-          {run && <CopyButton text={run.runId} label="Copy Run ID" />}
-          <span>Project</span>
+          {run && <CopyButton text={run.runId} label={t("Copy Run ID")} />}
+          <span>{t("Project")}</span>
           <CodeText>{run?.projectId}</CodeText>
           <span />
-          <span>Started</span>
+          <span>{t("Started")}</span>
           <CodeText>{run?.createdAt}</CodeText>
           <span />
-          <span>Updated</span>
+          <span>{t("Updated")}</span>
           <CodeText>{run?.updatedAt}</CodeText>
           <span />
-          <span>Snapshot</span>
-          <CodeText>{workspaceDiff?.observedAt ?? "Not captured"}</CodeText>
+          <span>{t("Snapshot")}</span>
+          <CodeText>{workspaceDiff?.observedAt ?? t("Not captured")}</CodeText>
         </div>
       </Collapsible>
     </div>

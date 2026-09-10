@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Veyra Experimental Bridge"
+  },
+  "extensionDescription": {
+    "message": "Opt-in current-conversation bridge to a local Veyra Project."
+  }
+}

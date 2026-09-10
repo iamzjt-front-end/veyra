@@ -104,6 +104,48 @@ async function session(server: Awaited<ReturnType<typeof startControlServer>>, u
   };
 }
 describe("local Control Center authorization", () => {
+  it("persists UI language through an authorized session without granting Project actions", async () =>
+    fixture(async ({ server, projectId, secondId, revoke }) => {
+      const access = await session(server, await server.issue([projectId]));
+      const get = () =>
+        fetch(`${server.origin}/api/preferences`, { headers: { Cookie: access.cookie } });
+      const set = (body: unknown, overrides: Record<string, string> = {}) =>
+        fetch(`${server.origin}/api/preferences`, {
+          method: "POST",
+          headers: {
+            Origin: server.origin,
+            Cookie: access.cookie,
+            "X-Veyra-CSRF": access.csrf,
+            "Content-Type": "application/json",
+            ...overrides,
+          },
+          body: JSON.stringify(body),
+        });
+      expect((await fetch(`${server.origin}/api/preferences`)).status).toBe(403);
+      expect(await (await get()).json()).toEqual({ locale: "zh-CN" });
+      const forgedHeaders: Record<string, string>[] = [
+        { Origin: "https://evil.example" },
+        { "X-Veyra-CSRF": "wrong" },
+        { Cookie: "" },
+      ];
+      for (const headers of forgedHeaders)
+        expect((await set({ locale: "en" }, headers)).status).toBe(403);
+      for (const body of [{ locale: "fr" }, { locale: "en", projectId: secondId }, ["en"], null])
+        expect((await set(body)).status).toBe(403);
+      expect(await (await get()).json()).toEqual({ locale: "zh-CN" });
+      expect(await (await set({ locale: "en" })).json()).toEqual({ locale: "en" });
+      const reopened = await session(server, await server.issue([projectId]));
+      expect(
+        await (
+          await fetch(`${server.origin}/api/preferences`, { headers: { Cookie: reopened.cookie } })
+        ).json(),
+      ).toEqual({ locale: "en" });
+      expect((await access.tool("projects.get", { projectId: secondId })).status).toBe(403);
+      expect((await access.tool("runs.dispatch", { projectId })).status).toBe(403);
+      revoke();
+      expect((await get()).status).toBe(403);
+      expect((await set({ locale: "zh-CN" })).status).toBe(403);
+    }));
   it("uses one-use invitations, exact origin/host, CSRF, project scope and revocation", async () =>
     fixture(async ({ server, projectId, secondId, revoke }) => {
       const access = await session(server, await server.issue([projectId]));

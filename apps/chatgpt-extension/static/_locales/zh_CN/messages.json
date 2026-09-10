@@ -1,0 +1,8 @@
+{
+  "extensionName": {
+    "message": "Veyra 实验性桥接"
+  },
+  "extensionDescription": {
+    "message": "将当前 ChatGPT 对话显式绑定到本地 Veyra 项目。"
+  }
+}

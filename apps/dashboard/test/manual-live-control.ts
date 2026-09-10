@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { setTimeout as delay } from "node:timers/promises";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright";
@@ -19,17 +19,19 @@ await withFixtureWorkspace(async ({ path }) => {
     await initializeProject(root, { name: `Sample Project ${String(i).padStart(2, "0")}` });
     await client.call("projects.register", { path: root });
   }
-  const server = await startControlServer({
-    assets: resolve("dist"),
-    registryRoot,
-    client: async () => client,
-    authorize: async () => {},
-    inspect: async () => ({
-      ready: true,
-      message: "Deterministic integration fixture",
-      checks: [],
-    }),
-  });
+  const startServer = () =>
+    startControlServer({
+      assets: resolve("dist"),
+      registryRoot,
+      client: async () => client,
+      authorize: async () => {},
+      inspect: async () => ({
+        ready: true,
+        message: "Deterministic integration fixture",
+        checks: [],
+      }),
+    });
+  let server = await startServer();
   const browser = await chromium.launch({
     executablePath: process.env.CHROMIUM_EXECUTABLE,
     headless: true,
@@ -45,6 +47,11 @@ await withFixtureWorkspace(async ({ path }) => {
     await page.goto(await server.issue());
     await page.locator(".v-project-list-row").first().waitFor();
     assert.equal(new URL(page.url()).hash, "#/overview");
+    await page.getByRole("heading", { name: "你的工作区", exact: true }).waitFor();
+    assert.equal(await page.locator("html").getAttribute("lang"), "zh-CN");
+    await page.getByRole("button", { name: "语言 / Language", exact: true }).click();
+    await page.getByRole("menuitem", { name: "English", exact: true }).click();
+    await page.getByRole("heading", { name: "Your workspace", exact: true }).waitFor();
     await page.getByRole("link", { name: "Projects", exact: true }).click();
     await page.locator(".v-virtual-list").waitFor();
     assert.ok((await page.locator(".v-virtual-row").count()) <= 14);
@@ -95,6 +102,18 @@ await withFixtureWorkspace(async ({ path }) => {
       resolve("../../output/playwright/gui/control-center-performance.json"),
       `${JSON.stringify({ idleSeconds: 60, idleTaskSeconds, idleApiRequests: 0, idleMutations: 0, projects: 36, maximumRenderedRows: 14 }, null, 2)}\n`,
     );
+    assert.equal(
+      JSON.parse(await readFile(join(registryRoot, "ui-preferences.json"), "utf8")).locale,
+      "en",
+    );
+    // A fresh server uses a different ephemeral origin; localStorage alone cannot satisfy this.
+    const oldOrigin = server.origin;
+    await server.stop();
+    server = await startServer();
+    assert.notEqual(server.origin, oldOrigin);
+    await page.goto(await server.issue());
+    await page.getByRole("heading", { name: "Your workspace", exact: true }).waitFor();
+    assert.equal(await page.locator("html").getAttribute("lang"), "en");
     await page.getByRole("link", { name: "Settings", exact: true }).click();
     await page.getByRole("heading", { name: "Appearance" }).waitFor();
     await page.getByRole("button", { name: "Sign out of this window" }).click();
@@ -108,6 +127,7 @@ await withFixtureWorkspace(async ({ path }) => {
         sessionRestore: true,
         scopedProject: true,
         signOut: true,
+        languagePersistenceAcrossRestart: true,
         idleTaskSeconds,
         idleApiRequests: 0,
         idleUiMutations: 0,

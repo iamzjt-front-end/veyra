@@ -1,5 +1,7 @@
+import { useI18n } from "@veyraoss/ui";
 import {
   Brand,
+  LanguageSelect,
   Button,
   Icon,
   Dropdown,
@@ -46,6 +48,7 @@ export function RunRows({
   projects: RegisteredProject[];
   navigate: (route: string) => void;
 }) {
+  const { t, locale } = useI18n();
   const render = (run: DaemonRunSummary) => (
     <button
       type="button"
@@ -58,24 +61,24 @@ export function RunRows({
         <span>{run.goal}</span>
       </span>
       <span className="v-secondary">
-        {projects.find((entry) => entry.project.id === run.projectId)?.project.name ?? "Project"}
+        {projects.find((entry) => entry.project.id === run.projectId)?.project.name ?? t("Project")}
       </span>
       <RunStatus status={run.status} />
-      <span className="v-duration">{elapsed(run.createdAt, run.updatedAt)}</span>
+      <span className="v-duration">{elapsed(run.createdAt, run.updatedAt, locale)}</span>
     </button>
   );
   return (
     <div className="v-run-table">
       <div className="v-run-table-head">
-        <span>Task</span>
-        <span>Project</span>
-        <span>Status</span>
-        <span>Duration</span>
+        <span>{t("Task")}</span>
+        <span>{t("Project")}</span>
+        <span>{t("Status")}</span>
+        <span>{t("Duration")}</span>
       </div>
       {runs.length > 30 ? (
         <VirtualList
           items={runs}
-          label="Run history"
+          label={t("Run history")}
           rowHeight={60}
           itemKey={(run) => `${run.projectId}/${run.runId}`}
           render={render}
@@ -95,6 +98,7 @@ function ProjectRows({
   navigate: (route: string) => void;
   compact?: boolean;
 }) {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const projects = data.projects.filter((entry) =>
     entry.project.name.toLowerCase().includes(query.toLowerCase()),
@@ -116,16 +120,16 @@ function ProjectRows({
           <PathText path={entry.project.root} />
         </span>
         {entry.status === "stale" ? (
-          <Status tone="warning">Location unavailable</Status>
+          <Status tone="warning">{t("Location unavailable")}</Status>
         ) : last?.status === "running" || last?.status === "queued" ? (
           <RunStatus status={last.status} />
         ) : (
           <span className="v-caption">
             {last?.status === "completed"
-              ? "Last run completed"
+              ? t("Last run completed")
               : last?.status === "failed"
-                ? "Needs attention"
-                : "Ready"}
+                ? t("Needs attention")
+                : t("Ready")}
           </span>
         )}
         <Icon name="chevron" />
@@ -138,8 +142,8 @@ function ProjectRows({
         <label className="v-search">
           <Icon name="search" />
           <input
-            aria-label="Search projects"
-            placeholder="Find a Project…"
+            aria-label={t("Search projects")}
+            placeholder={t("Find a Project…")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -151,7 +155,7 @@ function ProjectRows({
             <VirtualList
               key={query}
               items={projects}
-              label="Projects"
+              label={t("Projects")}
               rowHeight={78}
               itemKey={(entry) => entry.project.id}
               render={render}
@@ -160,8 +164,8 @@ function ProjectRows({
             projects.slice(0, compact ? 6 : 30).map(render)
           )
         ) : (
-          <EmptyState title={query ? "No matching Projects" : "Your first Project"}>
-            Create a local Project with ve init, or adjust your search.
+          <EmptyState title={query ? t("No matching Projects") : t("Your first Project")}>
+            {t("Create a local Project with ve init, or adjust your search.")}
           </EmptyState>
         )}
       </div>
@@ -175,6 +179,7 @@ function SettingsLink({
   navigate: (route: string) => void;
   active: boolean;
 }) {
+  const { t } = useI18n();
   const destination = "/settings";
   return (
     <a
@@ -186,11 +191,12 @@ function SettingsLink({
       }}
     >
       <Icon name="settings" />
-      Settings
+      {t("Settings")}
     </a>
   );
 }
 export function WorkspaceView(props: WorkspaceViewProps) {
+  const { t, locale } = useI18n();
   const { data, route, project, evidence, navigate } = props;
   const page = route.startsWith("/projects/")
     ? "project"
@@ -206,22 +212,25 @@ export function WorkspaceView(props: WorkspaceViewProps) {
     ["running", "queued", "paused", "interrupted"].includes(run.status),
   );
   const title = isRun
-    ? (evidence?.handoff?.context.goal ?? "Run details")
+    ? (evidence?.handoff?.context.goal ?? t("Run details"))
     : page === "project"
-      ? (project?.project.name ?? "Project")
-      : { overview: "Your workspace", projects: "Projects", runs: "Runs", settings: "Settings" }[
-          page
-        ];
+      ? (project?.project.name ?? t("Project"))
+      : {
+          overview: t("Your workspace"),
+          projects: t("Projects"),
+          runs: t("Runs"),
+          settings: t("Settings"),
+        }[page];
   const nav: { id: string; label: string; icon: IconName }[] = [
-    { id: "overview", label: "Overview", icon: "home" },
-    { id: "projects", label: "Projects", icon: "folder" },
-    { id: "runs", label: "Runs", icon: "runs" },
+    { id: "overview", label: t("Overview"), icon: "home" },
+    { id: "projects", label: t("Projects"), icon: "folder" },
+    { id: "runs", label: t("Runs"), icon: "runs" },
   ];
   return (
     <div className="v-center-shell">
       <aside className="v-center-sidebar">
         <Brand />
-        <nav aria-label="Primary">
+        <nav aria-label={t("Primary")}>
           {nav.map((item) => (
             <a
               key={item.id}
@@ -245,7 +254,7 @@ export function WorkspaceView(props: WorkspaceViewProps) {
           <SettingsLink navigate={navigate} active={page === "settings"} />
           <div className="v-local-indicator">
             <Status tone={props.error ? "warning" : "accent"}>
-              {props.error ? "Needs attention" : "Local workspace"}
+              {props.error ? t("Needs attention") : t("Local workspace")}
             </Status>
           </div>
         </div>
@@ -253,25 +262,35 @@ export function WorkspaceView(props: WorkspaceViewProps) {
       <div className="v-center-workspace">
         <header className="v-center-topbar">
           <div className="v-breadcrumb">
-            <span>{isRun ? "Runs" : page === "project" ? "Projects" : "Workspace"}</span>
+            <span>{isRun ? t("Runs") : page === "project" ? t("Projects") : t("Workspace")}</span>
             <Icon name="chevron" />
             <span>
               {isRun
-                ? "Run details"
+                ? t("Run details")
                 : page === "project"
-                  ? (project?.project.name ?? "Project")
-                  : page[0]?.toUpperCase() + page.slice(1)}
+                  ? (project?.project.name ?? t("Project"))
+                  : t(
+                      (
+                        {
+                          overview: "Overview",
+                          projects: "Projects",
+                          runs: "Runs",
+                          settings: "Settings",
+                        } as Record<string, string>
+                      )[page] ?? page,
+                    )}
             </span>
           </div>
           <div className="v-actions">
-            <span className="v-caption">Your project. Your agents.</span>
+            <span className="v-caption">{t("Your project. Your agents.")}</span>
+            <LanguageSelect />
             <Dropdown
               icon="sun"
-              label="Appearance"
+              label={t("Appearance")}
               items={[
-                { id: "light", label: "Light" },
-                { id: "dark", label: "Dark" },
-                { id: "system", label: "System" },
+                { id: "light", label: t("Light") },
+                { id: "dark", label: t("Dark") },
+                { id: "system", label: t("System") },
               ]}
               onSelect={props.theme}
             />
@@ -282,15 +301,15 @@ export function WorkspaceView(props: WorkspaceViewProps) {
             <div>
               <span className="v-eyebrow">
                 {page === "overview"
-                  ? "Veyra Control Center"
+                  ? t("Veyra Control Center")
                   : isRun
-                    ? (project?.project.name ?? "Project run")
-                    : "Workspace"}
+                    ? (project?.project.name ?? t("Project run"))
+                    : t("Workspace")}
               </span>
               <h1>{title}</h1>
               {page === "overview" && (
                 <p className="v-secondary">
-                  A clear view of your Projects, progress and next steps.
+                  {t("A clear view of your Projects, progress and next steps.")}
                 </p>
               )}
               {page === "project" && project && <PathText path={project.project.root} />}
@@ -298,11 +317,13 @@ export function WorkspaceView(props: WorkspaceViewProps) {
             {isRun && evidence?.run && <RunStatus status={evidence.run.status} />}
           </div>
           {props.error && (
-            <ErrorState title="The local connection needs attention">
-              Your work is saved in the Project. Reconnect, or reopen Veyra from the Side Panel.
+            <ErrorState title={t("The local connection needs attention")}>
+              {t(
+                "Your work is saved in the Project. Reconnect, or reopen Veyra from the Side Panel.",
+              )}
               <div className="v-actions">
-                <Button onClick={props.reconnect}>Reconnect</Button>
-                <Collapsible title="Details">
+                <Button onClick={props.reconnect}>{t("Reconnect")}</Button>
+                <Collapsible title={t("Details")}>
                   <CodeText>{props.error}</CodeText>
                 </Collapsible>
               </div>
@@ -310,15 +331,15 @@ export function WorkspaceView(props: WorkspaceViewProps) {
           )}
           {props.loading && (
             <div className="v-local-loading" role="status">
-              Loading Project evidence…
+              {t("Loading Project evidence…")}
             </div>
           )}
           {page === "overview" && (
             <>
               <section className="v-center-section">
                 <div className="v-section-heading">
-                  <h2>Active now</h2>
-                  <span className="v-caption">ChatGPT plans · Codex builds</span>
+                  <h2>{t("Active now")}</h2>
+                  <span className="v-caption">{t("ChatGPT plans · Codex builds")}</span>
                 </div>
                 {active.length ? (
                   active.slice(0, 4).map((run) => (
@@ -341,15 +362,15 @@ export function WorkspaceView(props: WorkspaceViewProps) {
                         <h3>{run.goal}</h3>
                         <p>
                           {run.status === "running"
-                            ? "Codex is working on this Project"
+                            ? t("Codex is working on this Project")
                             : run.status === "queued"
-                              ? "Waiting for Codex"
-                              : "Your attention is needed"}
+                              ? t("Waiting for Codex")
+                              : t("Your attention is needed")}
                         </p>
                       </div>
                       <div className="v-active-status">
                         <RunStatus status={run.status} />
-                        <span>{elapsed(run.createdAt, run.updatedAt)}</span>
+                        <span>{elapsed(run.createdAt, run.updatedAt, locale)}</span>
                       </div>
                       <Icon name="arrow" />
                     </button>
@@ -358,32 +379,36 @@ export function WorkspaceView(props: WorkspaceViewProps) {
                   <div className="v-quiet-state">
                     <Icon name="check" />
                     <div>
-                      <h3>Room for your next idea</h3>
-                      <p>Start in your bound ChatGPT conversation. Progress will appear here.</p>
+                      <h3>{t("Room for your next idea")}</h3>
+                      <p>
+                        {t("Start in your bound ChatGPT conversation. Progress will appear here.")}
+                      </p>
                     </div>
                   </div>
                 )}
               </section>
               <section className="v-center-section">
                 <div className="v-section-heading">
-                  <h2>Projects</h2>
+                  <h2>{t("Projects")}</h2>
                   <Button variant="ghost" onClick={() => navigate("/projects")}>
-                    View all <Icon name="arrow" />
+                    {t("View all")}
+                    <Icon name="arrow" />
                   </Button>
                 </div>
                 {data.projects.length ? (
                   <ProjectRows data={data} navigate={navigate} compact />
                 ) : (
-                  <EmptyState title="Your first Project">
-                    Run <CodeText>ve init</CodeText> inside a local project, then open Veyra again.
+                  <EmptyState title={t("Your first Project")}>
+                    {t("Run ve init inside a local project, then open Veyra again.")}
                   </EmptyState>
                 )}
               </section>
               <section className="v-center-section">
                 <div className="v-section-heading">
-                  <h2>Recent runs</h2>
+                  <h2>{t("Recent runs")}</h2>
                   <Button variant="ghost" onClick={() => navigate("/runs")}>
-                    View all <Icon name="arrow" />
+                    {t("View all")}
+                    <Icon name="arrow" />
                   </Button>
                 </div>
                 {data.runs.length ? (
@@ -393,8 +418,8 @@ export function WorkspaceView(props: WorkspaceViewProps) {
                     navigate={navigate}
                   />
                 ) : (
-                  <EmptyState icon="runs" title="No runs yet">
-                    Your first task starts in ChatGPT.
+                  <EmptyState icon="runs" title={t("No runs yet")}>
+                    {t("Your first task starts in ChatGPT.")}
                   </EmptyState>
                 )}
               </section>
@@ -404,25 +429,27 @@ export function WorkspaceView(props: WorkspaceViewProps) {
           {page === "runs" && (
             <>
               <p className="v-secondary v-page-intro">
-                Execution history, saved with each Project.
+                {t("Execution history, saved with each Project.")}
               </p>
               {data.runs.length ? (
                 <RunRows runs={data.runs} projects={data.projects} navigate={navigate} />
               ) : (
-                <EmptyState icon="runs" title="No runs yet">
-                  Start a task in your bound ChatGPT conversation.
+                <EmptyState icon="runs" title={t("No runs yet")}>
+                  {t("Start a task in your bound ChatGPT conversation.")}
                 </EmptyState>
               )}
-              {data.hasMore && <p className="v-caption">Showing the latest 20 runs per Project.</p>}
+              {data.hasMore && (
+                <p className="v-caption">{t("Showing the latest 20 runs per Project.")}</p>
+              )}
             </>
           )}
           {page === "project" && !isRun && project && (
             <>
               <section className="v-center-section">
                 <div className="v-section-heading">
-                  <h2>Current work</h2>
+                  <h2>{t("Current work")}</h2>
                   <Status tone={project.readiness.ready ? "accent" : "warning"}>
-                    Codex · {project.readiness.ready ? "Ready" : "Needs attention"}
+                    Codex · {project.readiness.ready ? t("Ready") : t("Needs attention")}
                   </Status>
                 </div>
                 {data.runs.filter((run) => run.projectId === project.project.id).length ? (
@@ -435,26 +462,26 @@ export function WorkspaceView(props: WorkspaceViewProps) {
                   <div className="v-quiet-state">
                     <Icon name="code" />
                     <div>
-                      <h3>Ready for your next task</h3>
-                      <p>Bind this Project in ChatGPT to begin.</p>
+                      <h3>{t("Ready for your next task")}</h3>
+                      <p>{t("Bind this Project in ChatGPT to begin.")}</p>
                     </div>
                   </div>
                 )}
               </section>
               <section className="v-center-section">
                 <div className="v-section-heading">
-                  <h2>Shared context</h2>
-                  <span className="v-caption">Belongs to your Project</span>
+                  <h2>{t("Shared context")}</h2>
+                  <span className="v-caption">{t("Belongs to your Project")}</span>
                 </div>
                 <div className="v-context">
-                  <h3>Goal</h3>
+                  <h3>{t("Goal")}</h3>
                   <p>
                     {project.sharedState?.context.goal ??
-                      "Your plan will appear after the first handoff."}
+                      t("Your plan will appear after the first handoff.")}
                   </p>
                   {project.sharedState?.context.constraints.length ? (
                     <>
-                      <h3>Constraints</h3>
+                      <h3>{t("Constraints")}</h3>
                       <ul>
                         {project.sharedState.context.constraints.map((constraint) => (
                           <li key={constraint}>{constraint}</li>
@@ -464,7 +491,7 @@ export function WorkspaceView(props: WorkspaceViewProps) {
                   ) : null}
                   {project.sharedState?.context.decisions.length ? (
                     <>
-                      <h3>Decisions</h3>
+                      <h3>{t("Decisions")}</h3>
                       {project.sharedState.context.decisions.map((decision) => (
                         <p key={decision.id}>{decision.summary}</p>
                       ))}
@@ -472,7 +499,7 @@ export function WorkspaceView(props: WorkspaceViewProps) {
                   ) : null}
                 </div>
               </section>
-              <Collapsible title="Project diagnostics">
+              <Collapsible title={t("Project diagnostics")}>
                 <CodeText>{project.project.id}</CodeText>
                 <p className="v-secondary">{project.readiness.message}</p>
               </Collapsible>
@@ -483,16 +510,16 @@ export function WorkspaceView(props: WorkspaceViewProps) {
             evidence &&
             (props.runDetail ?? (
               <section className="v-center-section">
-                <Stepper steps={runSteps(evidence)} horizontal />
+                <Stepper steps={runSteps(evidence, locale)} horizontal />
                 <div className="v-context">
-                  <h2>Plan</h2>
+                  <h2>{t("Plan")}</h2>
                   <p>{evidence.handoff?.context.plan?.summary ?? evidence.handoff?.context.goal}</p>
                 </div>
-                <p className="v-secondary">Detailed evidence is saved with this Project.</p>
+                <p className="v-secondary">{t("Detailed evidence is saved with this Project.")}</p>
                 {evidence.run && ["running", "queued"].includes(evidence.run.status) && (
                   <Button variant="danger" onClick={props.cancel}>
                     <Icon name="stop" />
-                    Cancel run
+                    {t("Cancel run")}
                   </Button>
                 )}
               </section>
@@ -500,38 +527,52 @@ export function WorkspaceView(props: WorkspaceViewProps) {
           {page === "settings" && (
             <div className="v-settings">
               <section>
-                <h2>Appearance</h2>
-                <p className="v-secondary">Keep your workspace comfortable.</p>
+                <h2>{t("Language")}</h2>
+                <p className="v-secondary">{t("Choose your interface language.")}</p>
+                <LanguageSelect expanded />
+              </section>
+              <section>
+                <h2>{t("Appearance")}</h2>
+                <p className="v-secondary">{t("Keep your workspace comfortable.")}</p>
                 <div className="v-actions">
                   {["light", "dark", "system"].map((theme) => (
                     <Button key={theme} onClick={() => props.theme(theme)}>
-                      {theme[0]?.toUpperCase() + theme.slice(1)}
+                      {t(
+                        (
+                          { light: "Light", dark: "Dark", system: "System" } as Record<
+                            string,
+                            string
+                          >
+                        )[theme] ?? theme,
+                      )}
                     </Button>
                   ))}
                 </div>
               </section>
               <section>
-                <h2>Local connection</h2>
+                <h2>{t("Local connection")}</h2>
                 <p className="v-secondary">
-                  Your workspace uses a local session. Native Codex keeps its existing login.
+                  {t("Your workspace uses a local session. Native Codex keeps its existing login.")}
                 </p>
                 <p className="v-caption">
-                  No API key is required. No conversation history is collected.
+                  {t("No API key is required. No conversation history is collected.")}
                 </p>
-                <Button onClick={props.reconnect}>Reconnect</Button>
+                <Button onClick={props.reconnect}>{t("Reconnect")}</Button>
               </section>
               <section>
-                <h2>Session</h2>
+                <h2>{t("Session")}</h2>
                 <p className="v-secondary">
-                  Signing out closes this window’s access. It does not delete evidence or interrupt
-                  Codex.
+                  {t(
+                    "Signing out closes this window’s access. It does not delete evidence or interrupt Codex.",
+                  )}
                 </p>
-                <Button onClick={props.logout}>Sign out of this window</Button>
+                <Button onClick={props.logout}>{t("Sign out of this window")}</Button>
               </section>
-              <Collapsible title="Diagnostics">
+              <Collapsible title={t("Diagnostics")}>
                 <p className="v-secondary">
-                  Project state and run evidence remain in each Project’s .veyra directory. Run ve
-                  doctor for local installation diagnostics.
+                  {t(
+                    "Project state and run evidence remain in each Project’s .veyra directory. Run ve doctor for local installation diagnostics.",
+                  )}
                 </p>
                 <CodeText>
                   {data.projects
@@ -543,8 +584,9 @@ export function WorkspaceView(props: WorkspaceViewProps) {
           )}
           {!!data.issues.length && (
             <p className="v-caption v-evidence-notice">
-              Some Project evidence could not be loaded. Open the affected Project to inspect its
-              connection.
+              {t(
+                "Some Project evidence could not be loaded. Open the affected Project to inspect its connection.",
+              )}
             </p>
           )}
         </main>

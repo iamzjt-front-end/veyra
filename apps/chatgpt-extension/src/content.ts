@@ -1,8 +1,9 @@
-import { collapseHandoff, collapseMachine } from "./collapse.js";
+import { machinePresentation } from "./collapse.js";
 import { conversationUrl, object, parseHandoff, type Binding } from "./contracts.js";
 import { canCompose, sendToConversation } from "./page.js";
 import { RunBackoff, watchConversation } from "./watch.js";
 
+const presentation = machinePresentation();
 const epoch = crypto.randomUUID();
 let binding: Binding | undefined;
 let candidate: { id: string; source: string } | undefined;
@@ -60,6 +61,11 @@ const runs = new RunBackoff(async () => {
 });
 chrome.runtime.onMessage.addListener((message: unknown, sender, reply) => {
   if (sender.id !== chrome.runtime.id || !object(message)) return false;
+  presentation.language(message.locale);
+  if (message.type === "locale") {
+    reply({ ok: true });
+    return false;
+  }
   if (message.type === "restore") {
     void restore();
     reply({ ok: true });
@@ -116,7 +122,7 @@ function activate(message: Record<string, unknown>, reply: (value: unknown) => v
           message.text as string,
           selected.id,
           () => bound(selected.id),
-          (node) => collapseMachine(node, "Project bound"),
+          (node) => presentation.fold(node, "Project bound"),
         )
   )
     .then((result) => {
@@ -151,7 +157,7 @@ async function work() {
       if (binding?.phase === "running") {
         runs.start();
         try {
-          collapseHandoff(document, next.id, next.source);
+          presentation.handoff(document, next.id, next.source);
         } catch {
           /* Cosmetic only. */
         }
@@ -172,7 +178,7 @@ async function work() {
         claimed.delivery.text,
         claimed.delivery.id,
         () => bound(current.id),
-        (node) => collapseMachine(node, "Result returned"),
+        (node) => presentation.fold(node, "Result returned"),
       );
       accept(
         await send(result === "sent" ? "ack" : "defer", { deliveryId: claimed.delivery.id }),

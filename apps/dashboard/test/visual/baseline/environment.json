@@ -3,6 +3,7 @@
   "platform": "darwin",
   "fonts": "Inter Variable 5.3.0 / JetBrains Mono Variable 5.3.0",
   "locale": "en-US",
+  "languages": ["en", "zh-CN"],
   "timezone": "UTC",
   "time": "2026-09-09T10:29:14.000Z",
   "reducedMotion": true,

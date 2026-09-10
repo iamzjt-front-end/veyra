@@ -1,7 +1,9 @@
+import { useI18n } from "@veyraoss/ui";
 import { useMemo, useState } from "react";
 import { Button, Icon, PathText, CopyButton, EmptyState } from "@veyraoss/ui";
 import { codeTokens, parseDiff, type DiffFile, type DiffLine } from "./diff.js";
 function CodeLine({ line }: { line: DiffLine }) {
+  const { t } = useI18n();
   return (
     <div className={`v-diff-line v-diff-${line.kind}`}>
       <span className="v-diff-number" aria-hidden="true">
@@ -13,7 +15,9 @@ function CodeLine({ line }: { line: DiffLine }) {
       <span
         className="v-diff-sign"
         role="img"
-        aria-label={line.kind === "add" ? "added" : line.kind === "delete" ? "removed" : "context"}
+        aria-label={
+          line.kind === "add" ? t("added") : line.kind === "delete" ? t("removed") : t("context")
+        }
       >
         {line.kind === "add" ? "+" : line.kind === "delete" ? "−" : " "}
       </span>
@@ -30,6 +34,7 @@ function CodeLine({ line }: { line: DiffLine }) {
   );
 }
 function FilePatch({ file }: { file: DiffFile }) {
+  const { t } = useI18n();
   const [limit, setLimit] = useState(160),
     [context, setContext] = useState(false);
   const nodes = [];
@@ -48,7 +53,7 @@ function FilePatch({ file }: { file: DiffFile }) {
             onClick={() => setContext(true)}
           >
             <Icon name="down" />
-            Show {end - i} unchanged lines
+            {t("Show {count} unchanged lines", { count: end - i })}
           </button>,
         );
         i = end - 1;
@@ -62,18 +67,22 @@ function FilePatch({ file }: { file: DiffFile }) {
   return (
     <>
       {file.binary ? (
-        <div className="v-diff-binary">Binary file changed. Its contents are not rendered.</div>
+        <div className="v-diff-binary">
+          {t("Binary file changed. Its contents are not rendered.")}
+        </div>
       ) : (
         <section
           className="v-diff-code"
           // biome-ignore lint/a11y/noNoninteractiveTabindex: The bounded scroll region must support keyboard scrolling.
           tabIndex={0}
-          aria-label={`Unified diff for ${file.path}`}
+          aria-label={t("Unified diff for {path}", { path: file.path })}
         >
           {nodes.length ? (
             nodes
           ) : (
-            <p className="v-diff-binary">File metadata changed; no textual hunk was captured.</p>
+            <p className="v-diff-binary">
+              {t("File metadata changed; no textual hunk was captured.")}
+            </p>
           )}
         </section>
       )}
@@ -83,17 +92,17 @@ function FilePatch({ file }: { file: DiffFile }) {
           onClick={() => setLimit(Math.min(limit + 160, 640))}
           disabled={limit >= 640}
         >
-          {limit >= 640 ? "Preview limited to 640 lines" : "Show more changed lines"}
+          {limit >= 640 ? t("Preview limited to 640 lines") : t("Show more changed lines")}
         </Button>
       )}
       {file.truncated && (
         <p className="v-caption v-diff-notice">
-          This file preview is truncated. Inspect the complete diff locally.
+          {t("This file preview is truncated. Inspect the complete diff locally.")}
         </p>
       )}
       {context && (
         <Button variant="ghost" onClick={() => setContext(false)}>
-          Collapse unchanged lines
+          {t("Collapse unchanged lines")}
         </Button>
       )}
     </>
@@ -110,12 +119,13 @@ export function DiffView({
   onSelect: (path: string) => void;
   upstreamTruncated?: boolean;
 }) {
+  const { t } = useI18n();
   const parsed = useMemo(() => parseDiff(patch), [patch]);
   const file = parsed.files.find((file) => file.path === selected) ?? parsed.files[0];
   if (!file)
     return (
-      <EmptyState icon="file" title="No patch available">
-        Changed-file references and verification evidence remain available below.
+      <EmptyState icon="file" title={t("No patch available")}>
+        {t("Changed-file references and verification evidence remain available below.")}
       </EmptyState>
     );
   const added = parsed.files.reduce((count, item) => count + item.added, 0),
@@ -124,7 +134,8 @@ export function DiffView({
     <div className="v-diff">
       <div className="v-diff-toolbar">
         <span>
-          Unified diff <span className="v-caption">· {parsed.files.length} files</span>
+          {t("Unified diff")}
+          <span className="v-caption">· {t("{count} files", { count: parsed.files.length })}</span>
         </span>
         <div className="v-line-counts">
           <span className="v-add-count">+{added}</span>
@@ -132,7 +143,7 @@ export function DiffView({
         </div>
       </div>
       <div className="v-diff-layout">
-        <nav className="v-diff-files" aria-label="Changed files">
+        <nav className="v-diff-files" aria-label={t("Changed files")}>
           {parsed.files.map((item) => (
             <button
               type="button"
@@ -152,15 +163,16 @@ export function DiffView({
         <div className="v-diff-main">
           <div className="v-diff-file-heading">
             <PathText path={file.path} />
-            <CopyButton text={file.path} label="Copy file path" />
+            <CopyButton text={file.path} label={t("Copy file path")} />
           </div>
           <FilePatch key={file.path} file={file} />
         </div>
       </div>
       {(parsed.truncated || upstreamTruncated) && (
         <p className="v-caption v-diff-notice">
-          Bounded preview. Counts describe only the visible patch; the full local diff may contain
-          more changes.
+          {t(
+            "Bounded preview. Counts describe only the visible patch; the full local diff may contain more changes.",
+          )}
         </p>
       )}
     </div>

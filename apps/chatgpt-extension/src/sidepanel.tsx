@@ -1,3 +1,5 @@
+import { I18nProvider } from "@veyraoss/ui";
+import { extensionLocale } from "./ui-locale.js";
 import { useEffect, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { PanelStore } from "./panel-store.js";
@@ -63,4 +65,10 @@ void chrome.storage.local.get("theme").then(({ theme }) => {
   if (typeof theme === "string" && ["light", "dark"].includes(theme))
     document.documentElement.dataset.theme = theme;
 });
-createRoot(document.getElementById("root") as HTMLElement).render(<Panel />);
+void extensionLocale().then((locale) => {
+  createRoot(document.getElementById("root") as HTMLElement).render(
+    <I18nProvider store={locale}>
+      <Panel />
+    </I18nProvider>,
+  );
+});

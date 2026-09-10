@@ -71,7 +71,7 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
             path,
           ) ||
             (directory === "apps/cli" &&
-              /^dist\/browser-extension\/(manifest\.json|popup\.html|popup\.css|sidepanel\.html|sidepanel\.css|diagnostics\.html|diagnostics\.css)$/.test(
+              /^dist\/browser-extension\/(_locales\/(zh_CN|en)\/messages\.json|manifest\.json|popup\.html|popup\.css|sidepanel\.html|sidepanel\.css|diagnostics\.html|diagnostics\.css)$/.test(
                 path,
               )) ||
             (directory === "apps/cli" &&
@@ -107,6 +107,16 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
           await readFile(join(staging, "dist/browser-extension/manifest.json"), "utf8"),
         );
         expect(browser.manifest_version).toBe(3);
+        expect(browser.default_locale).toBe("zh_CN");
+        for (const locale of ["zh_CN", "en"]) {
+          const messages = JSON.parse(
+            await readFile(
+              join(staging, `dist/browser-extension/_locales/${locale}/messages.json`),
+              "utf8",
+            ),
+          );
+          expect(messages.extensionName.message).toContain("Veyra");
+        }
         expect(browser.permissions).toContain("nativeMessaging");
         for (const asset of ["background.js", "content.js", "popup.js", "popup.html", "popup.css"])
           expect(await readFile(join(staging, "dist/browser-extension", asset), "utf8")).not.toBe(

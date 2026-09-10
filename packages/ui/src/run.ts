@@ -1,3 +1,4 @@
+import { translate, type Locale } from "./i18n/index.js";
 import type {
   DaemonRunView,
   ProjectExecutionResult,
@@ -37,13 +38,18 @@ export interface RunEvidence {
     }[];
   }[];
 }
-export function elapsed(start?: string, end?: string): string {
+export function elapsed(start?: string, end?: string, locale: Locale = "en"): string {
   if (!start || !end) return "";
   const seconds = Math.max(0, Math.round((Date.parse(end) - Date.parse(start)) / 1000));
   if (!Number.isFinite(seconds)) return "";
-  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+  return seconds < 60
+    ? translate(locale, "{seconds}s", { seconds })
+    : translate(locale, "{minutes}m {seconds}s", {
+        minutes: Math.floor(seconds / 60),
+        seconds: seconds % 60,
+      });
 }
-export function runSteps(data: RunEvidence): WorkflowStep[] {
+export function runSteps(data: RunEvidence, locale: Locale = "en"): WorkflowStep[] {
   const { run, handoff, result, review, stage } = data;
   const active = run?.status === "running";
   const reviewForRun =
@@ -91,7 +97,7 @@ export function runSteps(data: RunEvidence): WorkflowStep[] {
       detail: verificationFailed
         ? "A verification check needs attention"
         : verified
-          ? `${checks.length} checks passed`
+          ? translate(locale, "{count} checks passed", { count: checks.length })
           : active && stage === "verify"
             ? "Running Project checks"
             : "Independent Project checks",

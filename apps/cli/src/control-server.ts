@@ -1,3 +1,4 @@
+import { readUiLocale, writeUiLocale, validInterfaceLocale } from "./ui-preferences.js";
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { watch, type FSWatcher } from "node:fs";
 import { lstat, readFile } from "node:fs/promises";
@@ -243,6 +244,25 @@ export async function startControlServer(options: ControlServerOptions) {
         await options.authorize(access.requireGrant ? access.scopes : undefined);
         if (req.method === "GET" && url.pathname === "/api/session") {
           json(res, 200, { csrf: access.csrf });
+          return;
+        }
+        if (url.pathname === "/api/preferences") {
+          if (req.method === "POST") {
+            if (req.headers.origin !== origin())
+              throw new Error("Same-origin preference update required.");
+            const body = await read(req);
+            if (
+              !object(body) ||
+              Object.keys(body).length !== 1 ||
+              !validInterfaceLocale(body.locale)
+            )
+              throw new Error("Invalid interface preference.");
+            // Recheck revocation after reading the bounded body, before persisting a UI-only preference.
+            await options.authorize(access.requireGrant ? access.scopes : undefined);
+            getAccess(req, true);
+            await writeUiLocale(options.registryRoot, body.locale);
+          } else if (req.method !== "GET") throw new Error("Unsupported preference method.");
+          json(res, 200, { locale: await readUiLocale(options.registryRoot) });
           return;
         }
         if (req.method === "POST" && url.pathname === "/api/logout") {

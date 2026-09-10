@@ -11,7 +11,7 @@ import {
   type DaemonOperations,
   type ProjectId,
 } from "@veyraoss/protocol";
-import type { RunEvidence } from "@veyraoss/ui";
+import { isLocale, type RunEvidence } from "@veyraoss/ui";
 export interface ProjectData {
   project: RegisteredProject["project"];
   readiness: { ready: boolean; message: string };
@@ -147,6 +147,20 @@ export class ControlClient {
   }
   async cancel(projectId: ProjectId, runId: string) {
     await this.tool("runs.cancel", { projectId, runId });
+  }
+  async locale(value?: "zh-CN" | "en"): Promise<unknown> {
+    const response = await fetch("/api/preferences", {
+      method: value ? "POST" : "GET",
+      headers: { "Content-Type": "application/json", "X-Veyra-CSRF": this.csrf },
+      credentials: "same-origin",
+      ...(value ? { body: JSON.stringify({ locale: value }) } : {}),
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) throw new Error("Language preference could not be saved. Try again.");
+    const data: unknown = await response.json();
+    if (!object(data) || !isLocale(data.locale))
+      throw new Error("Invalid interface preference response.");
+    return data.locale;
   }
   async logout() {
     const response = await fetch("/api/logout", {

@@ -523,6 +523,14 @@ Before calling the browser-bridge onboarding stable, demonstrate on a clean user
 
 ## 18. Implementation priority
 
+### Interface language
+
+The GUI defaults to Simplified Chinese and supports explicit English selection through the **语言 / Language** control. Side Panel, popup, Diagnostics and current-conversation machine status labels share the extension's trusted local preference. The Local Control Center stores its own UI preference in the machine registry, surviving a server restart or port change. Both surfaces restore the last selected language; no polling is used for language changes.
+
+Localize interface labels, accessible names, statuses, prompts and error explanations. Keep Project names, goals, paths, code, original logs and protocol values unchanged. Language is presentation metadata, never Project engineering state or execution authorization. Switching it must not bind, dispatch, resume, cancel or replay a message.
+
+### Execution order
+
 Do not derail the P0 product proof by rebuilding unrelated providers.
 
 Current execution order:

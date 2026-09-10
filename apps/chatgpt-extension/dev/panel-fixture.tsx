@@ -1,15 +1,17 @@
 import { useState } from "react";
+import { useI18n } from "@veyraoss/ui";
 import { PanelView } from "../src/panel-view.js";
 import { LauncherView } from "../src/launcher-view.js";
 import { panelFixture } from "./fixtures.js";
 export function PanelFixture({ name }: { name: string }) {
+  const { locale } = useI18n();
   const [state, setState] = useState(() => panelFixture(name));
   if (name === "popup")
     return (
       <LauncherView
         state={{ status: "Ready", project: "veyra-pro-proof", allowed: true }}
         open={() => {
-          location.href = "/side-panel/unbound";
+          location.href = `/side-panel/unbound?lang=${locale}`;
         }}
         diagnostics={() => {}}
       />

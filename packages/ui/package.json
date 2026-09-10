@@ -6,7 +6,8 @@
   "description": "Veyra shared visual system and evidence presentation, without execution or transport.",
   "exports": {
     ".": "./dist/index.js",
-    "./styles.css": "./src/styles/index.css"
+    "./styles.css": "./src/styles/index.css",
+    "./i18n": "./dist/i18n/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -773,6 +773,18 @@ All five baseline commands passed (**2,005 tests**, including 69 extension tests
 
 Screenshot baselines are in `apps/dashboard/test/visual/baseline/`; review images and JSON reports are in `output/playwright/gui/`. Both source and CLI-packaged extension assets were built and byte-compared; only current GUI hashed bundles are packaged. See [GUI acceptance](GUI-ACCEPTANCE.md) for startup, Chrome Reload, fixed-browser commands, screenshot inventory and remaining timers. **Stop for the user's first visual review after focused commits/push. P0.12 stays [!]; P0.13–P0.15 remain unstarted.**
 
+### GUI localization — user request, 2026-09-10
+
+**Status:** [x]
+
+Depends on completed GUI-1–GUI-6. Localize Side Panel, popup, Diagnostics, machine-message controls and Local Control Center into Simplified Chinese and English. Default to Simplified Chinese, provide explicit persistent language selection, and preserve canonical protocol values, Project/run evidence and all dispatch/delivery safety checks. Verify both languages, switching/restoration, accessibility/widths and idle behavior, then run all five repository checks. This work does not complete real P0.12 acceptance or start P0.13–P0.15.
+
+Implemented a shared UI translation catalog, bilingual language selectors and persistent local preferences. Extension surfaces synchronize through trusted extension storage; cosmetic updates repaint only Veyra-owned machine controls in the current supported tab. Control Center preferences use a private machine-registry file and the existing authenticated/CSRF-protected local session, surviving refresh and server/port changes. Project content, raw evidence and protocol values remain verbatim. No polling, dispatch, replay, binding change or approval authority was added.
+
+All five repository checks passed (**2,016 tests**, including 72 extension tests). Locale regression covers interpolation parity, unknown/prototype-like text, save failures, late reads, storage synchronization, private-file protections, forged requests and revocation. Native/HTTP Chromium fixtures switched language without changing binding records or execution count; both retained two executions/handbacks, verifier fail/pass, 14 send/safety cases, 3,000 old turns and zero idle DOM queries over 60 seconds (TaskDuration 0.0191s / 0.0217s). Production Control Center restored English after refresh and a real server restart on another port; its 36-Project idle test recorded zero API requests/UI mutations and 0.0150s TaskDuration over 60 seconds.
+
+`smoke:panel`, `smoke:gui`, both extension transport smokes and `pnpm ui:test` passed. **48 bilingual screenshots compared with zero differing pixels**, with automated WCAG A/AA, keyboard and width checks. Source and CLI-packaged extension assets are rebuilt; existing Chrome installations require Reload and a target ChatGPT page refresh. See [GUI acceptance](GUI-ACCEPTANCE.md). These are deterministic local proofs; **P0.12 remains [!] for real Pro re-acceptance, and P0.13–P0.15 remain unstarted.**
+
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]
@@ -917,6 +929,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**GUI-1 — Shared Design System**, then GUI-2 through GUI-6 in order. Stop after tested screenshots, focused commits and push for the user's visual review. P0.12 real Pro re-acceptance remains pending and P0.13–P0.15 stay unstarted.
+**User review of the localized GUI, then real P0.12 ChatGPT Pro re-acceptance.** GUI-1–GUI-6 and the requested Chinese/English interface are implemented and deterministically verified. Stop after the localization commit/push; do not infer real browser acceptance from screenshots or start P0.13–P0.15 before P0.12 passes.
 
 Optional API smoke is not a blocker.

@@ -1,24 +1,51 @@
-import { watchPopup } from "./popup-refresh.js";
 import { object, parseInvitation, type PairingInvitation } from "./contracts.js";
+import { watchPopup } from "./popup-refresh.js";
+import { translate, type Parameters as MessageParameters, LocaleStore } from "@veyraoss/ui/i18n";
+import { extensionLocale } from "./ui-locale.js";
+import { diagnosticText, stateLabel } from "./diagnostic-copy.js";
+let language = new LocaleStore();
+const t = (source: string, values?: MessageParameters) =>
+  translate(language.snapshot().locale, source, values);
+const diagnostic = (source: unknown) => diagnosticText(language.snapshot().locale, source);
+const label = (source: unknown) => stateLabel(language.snapshot().locale, source);
+const date = (value: number, timeOnly = false) =>
+  !Number.isFinite(value)
+    ? t("Not captured")
+    : new Intl.DateTimeFormat(
+        language.snapshot().locale,
+        timeOnly ? { timeStyle: "medium" } : { dateStyle: "medium", timeStyle: "short" },
+      ).format(value);
+let lastData: Record<string, unknown> | undefined;
+let lastProjects: unknown[] = [];
+let lastError = "";
 const status = document.querySelector<HTMLElement>("#status") as HTMLElement;
 const project = document.querySelector<HTMLSelectElement>("#project") as HTMLSelectElement;
 const limit = document.querySelector<HTMLSelectElement>("#limit") as HTMLSelectElement;
 let invitation: PairingInvitation | undefined;
+let pairingConsumed = false;
 let busy = false;
 let paused = false;
 async function call(type: string, params: Record<string, unknown> = {}) {
   const response: unknown = await chrome.runtime.sendMessage({ type, ...params });
   if (!object(response) || response.ok !== true)
     throw new Error(
-      object(response) && typeof response.error === "string" ? response.error : "扩展后台不可用。",
+      object(response) && typeof response.error === "string"
+        ? response.error
+        : "Extension background is unavailable.",
     );
   return response.data;
 }
 async function refresh() {
   const data = await call("projects");
-  if (!Array.isArray(data)) throw new Error("项目列表无效。");
+  if (!Array.isArray(data)) throw new Error("Invalid Project list.");
+  lastProjects = data;
+  renderProjects();
+  await showStatus("inspect");
+}
+function renderProjects(preserveSelection = false) {
+  const data = lastProjects;
   const previous = project.value;
-  project.replaceChildren(new Option("明确选择一个本地 Project", ""));
+  project.replaceChildren(new Option(t("Choose an explicit local Project"), ""));
   for (const entry of data) {
     if (
       !object(entry) ||
@@ -29,7 +56,7 @@ async function refresh() {
     )
       continue;
     const option = new Option(
-      `${entry.project.name} — ${entry.project.root}${entry.status === "available" ? "" : "（路径失效）"}`,
+      `${entry.project.name} — ${entry.project.root}${entry.status === "available" ? "" : t(" (location unavailable)")}`,
       entry.project.id,
     );
     option.disabled = entry.status !== "available";
@@ -37,10 +64,9 @@ async function refresh() {
   }
   project.value = [...project.options].some((option) => option.value === previous && previous)
     ? previous
-    : project.options.length === 2
+    : !preserveSelection && project.options.length === 2
       ? (project.options[1]?.value ?? "")
       : "";
-  await showStatus("inspect");
 }
 function act(action: () => Promise<unknown>, quiet = false) {
   if (busy) return;
@@ -50,7 +76,7 @@ function act(action: () => Promise<unknown>, quiet = false) {
     if (!["disable", "unbind"].includes(button.id)) button.disabled = true;
   void action()
     .catch((error: unknown) => {
-      field("error", error instanceof Error ? error.message : "操作失败。");
+      field("error", error instanceof Error ? error.message : "Action failed.");
     })
     .finally(() => {
       busy = false;
@@ -63,12 +89,12 @@ document.querySelector<HTMLInputElement>("#pairing")?.addEventListener("change",
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     invitation = undefined;
+    pairingConsumed = false;
     try {
-      if (!file || file.size > 4096) throw new Error("请选择 daemon 生成的短期 JSON 配对文件。");
+      if (!file || file.size > 4096)
+        throw new Error("Choose the short-lived JSON pairing file generated locally.");
       invitation = parseInvitation(JSON.parse(await file.text()));
-      const preview = document.querySelector("#pairing-scope") as HTMLElement;
-      preview.textContent = `即将授权 ${invitation.url}\n仅以下 Project UUID：\n${invitation.projectIds.join("\n")}\n邀请到期：${new Date(invitation.expiresAt).toLocaleString()}\n确认后授权最长 8 小时，可随时撤销。`;
-      status.textContent = "请核对本机地址和 Project 范围，然后确认配对。";
+      renderPairing();
     } finally {
       input.value = "";
     }
@@ -76,12 +102,12 @@ document.querySelector<HTMLInputElement>("#pairing")?.addEventListener("change",
 );
 document.querySelector("#pair")?.addEventListener("click", () =>
   act(async () => {
-    if (!invitation) throw new Error("请先选择配对文件。");
+    if (!invitation) throw new Error("Choose a pairing file first.");
     const selected = invitation;
     invitation = undefined; // A lost response must not cause an automatic exchange retry.
     await call("pair", { pairing: selected });
-    (document.querySelector("#pairing-scope") as HTMLElement).textContent =
-      "本地授权已建立。配对文件已消费。";
+    pairingConsumed = true;
+    renderPairing();
     await refresh();
   }),
 );
@@ -116,14 +142,16 @@ for (const [selector, action] of [
     safetyBusy = true;
     field(
       "status",
-      action === "unbind" ? "正在解除绑定；运行证据保留在 Project。" : "正在更新暂停状态…",
+      action === "unbind"
+        ? t("Unbinding; run evidence stays with the Project.")
+        : t("Updating pause state…"),
     );
     void call(action === "disable" && paused ? "resume" : (action as string))
       .then(() => showStatus("snapshot"))
       .catch((error: unknown) =>
         field(
           "error",
-          error instanceof Error ? error.message : "操作未确认，请检查 Project 证据。",
+          error instanceof Error ? error.message : "Action not confirmed. Check Project evidence.",
         ),
       )
       .finally(() => {
@@ -133,13 +161,18 @@ for (const [selector, action] of [
 }
 function field(id: string, text: string) {
   const element = document.querySelector(`#${id}`);
-  if (element) element.textContent = text;
+  if (id === "error") lastError = text;
+  if (element) element.textContent = id === "error" ? diagnostic(text) : text;
 }
 async function showStatus(type = "status") {
   const data = await call(type === "inspect" && !project.value ? "status" : type, {
     projectId: project.value,
   });
-  if (!object(data)) throw new Error("状态响应无效。");
+  if (!object(data)) throw new Error("Invalid status response.");
+  lastData = data;
+  renderStatus(data);
+}
+function renderStatus(data: Record<string, unknown>) {
   const binding = object(data.binding) ? data.binding : undefined;
   const selected = object(data.selected) ? data.selected : undefined;
   const readiness = selected && object(selected.readiness) ? selected.readiness : undefined;
@@ -152,13 +185,13 @@ async function showStatus(type = "status") {
   field(
     "enabled",
     working
-      ? "Working"
+      ? t("Working")
       : connectivity?.status === "connected" && (!data.currentBound || data.enabled)
-        ? "Ready"
-        : "Needs attention",
+        ? t("Ready")
+        : t("Needs attention"),
   );
   paused = data.currentBound === true && binding?.pausedByUser === true;
-  field("disable", paused ? "Resume" : "Pause");
+  field("disable", paused ? t("Resume") : t("Pause"));
   const bindButton = document.querySelector<HTMLButtonElement>("#bind");
   if (bindButton) bindButton.hidden = data.currentBound === true;
   if (data.currentBound && typeof binding?.projectId === "string")
@@ -167,75 +200,134 @@ async function showStatus(type = "status") {
   field(
     "conversation",
     data.currentBound
-      ? "Current — 已明确绑定"
+      ? t("Current — explicitly bound")
       : data.conversation
-        ? "Current — 未绑定"
-        : "请打开已保存的 chatgpt.com 对话",
+        ? t("Current — unbound")
+        : t("Open a saved chatgpt.com conversation"),
   );
   field(
     "bound-project",
     data.currentBound && binding
       ? `${binding.projectName}\n${binding.projectRoot}`
-      : "当前对话未绑定任何 Project",
+      : t("This conversation is not bound to a Project"),
   );
   field(
     "previous-binding",
     !data.currentBound && binding
-      ? `另一个页面/之前的绑定：${binding.projectName}\n${binding.projectRoot}（不会向当前对话派发或回传）`
+      ? t(
+          "Previous / other-page binding: {name}\n{path}\nNo dispatch or handback will target this conversation.",
+          { name: String(binding.projectName), path: String(binding.projectRoot) },
+        )
       : "",
   );
-  field("project-detail", binding ? `${binding.projectId}\n${binding.projectRoot}` : "未绑定");
+  field("project-detail", binding ? `${binding.projectId}\n${binding.projectRoot}` : t("Unbound"));
   field(
     "daemon",
-    `${data.transport} — ${connectivity?.status ?? "disconnected"} — ${connectivity?.message ?? ""}`,
+    `${label(data.transport)} — ${label(connectivity?.status ?? "disconnected")} — ${diagnostic(connectivity?.message)}`,
   );
   field(
     "native",
     readiness
-      ? `${object(selected?.project) ? selected.project.name : "Project"}\nCodex — ${readiness.ready ? "Ready" : "Not Ready"}\n${readiness.message}\n检查于 ${new Date(Number(data.readinessAt)).toLocaleTimeString()}`
-      : "Codex — 未检查；请选择 Project",
+      ? `${object(selected?.project) ? selected.project.name : t("Project")}\nCodex — ${readiness.ready ? t("Ready") : t("Not ready")}\n${diagnostic(readiness.message)}\n${t("Checked at {time}", { time: date(Number(data.readinessAt), true) })}`
+      : `Codex — ${t("Not checked; choose a Project")}`,
   );
   field(
     "run",
     binding?.runId
       ? last?.delivery === "confirmed"
-        ? "Result returned"
+        ? t("Result returned")
         : binding.phase === "ready_to_deliver"
-          ? "Result ready for review"
+          ? t("Result ready for review")
           : binding.phase === "dispatching"
-            ? "Plan sent to Codex"
+            ? t("Plan sent to Codex")
             : binding.phase === "running"
-              ? "Codex working"
-              : String(binding.runStatus ?? "Needs attention")
-      : "尚无 Run",
+              ? t("Codex working")
+              : label(binding.runStatus ?? "Needs attention")
+      : t("No run yet"),
   );
-  field("run-detail", binding?.runId ? `${binding.runId}\n${binding.runStatus}` : "尚无 Run");
-  field("agent", `Codex — ${binding?.agentStatus ?? "idle"}`);
+  field(
+    "run-detail",
+    binding?.runId ? `${binding.runId}\n${label(binding.runStatus)}` : t("No run yet"),
+  );
+  field("agent", `Codex — ${label(binding?.agentStatus ?? "idle")}`);
   field(
     "last-result",
     last
-      ? `${last.status} — ${last.summary}\nRun: ${last.runId}\n回传：${last.delivery}`
-      : "尚无 Result",
+      ? `${label(last.status)} — ${last.summary}\n${t("Run")}: ${last.runId}\n${t("Delivery: {delivery}", { delivery: label(last.delivery) })}`
+      : t("No result yet"),
   );
   field(
     "grant",
     data.transport === "native"
-      ? "本机持久授权；每个 Project 需显式 Bind。可在本机 ve setup --revoke 撤销。"
+      ? t(
+          "Persistent local authorization; each Project needs an explicit Bind. Revoke on this machine with ve setup --revoke.",
+        )
       : data.paired
-        ? `本地授权到期：${new Date(Number(data.expiresAt)).toLocaleString()}`
-        : "未授权 / 已过期 / 已撤销",
+        ? t("Local authorization expires: {time}", { time: date(Number(data.expiresAt)) })
+        : t("Unauthorized / expired / revoked"),
   );
   status.textContent =
     data.currentBound && binding
-      ? `${binding.message}\n本次执行：${binding.count}/${binding.maxRuns}`
+      ? `${diagnostic(binding.message)}\n${t("Executions: {count}/{limit}", { count: Number(binding.count), limit: Number(binding.maxRuns) })}`
       : connectivity?.status === "connected"
-        ? "选择 Project → Bind → 正常聊天。"
-        : "请先完成 ve setup，并在该项目运行 ve init。";
+        ? t("Choose a Project → Bind → Just talk.")
+        : t("Run ve setup first, then ve init inside the Project.");
 }
-act(async () => {
-  await showStatus("snapshot");
-  await refresh();
+void extensionLocale().then((store) => {
+  language = store;
+  const picker = document.querySelector<HTMLSelectElement>("#locale") as HTMLSelectElement;
+  const renderLanguage = () => {
+    for (const element of document.querySelectorAll<HTMLElement>("[data-i18n]"))
+      element.textContent = t(element.dataset.i18n ?? "");
+    picker.value = store.snapshot().locale;
+    field(
+      "locale-error",
+      store.snapshot().saveFailed ? t("Language preference could not be saved. Try again.") : "",
+    );
+    renderProjects(true);
+    if (lastData) renderStatus(lastData);
+    renderPairing();
+    document.title = `Veyra · ${t("Diagnostics")}`;
+    field("error", lastError);
+  };
+  picker.addEventListener("change", () => {
+    if (picker.value === "zh-CN" || picker.value === "en") store.set(picker.value);
+  });
+  const unsubscribe = store.subscribe(renderLanguage);
+  renderLanguage();
+  act(async () => {
+    await showStatus("snapshot");
+    await refresh();
+  });
+  const stop = watchPopup(() => {
+    if (!busy && !invitation) act(() => showStatus("snapshot"), true);
+  });
+  window.addEventListener(
+    "pagehide",
+    () => {
+      unsubscribe();
+      stop();
+    },
+    { once: true },
+  );
 });
-watchPopup(() => {
-  if (!busy && !invitation) act(() => showStatus("snapshot"), true);
-});
+
+function renderPairing() {
+  field(
+    "pairing-scope",
+    invitation
+      ? t(
+          "Authorize {url}\nOnly these Project IDs:\n{projects}\nInvitation expires: {expires}\nAccess lasts at most 8 hours and can be revoked.",
+          {
+            url: invitation.url,
+            projects: invitation.projectIds.join("\n"),
+            expires: date(invitation.expiresAt),
+          },
+        )
+      : pairingConsumed
+        ? t("Local authorization established. Pairing file consumed.")
+        : "",
+  );
+  if (invitation)
+    status.textContent = t("Check the local address and Project scope, then confirm pairing.");
+}

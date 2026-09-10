@@ -1,5 +1,5 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement, type ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import {
   ErrorState,
@@ -54,3 +54,10 @@ describe("shared semantic presentation", () => {
     expect(html).toContain("~/Projects/veyra");
   });
 });
+
+import { I18nProvider, LocaleStore } from "../src/index.js";
+function renderToStaticMarkup(node: ReactNode) {
+  return renderMarkup(
+    createElement(I18nProvider, { store: new LocaleStore(undefined, "en") }, node),
+  );
+}

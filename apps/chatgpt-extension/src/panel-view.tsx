@@ -1,6 +1,8 @@
+import { useI18n } from "@veyraoss/ui";
 import { useState } from "react";
 import {
   Brand,
+  LanguageSelect,
   Button,
   Icon,
   IconButton,
@@ -33,6 +35,7 @@ export interface PanelActions {
   openControl?: () => void;
 }
 export function PanelView({ state, actions }: { state: PanelSnapshot; actions: PanelActions }) {
+  const { t, locale } = useI18n();
   const [details, setDetails] = useState(false);
   const { binding, evidence, currentBound } = state;
   const project = state.projects.find((entry) => entry.project.id === state.projectId);
@@ -57,22 +60,23 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
     state.selected?.readiness.ready === false ||
     project?.status === "stale";
   const title = state.loading
-    ? "Connecting"
+    ? t("Connecting")
     : working && !attention
-      ? "Working"
+      ? t("Working")
       : attention
-        ? "Needs attention"
-        : "Ready";
-  const steps = runSteps(evidence);
+        ? t("Needs attention")
+        : t("Ready");
+  const steps = runSteps(evidence, locale);
   const goal = evidence.handoff?.context.goal;
-  const duration = elapsed(evidence.run?.createdAt, evidence.run?.updatedAt);
+  const duration = elapsed(evidence.run?.createdAt, evidence.run?.updatedAt, locale);
   return (
     <div className="v-panel">
       <header className="v-panel-header">
         <Brand />
         <div className="v-actions">
           <Status tone={attention ? "warning" : "accent"}>{title}</Status>
-          <IconButton icon="settings" label="Diagnostics" onClick={actions.diagnostics} />
+          <LanguageSelect />
+          <IconButton icon="settings" label={t("Diagnostics")} onClick={actions.diagnostics} />
         </div>
       </header>
       <main
@@ -83,7 +87,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
         <section className="v-project-picker">
           {currentBound && selected ? (
             <>
-              <div className="v-eyebrow">Current Project</div>
+              <div className="v-eyebrow">{t("Current Project")}</div>
               <div className="v-project-bound">
                 <span className="v-project-glyph">
                   <Icon name="folder" />
@@ -96,24 +100,24 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
               </div>
               <p className="v-binding-note">
                 <span className="v-dot v-tone-success" />
-                Bound to this conversation
+                {t("Bound to this conversation")}
               </p>
             </>
           ) : (
             <>
               <Select
                 id="project"
-                label="Project"
+                label={t("Project")}
                 value={state.projectId}
                 disabled={state.loading || state.busy}
                 onChange={(event) => actions.select(event.target.value)}
                 options={[
-                  { value: "", label: "Choose a Project" },
+                  { value: "", label: t("Choose a Project") },
                   ...state.projects.map((entry) => ({
                     value: entry.project.id,
                     label:
                       entry.project.name +
-                      (entry.status === "stale" ? " · Location unavailable" : ""),
+                      (entry.status === "stale" ? ` · ${t("Location unavailable")}` : ""),
                     disabled: entry.status !== "available",
                   })),
                 ]}
@@ -123,44 +127,44 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
           )}
         </section>
         {state.loading ? (
-          <Skeleton label="Connecting to Veyra" />
+          <Skeleton label={t("Connecting to Veyra")} />
         ) : !state.connected ? (
           <EmptyState
             icon="panel"
-            title="Connect to your workspace"
+            title={t("Connect to your workspace")}
             action={
               <Button variant="primary" onClick={actions.reconnect}>
-                Reconnect <Icon name="arrow" />
+                {t("Reconnect")}
+                <Icon name="arrow" />
               </Button>
             }
           >
-            Your local bridge is disconnected. Your Project and its work are safe.
-            <p className="v-setup-hint">
-              First time here? Run <CodeText>ve setup</CodeText> once.
-            </p>
+            {t("Your local bridge is disconnected. Your Project and its work are safe.")}
+            <p className="v-setup-hint">{t("First time here? Run ve setup once.")}</p>
           </EmptyState>
         ) : !state.projects.length ? (
           <EmptyState
-            title="Your first Project"
+            title={t("Your first Project")}
             action={
               <Button onClick={actions.diagnostics}>
-                Setup guide <Icon name="arrow" />
+                {t("Setup guide")}
+                <Icon name="arrow" />
               </Button>
             }
           >
-            Run <CodeText>ve init</CodeText> in a local project. It will appear here when you
-            reconnect.
+            {t("Run ve init in a local project. It will appear here when you reconnect.")}
           </EmptyState>
         ) : project?.status === "stale" ? (
-          <ErrorState title="Project location unavailable">
-            Restore the local folder, or choose another Project. Saved evidence stays with the
-            Project.
+          <ErrorState title={t("Project location unavailable")}>
+            {t(
+              "Restore the local folder, or choose another Project. Saved evidence stays with the Project.",
+            )}
           </ErrorState>
         ) : state.selected?.readiness.ready === false && !working ? (
-          <ErrorState title="Codex needs your attention">
-            Open Codex and sign in with your existing account.
+          <ErrorState title={t("Codex needs your attention")}>
+            {t("Open Codex and sign in with your existing account.")}
             <div className="v-actions">
-              <Button onClick={actions.reconnect}>Reconnect</Button>
+              <Button onClick={actions.reconnect}>{t("Reconnect")}</Button>
             </div>
           </ErrorState>
         ) : !currentBound ? (
@@ -175,14 +179,14 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
               </span>
             </span>
             <h2>
-              Same conversation.
+              {t("Same conversation.")}
               <br />
-              Real progress.
+              {t("Real progress.")}
             </h2>
             <p className="v-secondary">
-              ChatGPT plans. Codex builds.
+              {t("ChatGPT plans. Codex builds.")}
               <br />
-              Bind this conversation to your local Project.
+              {t("Bind this conversation to your local Project.")}
             </p>
             <Button
               variant="primary"
@@ -195,18 +199,19 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
               }
               onClick={actions.bind}
             >
-              Bind conversation <Icon name="arrow" />
+              {t("Bind conversation")}
+              <Icon name="arrow" />
             </Button>
             {!state.conversation && (
-              <p className="v-caption">Open a saved ChatGPT conversation to bind.</p>
+              <p className="v-caption">{t("Open a saved ChatGPT conversation to bind.")}</p>
             )}
             {state.selected?.readiness.ready === false && (
-              <ErrorState title="Codex needs your attention">
-                Open Codex and sign in with your existing account. Then reconnect.
+              <ErrorState title={t("Codex needs your attention")}>
+                {t("Open Codex and sign in with your existing account. Then reconnect.")}
               </ErrorState>
             )}
             <div className="v-recent">
-              <h3>Projects</h3>
+              <h3>{t("Projects")}</h3>
               {state.projects
                 .filter((entry) => entry.status === "available")
                 .slice(0, 5)
@@ -230,28 +235,28 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             <span className="v-idle-mark">
               <Icon name={paused ? "pause" : "check"} />
             </span>
-            <h2>{paused ? "Paused, on your terms" : "Ready to work"}</h2>
+            <h2>{paused ? t("Paused, on your terms") : t("Ready to work")}</h2>
             <p className="v-secondary">
               {paused
-                ? "Resume when you’re ready. Your Project stays connected."
-                : "ChatGPT plans. Codex builds."}
+                ? t("Resume when you’re ready. Your Project stays connected.")
+                : t("ChatGPT plans. Codex builds.")}
             </p>
-            {!paused && <p className="v-caption">Tell ChatGPT what you want to build.</p>}
+            {!paused && <p className="v-caption">{t("Tell ChatGPT what you want to build.")}</p>}
           </div>
         ) : (
           <section className="v-run-section">
             <div className="v-eyebrow">
               {failed
-                ? "Needs attention"
+                ? t("Needs attention")
                 : paused
-                  ? "Automation paused"
+                  ? t("Automation paused")
                   : cancelled
-                    ? "Run cancelled"
+                    ? t("Run cancelled")
                     : result
-                      ? "Execution completed"
-                      : "Current task"}
+                      ? t("Execution completed")
+                      : t("Current task")}
             </div>
-            <h1 className="v-task-title">{goal ?? "Loading the current task"}</h1>
+            <h1 className="v-task-title">{goal ?? t("Loading the current task")}</h1>
             {goal && evidence.handoff?.context.plan?.summary !== goal && (
               <p className="v-task-summary">{evidence.handoff?.context.plan?.summary}</p>
             )}
@@ -262,22 +267,22 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                   <Icon name={failed ? "warning" : "check"} />
                   <strong>
                     {cancelled
-                      ? "Run cancelled"
+                      ? t("Run cancelled")
                       : failed
-                        ? "Verification needs attention"
-                        : "Work is ready for review"}
+                        ? t("Verification needs attention")
+                        : t("Work is ready for review")}
                   </strong>
                 </div>
                 <p>
-                  {result.changedFiles.length} files changed
+                  {t("{count} files changed", { count: result.changedFiles.length })}
                   {result.verification?.length
-                    ? ` · ${result.verification.filter((check) => check.status === "passed").length}/${result.verification.length} checks passed`
-                    : " · No verification evidence"}
+                    ? ` · ${t("{passed}/{total} checks passed", { passed: result.verification.filter((check) => check.status === "passed").length, total: result.verification.length })}`
+                    : ` · ${t("No verification evidence")}`}
                 </p>
                 <p className="v-caption">
                   {binding.lastResult?.delivery === "confirmed"
-                    ? "Result returned to this conversation"
-                    : "Waiting to return the result"}
+                    ? t("Result returned to this conversation")
+                    : t("Waiting to return the result")}
                 </p>
               </div>
             )}
@@ -289,37 +294,46 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 <div>
                   <strong>
                     {evidence.stage === "verify"
-                      ? "Checking the work"
+                      ? t("Checking the work")
                       : paused
-                        ? "Automation paused"
+                        ? t("Automation paused")
                         : queued
-                          ? "Waiting for Codex"
-                          : "Codex is working"}
+                          ? t("Waiting for Codex")
+                          : t("Codex is working")}
                   </strong>
                   <p className="v-caption">
                     {paused
-                      ? "The dispatched run may continue. Cancel to stop it."
+                      ? t("The dispatched run may continue. Cancel to stop it.")
                       : evidence.stage === "verify"
-                        ? "Independent checks from your Project"
-                        : "Using your existing native session"}
+                        ? t("Independent checks from your Project")
+                        : t("Using your existing native session")}
                   </p>
                 </div>
               </div>
             )}
             <div className="v-run-footnote">
               <span>
-                {duration ? `${duration} elapsed` : "Progress comes from Project evidence"}
+                {duration
+                  ? t("{duration} elapsed", { duration })
+                  : t("Progress comes from Project evidence")}
               </span>
-              {result && <span>{result.changedFiles.length} files</span>}
+              {result && <span>{t("{count} files", { count: result.changedFiles.length })}</span>}
             </div>
           </section>
         )}
         {uncertain && state.connected && (
-          <ErrorState title="Check this conversation before continuing">
-            An action could not be confirmed. Nothing will be resent automatically. Your work
-            remains in the Project.
+          <ErrorState title={t("Check this conversation before continuing")}>
+            {t(
+              "An action could not be confirmed. Nothing will be resent automatically. Your work remains in the Project.",
+            )}
+            {state.error && (
+              <Collapsible title={t("Original error")}>
+                <CodeText>{state.error}</CodeText>
+              </Collapsible>
+            )}
             <Button variant="ghost" onClick={actions.diagnostics}>
-              Inspect details <Icon name="arrow" />
+              {t("Inspect details")}
+              <Icon name="arrow" />
             </Button>
           </ErrorState>
         )}
@@ -330,11 +344,12 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             <div className="v-actions">
               <Button onClick={actions.pause} disabled={state.busy && !state.enabled}>
                 <Icon name={paused ? "play" : "pause"} />
-                {paused ? "Resume" : "Pause"}
+                {paused ? t("Resume") : t("Pause")}
               </Button>
               {binding?.runId && (
                 <Button variant="primary" onClick={() => setDetails(true)}>
-                  View run <Icon name="arrow" />
+                  {t("View run")}
+                  <Icon name="arrow" />
                 </Button>
               )}
             </div>
@@ -343,29 +358,30 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 ChatGPT <span aria-hidden="true">↔</span> Codex
               </span>
               <Button variant="ghost" onClick={actions.unbind}>
-                Unbind
+                {t("Unbind")}
               </Button>
             </div>
           </>
         )}
         {!currentBound && (
           <div className="v-footer-meta">
-            <span>Local by design. Yours by default.</span>
-            <IconButton icon="sun" label="Switch theme" onClick={actions.theme} />
+            <span>{t("Local by design. Yours by default.")}</span>
+            <IconButton icon="sun" label={t("Switch theme")} onClick={actions.theme} />
           </div>
         )}
       </footer>
-      <Drawer open={details} onClose={() => setDetails(false)} title="Run details">
+      <Drawer open={details} onClose={() => setDetails(false)} title={t("Run details")}>
         <div className="v-detail-content">
-          <h2>{goal ?? "Current run"}</h2>
+          <h2>{goal ?? t("Current run")}</h2>
           {actions.openControl && state.transport !== "http" && (
             <Button onClick={actions.openControl}>
-              Open Control Center <Icon name="arrow" />
+              {t("Open Control Center")}
+              <Icon name="arrow" />
             </Button>
           )}
           <RunStatus status={evidence.run?.status ?? "pending"} />
           <section>
-            <h3>Changed files</h3>
+            <h3>{t("Changed files")}</h3>
             {result?.changedFiles.length ? (
               result.changedFiles.map((path) => (
                 <div key={path} className="v-file-row">
@@ -374,33 +390,46 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 </div>
               ))
             ) : (
-              <p className="v-secondary">No changed-file evidence yet.</p>
+              <p className="v-secondary">{t("No changed-file evidence yet.")}</p>
             )}
           </section>
           <section>
-            <h3>Verification</h3>
+            <h3>{t("Verification")}</h3>
             {result?.verification?.map((check) => (
               <div key={check.id} className="v-check-row">
-                <span>{check.id}</span>
+                <span>
+                  {t(
+                    (
+                      {
+                        test: "Tests",
+                        build: "Build",
+                        check: "Typecheck",
+                        typecheck: "Typecheck",
+                        lint: "Lint",
+                      } as Record<string, string>
+                    )[check.id] ?? check.id,
+                  )}
+                </span>
                 <VerificationStatus status={check.status} />
               </div>
-            )) ?? <p className="v-secondary">No verification evidence yet.</p>}
+            )) ?? <p className="v-secondary">{t("No verification evidence yet.")}</p>}
           </section>
           <section>
-            <h3>Review</h3>
+            <h3>{t("Review")}</h3>
             <p className="v-secondary">
-              ChatGPT reviews the result in the bound conversation. No approval has been inferred
-              from execution success.
+              {t(
+                "ChatGPT reviews the result in the bound conversation. No approval has been inferred from execution success.",
+              )}
             </p>
           </section>
-          <Collapsible title="Run metadata">
+          <Collapsible title={t("Run metadata")}>
             <CodeText>{binding?.runId}</CodeText>
-            <p className="v-caption">Evidence belongs to this Project.</p>
+            <p className="v-caption">{t("Evidence belongs to this Project.")}</p>
           </Collapsible>
           {!result && (
             <Button variant="danger" onClick={actions.cancel}>
               <Icon name="stop" />
-              Cancel run
+              {t("Cancel run")}
             </Button>
           )}
         </div>

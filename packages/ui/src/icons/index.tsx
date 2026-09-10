@@ -1,6 +1,7 @@
 import type { SVGProps } from "react";
 
 const paths = {
+  language: "M3 5h12M9 3v2M12 5c-1 6-4 9-8 11M5 8c1 3 4 6 7 7m1 6 5-12 5 12m-8-4h6",
   arrow: "M5 12h14m-5-5 5 5-5 5",
   chevron: "m9 5 7 7-7 7",
   down: "m6 9 6 6 6-6",

@@ -1,3 +1,5 @@
+import { ControlClient } from "./client.js";
+import { useI18n, I18nProvider, LocaleStore } from "@veyraoss/ui";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
 import { Button, Dialog } from "@veyraoss/ui";
@@ -7,7 +9,14 @@ import { WorkspaceView } from "./views.js";
 import "@veyraoss/ui/styles.css";
 import "./styles.css";
 
-const store = new WorkspaceStore();
+const client = new ControlClient();
+const store = new WorkspaceStore(client);
+const language = new LocaleStore({
+  load: () => client.locale(),
+  save: async (locale) => {
+    await client.locale(locale);
+  },
+});
 let stream: EventSource | undefined;
 let retry: ReturnType<typeof setTimeout> | undefined;
 let attempts = 0;
@@ -36,9 +45,16 @@ function listen() {
 }
 async function connect() {
   await store.connect();
-  if (!store.snapshot().error) listen();
+  if (!store.snapshot().error) {
+    await language.initialize();
+    listen();
+  }
 }
 function App() {
+  const { t } = useI18n();
+  useEffect(() => {
+    document.title = `Veyra · ${t("Workspace")}`;
+  }, [t]);
   const state = useSyncExternalStore(store.subscribe, store.snapshot);
   const [cancel, setCancel] = useState(false);
   const [signedOut, setSignedOut] = useState(false);
@@ -106,13 +122,14 @@ function App() {
         }}
         theme={theme}
       />
-      <Dialog title="Cancel this run?" open={cancel} onClose={() => setCancel(false)}>
+      <Dialog title={t("Cancel this run?")} open={cancel} onClose={() => setCancel(false)}>
         <p>
-          Codex will stop. Changes and verification evidence already saved in your Project will
-          remain available.
+          {t(
+            "Codex will stop. Changes and verification evidence already saved in your Project will remain available.",
+          )}
         </p>
         <div className="v-actions">
-          <Button onClick={() => setCancel(false)}>Keep working</Button>
+          <Button onClick={() => setCancel(false)}>{t("Keep working")}</Button>
           <Button
             variant="danger"
             onClick={() => {
@@ -120,7 +137,7 @@ function App() {
               void store.cancel();
             }}
           >
-            Cancel run
+            {t("Cancel run")}
           </Button>
         </div>
       </Dialog>
@@ -130,4 +147,8 @@ function App() {
 const theme = localStorage.getItem("veyra-theme");
 if (theme && ["light", "dark", "system"].includes(theme))
   document.documentElement.dataset.theme = theme;
-createRoot(document.getElementById("root") as HTMLElement).render(<App />);
+createRoot(document.getElementById("root") as HTMLElement).render(
+  <I18nProvider store={language}>
+    <App />
+  </I18nProvider>,
+);

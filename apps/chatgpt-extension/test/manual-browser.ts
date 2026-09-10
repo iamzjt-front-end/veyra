@@ -168,6 +168,7 @@ try {
     context.serviceWorkers()[0] ??
     (await context.waitForEvent("serviceworker", { timeout: 10000 }));
   assert.equal(worker.url(), `${EXTENSION_ORIGIN}/background.js`);
+  await worker.evaluate(() => chrome.storage.local.set({ locale: "en" }));
   const page = await context.newPage();
   const pageErrors: string[] = [];
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -245,7 +246,7 @@ try {
   });
   if (native) {
     await popup.waitForFunction(() =>
-      document.querySelector("#conversation")?.textContent?.includes("已明确绑定"),
+      document.querySelector("#conversation")?.textContent?.includes("explicitly bound"),
     );
     let armed: { binding?: { epoch: string; bootstrapped?: boolean; phase: string } } = {};
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -335,7 +336,7 @@ try {
         ),
       );
   await popup.waitForFunction(() =>
-    document.querySelector("#last-result")?.textContent?.includes("confirmed"),
+    document.querySelector("#last-result")?.textContent?.includes("Confirmed"),
   );
   assert.match(await popup.locator("#project-detail").innerText(), new RegExp(project.id));
   assert.match(await popup.locator("#native").innerText(), /Ready/);
@@ -351,6 +352,27 @@ try {
     native ? 4 : 5,
     "Current machine handoffs/results fold reversibly (native binding preceded refresh)",
   );
+  // Preference updates repaint only extension UI and its own folded labels, never rebind/replay.
+  const stateBeforeLanguage = await worker.evaluate(
+    async () => (await chrome.storage.local.get("bindings")).bindings,
+  );
+  const runsBeforeLanguage = executed;
+  await popup.locator("#locale").selectOption("zh-CN");
+  await panel.getByRole("button", { name: "查看运行详情", exact: true }).waitFor();
+  await page.waitForFunction(() =>
+    document.querySelector('[data-veyra-status="true"]')?.textContent?.includes("原始"),
+  );
+  assert.equal(await popup.locator("html").getAttribute("lang"), "zh-CN");
+  await popup.locator("#locale").selectOption("en");
+  await panel.getByRole("button", { name: "View run", exact: true }).waitFor();
+  await page.waitForFunction(() =>
+    document.querySelector('[data-veyra-status="true"]')?.textContent?.includes("raw payload"),
+  );
+  assert.deepEqual(
+    await worker.evaluate(async () => (await chrome.storage.local.get("bindings")).bindings),
+    stateBeforeLanguage,
+  );
+  assert.equal(executed, runsBeforeLanguage);
   if (native) {
     await panel
       .getByRole("button", { name: "View run", exact: true })
@@ -365,6 +387,9 @@ try {
       .waitFor();
     controlPid = (await readControlMetadata(join(registryRoot, "browser", "control.json")))?.pid;
     assert.ok(controlPid);
+    await control.getByRole("heading", { name: "验证", exact: true }).waitFor();
+    await control.getByRole("button", { name: "语言 / Language", exact: true }).click();
+    await control.getByRole("menuitem", { name: "English", exact: true }).click();
     await control.getByRole("heading", { name: "Verification", exact: true }).waitFor();
     assert.match(await control.locator(".v-review").innerText(), /Review pending/);
     assert.match(new URL(control.url()).hash, new RegExp(project.id));
@@ -385,7 +410,7 @@ try {
   }
   await page.goto("https://chatgpt.com/c/b7a2b48e-eeb6-4e85-af8f-1bd2d44a28ea");
   await popup.waitForFunction(() =>
-    document.querySelector("#bound-project")?.textContent?.includes("未绑定"),
+    document.querySelector("#bound-project")?.textContent?.includes("not bound"),
   );
   if (!native) {
     assert.ok(daemon?.http);
@@ -393,7 +418,7 @@ try {
     assert.ok(invitation);
     await popup.locator("#unpair").click();
     await popup.waitForFunction(() =>
-      document.querySelector("#grant")?.textContent?.includes("已撤销"),
+      document.querySelector("#grant")?.textContent?.includes("revoked"),
     );
     assert.equal(
       (

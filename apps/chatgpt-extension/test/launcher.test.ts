@@ -1,5 +1,5 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { createElement, type ReactNode } from "react";
+import { renderToStaticMarkup as renderMarkup } from "react-dom/server";
 import { expect, it } from "vitest";
 import { LauncherView } from "../src/launcher-view.js";
 it("keeps infrastructure and binding controls outside the quick launcher", () => {
@@ -25,3 +25,10 @@ it("does not offer panel opening on an unsupported tab", () => {
   expect(html).toContain('disabled=""');
   expect(html).toContain("Open chatgpt.com");
 });
+
+import { I18nProvider, LocaleStore } from "@veyraoss/ui";
+function renderToStaticMarkup(node: ReactNode) {
+  return renderMarkup(
+    createElement(I18nProvider, { store: new LocaleStore(undefined, "en") }, node),
+  );
+}

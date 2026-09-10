@@ -1,9 +1,11 @@
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@veyraoss/ui/i18n";
 import { isExtensionSurface, supportsPanel } from "./surfaces.js";
 import { object } from "./contracts.js";
 import { NativeClient } from "./native-client.js";
 import { durableBindings } from "./persistence.js";
 import { BridgeController, type SessionState } from "./controller.js";
 
+let locale: Locale = DEFAULT_LOCALE;
 let saving: Promise<void> = Promise.resolve();
 const host = {
   read: async (): Promise<SessionState> => {
@@ -23,13 +25,18 @@ const host = {
     saving = write.catch(() => {});
     return write;
   },
-  activeTab: async () => (await chrome.tabs.query({ active: true, currentWindow: true }))[0] ?? {},
+  activeTab: async (): Promise<Partial<chrome.tabs.Tab>> =>
+    (await chrome.tabs.query({ active: true, currentWindow: true }))[0] ?? {},
   tab: (id: number) => chrome.tabs.get(id),
-  send: (id: number, message: unknown) => chrome.tabs.sendMessage(id, message),
+  send: (id: number, message: unknown) =>
+    chrome.tabs.sendMessage(id, object(message) ? { ...message, locale } : message),
 };
 const controller = new BridgeController(host, undefined, new NativeClient());
 // Default session storage is not exposed to content scripts. Make that boundary explicit.
 const ready = Promise.all([
+  chrome.storage.local.get("locale").then((data) => {
+    if (isLocale(data.locale)) locale = data.locale;
+  }),
   chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
   chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
 ]);
@@ -85,5 +92,18 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
   void chrome.tabs
     .get(tabId)
     .then((tab) => updatePanel(tabId, tab.url))
+    .catch(() => {});
+});
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "local" || !isLocale(changes.locale?.newValue)) return;
+  locale = changes.locale.newValue;
+  // A cosmetic event for the current supported tab only; no history reads or controller actions.
+  void host
+    .activeTab()
+    .then((tab) => {
+      if (tab.id !== undefined && supportsPanel(tab.url))
+        return host.send(tab.id, { type: "locale" });
+    })
     .catch(() => {});
 });

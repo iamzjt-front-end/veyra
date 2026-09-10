@@ -1,3 +1,4 @@
+import { useI18n } from "../i18n/react.js";
 import {
   useEffect,
   useId,
@@ -133,11 +134,12 @@ export function ErrorState({
   children?: ReactNode;
   action?: ReactNode;
 }) {
+  const { t } = useI18n();
   return (
     <section className="v-error" role="alert">
       <Icon name="warning" />
       <div>
-        <h2>{title}</h2>
+        <h2>{t(title)}</h2>
         <div className="v-secondary">{children}</div>
         {action && <div className="v-actions">{action}</div>}
       </div>
@@ -145,8 +147,9 @@ export function ErrorState({
   );
 }
 export function Skeleton({ label = "Loading" }: { label?: string }) {
+  const { t } = useI18n();
   return (
-    <div role="status" aria-label={label} className="v-skeleton">
+    <div role="status" aria-label={t(label)} className="v-skeleton">
       <span />
       <span />
       <span />
@@ -185,8 +188,12 @@ export function Stepper({
   steps: WorkflowStep[];
   horizontal?: boolean;
 }) {
+  const { t } = useI18n();
   return (
-    <ol className={cx("v-stepper", horizontal && "v-stepper-horizontal")} aria-label="Workflow">
+    <ol
+      className={cx("v-stepper", horizontal && "v-stepper-horizontal")}
+      aria-label={t("Workflow")}
+    >
       {steps.map((step) => (
         <li
           key={step.id}
@@ -206,10 +213,18 @@ export function Stepper({
           </span>
           <div className="v-step-content">
             <div className="v-step-heading">
-              <span>{step.label}</span>
-              <span className="v-step-trailing">{step.trailing ?? stepLabels[step.state]}</span>
+              <span>{t(step.label)}</span>
+              <span className="v-step-trailing">{step.trailing ?? t(stepLabels[step.state])}</span>
             </div>
-            {step.detail && <p>{step.detail}</p>}
+            {step.detail && (
+              <p>
+                {step.id === "review"
+                  ? step.detail === "Waiting for ChatGPT review"
+                    ? t(step.detail)
+                    : step.detail
+                  : t(step.detail)}
+              </p>
+            )}
           </div>
         </li>
       ))}
@@ -246,11 +261,12 @@ export function Tabs({
   onChange: (id: string) => void;
   children: ReactNode;
 }) {
+  const { t } = useI18n();
   const prefix = useId();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
     <div className="v-tabs">
-      <div role="tablist" aria-label="Run evidence">
+      <div role="tablist" aria-label={t("Run evidence")}>
         {items.map((item, index) => (
           <button
             type="button"
@@ -323,6 +339,7 @@ export function Dialog({
   children: ReactNode;
   drawer?: boolean;
 }) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDialogElement>(null),
     id = useId();
   useEffect(() => {
@@ -340,7 +357,7 @@ export function Dialog({
     >
       <header>
         <h2 id={id}>{title}</h2>
-        <IconButton icon="close" label="Close" onClick={onClose} />
+        <IconButton icon="close" label={t("Close")} onClick={onClose} />
       </header>
       {children}
     </dialog>
@@ -358,12 +375,13 @@ export function Toast({ message }: { message: string }) {
   );
 }
 export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
+  const { t } = useI18n();
   const [message, setMessage] = useState("");
   return (
     <span className="v-copy">
       <IconButton
         icon="copy"
-        label={label}
+        label={t(label)}
         onClick={() => {
           void navigator.clipboard.writeText(text).then(
             () => setMessage("Copied"),
@@ -372,25 +390,27 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
         }}
       />
       <span role="status" className="v-caption">
-        {message}
+        {t(message)}
       </span>
     </span>
   );
 }
 export function RunStatus({ status }: { status: string }) {
+  const { t } = useI18n();
   const labels: Record<string, [string, Tone]> = {
-    completed: ["Completed", "success"],
-    failed: ["Needs attention", "danger"],
-    running: ["Working", "accent"],
-    queued: ["Waiting for Codex", "neutral"],
-    paused: ["Paused", "warning"],
-    cancelled: ["Cancelled", "neutral"],
-    interrupted: ["Needs attention", "warning"],
+    completed: [t("Completed"), "success"],
+    failed: [t("Needs attention"), "danger"],
+    running: [t("Working"), "accent"],
+    queued: [t("Waiting for Codex"), "neutral"],
+    paused: [t("Paused"), "warning"],
+    cancelled: [t("Cancelled"), "neutral"],
+    interrupted: [t("Needs attention"), "warning"],
   };
-  const [label, tone] = labels[status] ?? ["Waiting", "neutral"];
+  const [label, tone] = labels[status] ?? [t("Waiting"), "neutral"];
   return <Badge tone={tone}>{label}</Badge>;
 }
 export function AgentStatus({ state }: { state: "ready" | "working" | "unavailable" | "waiting" }) {
+  const { t } = useI18n();
   return (
     <Status
       tone={
@@ -403,9 +423,12 @@ export function AgentStatus({ state }: { state: "ready" | "working" | "unavailab
     >
       Codex ·{" "}
       {
-        { ready: "Ready", working: "Working", unavailable: "Unavailable", waiting: "Waiting" }[
-          state
-        ]
+        {
+          ready: t("Ready"),
+          working: t("Working"),
+          unavailable: t("Unavailable"),
+          waiting: t("Waiting"),
+        }[state]
       }
     </Status>
   );
@@ -415,6 +438,7 @@ export function VerificationStatus({
 }: {
   status: "passed" | "failed" | "not_run" | "running";
 }) {
+  const { t } = useI18n();
   return (
     <Status
       tone={
@@ -427,7 +451,11 @@ export function VerificationStatus({
               : "neutral"
       }
     >
-      {{ passed: "Passed", failed: "Failed", not_run: "Not run", running: "Checking" }[status]}
+      {
+        { passed: t("Passed"), failed: t("Failed"), not_run: t("Not run"), running: t("Checking") }[
+          status
+        ]
+      }
     </Status>
   );
 }
@@ -511,6 +539,46 @@ export function Dropdown({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+export function LanguageSelect({ expanded = false }: { expanded?: boolean }) {
+  const { t, locale, setLocale, saveFailed } = useI18n();
+  const options = [
+    { value: "zh-CN", label: "简体中文" },
+    { value: "en", label: "English" },
+  ];
+  return (
+    <div className="v-language">
+      {expanded ? (
+        <Select
+          label={t("Language")}
+          value={locale}
+          options={options}
+          onChange={(event) => {
+            if (event.target.value === "zh-CN" || event.target.value === "en")
+              setLocale(event.target.value);
+          }}
+        />
+      ) : (
+        <Dropdown
+          icon="language"
+          label={t("Language / 语言")}
+          items={options.map((item) => ({
+            id: item.value,
+            label: `${item.label}${locale === item.value ? " ✓" : ""}`,
+          }))}
+          onSelect={(value) => {
+            if (value === "zh-CN" || value === "en") setLocale(value);
+          }}
+        />
+      )}
+      {saveFailed && (
+        <p role="alert" className="v-caption">
+          {t("Language preference could not be saved. Try again.")}
+        </p>
+      )}
     </div>
   );
 }
