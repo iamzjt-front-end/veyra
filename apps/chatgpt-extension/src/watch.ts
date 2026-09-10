@@ -1,4 +1,4 @@
-import { assistantId, assistantIds, generating, turnText } from "./page.js";
+import { assistantId, assistantIds, conversationTurn, generating, turnText } from "./page.js";
 import { extractHandoffBlock } from "./contracts.js";
 
 const assistant = '[data-message-author-role="assistant"]';
@@ -48,7 +48,7 @@ export function watchConversation(
     clearTimeout(timer);
     timer = undefined;
     if (!newest?.isConnected) return;
-    const turn = newest.closest("article") ?? newest.parentElement;
+    const turn = conversationTurn(newest);
     if (!turn?.querySelector(completion) || generating(document)) return;
     // One bounded quiet-period debounce after the completion toolbar appears. Streaming
     // text never gets read; a mutation burst only resets this one pending check.
@@ -57,8 +57,8 @@ export function watchConversation(
       if (stopped || !active() || !newest?.isConnected || generating(document)) return;
       const current = newest;
       const id = assistantId(current);
-      const article = current.closest("article") ?? current.parentElement;
-      if (!id || ignored.has(id) || !article?.querySelector(completion)) return;
+      const turn = conversationTurn(current);
+      if (!id || ignored.has(id) || !turn?.querySelector(completion)) return;
       try {
         const source = extractHandoffBlock(turnText(current));
         ignored.add(id);
@@ -88,8 +88,7 @@ export function watchConversation(
         // No queries inside old history or every token of a streaming answer.
         continue;
       }
-      if (newest && (newest.closest("article") ?? newest.parentElement)?.contains(target))
-        changed = true;
+      if (newest && conversationTurn(newest)?.contains(target)) changed = true;
       // React can turn the existing Stop control into Send/Voice without removing it.
       // Its old streaming attribute is the completion event; there may be no later DOM change.
       if (target.matches(streaming) || wasStreaming(record)) {

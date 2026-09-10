@@ -12,6 +12,7 @@ import {
 } from "../src/contracts.js";
 import { fixtureProjectState } from "../../../test/helpers/project-state.js";
 import type { ProjectId } from "@veyraoss/protocol";
+import { sectionTurn } from "./fixtures/chatgpt-turn.js";
 
 const projectId = "62bf60b0-5646-4195-9f47-a4ea70140859" as ProjectId;
 const runId = "8e7dc509-d7f1-4d0a-958c-8c98ff011e64";
@@ -23,6 +24,33 @@ const turn = (id: string, source = frameHandoff(handoff), role = "assistant") =>
   `<article><div data-message-author-role="${role}" data-message-id="${id}"><pre><code>${source}</code></pre></div><button data-testid="copy-turn-action-button"></button></article>`;
 
 describe("explicit current-conversation DOM boundary", () => {
+  it("recognizes the observed ChatGPT section with its sibling completion toolbar", () => {
+    const document = page("");
+    document.body.append(sectionTurn(document, "fresh", frameHandoff(handoff)));
+    expect(latestHandoff(document, new Set())).toEqual({
+      id: "fresh",
+      source: frameHandoff(handoff),
+    });
+    expect(latestHandoff(document, new Set(["fresh"]))).toBeUndefined();
+  });
+  it("cannot borrow completion from an adjacent section or outside the current turn", () => {
+    const document = page("");
+    const old = sectionTurn(document, "old", frameHandoff(handoff));
+    const fresh = sectionTurn(document, "fresh", frameHandoff(handoff));
+    const toolbar = fresh.querySelector('[role="group"]');
+    if (!toolbar) throw new Error("Missing fixture toolbar");
+    document.body.append(old, fresh, toolbar);
+    expect(latestHandoff(document, new Set(["old"]))).toBeUndefined();
+    fresh.append(toolbar);
+    expect(latestHandoff(document, new Set(["old"]))?.id).toBe("fresh");
+  });
+  it("fails closed for an unidentified wrapper instead of treating a shared parent as a turn", () => {
+    const document = page("");
+    const unknown = sectionTurn(document, "fresh", frameHandoff(handoff));
+    unknown.removeAttribute("data-testid");
+    document.body.append(unknown);
+    expect(latestHandoff(document, new Set())).toBeUndefined();
+  });
   it("accepts only new completed assistant markers, excluding old/user/unmarked turns and streaming", () => {
     const document = page(turn("old"));
     const ignored = assistantIds(document);

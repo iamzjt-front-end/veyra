@@ -2,11 +2,59 @@ import { parseHTML } from "linkedom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { RunBackoff, watchConversation } from "../src/watch.js";
 import { watchPopup } from "../src/popup-refresh.js";
+import { sectionTurn } from "./fixtures/chatgpt-turn.js";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+it("waits for the current section toolbar, then dispatches once without scanning old turns", async () => {
+  const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const main = document.querySelector("main");
+  if (!main) throw new Error("Missing fixture main");
+  const source = 'VEYRA_HANDOFF_BEGIN\n{"goal":"中文 English"}\nVEYRA_HANDOFF_END';
+  const old = sectionTurn(document, "old", source);
+  main.append(old);
+  const handoff = vi.fn();
+  const error = vi.fn();
+  let active = true;
+  const stop = watchConversation(document, handoff, vi.fn(), error, () => active);
+  const fresh = sectionTurn(document, "fresh", source);
+  const toolbar = fresh.querySelector('[role="group"]');
+  if (!toolbar) throw new Error("Missing fixture toolbar");
+  toolbar.remove();
+  main.append(fresh);
+  document.body.append(toolbar);
+  // Neither an old complete turn nor a toolbar outside the new section proves completion.
+  old.setAttribute("class", "changed");
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(handoff).not.toHaveBeenCalled();
+  const streaming = document.createElement("button");
+  streaming.setAttribute("data-testid", "stop-button");
+  document.body.append(streaming);
+  fresh.append(toolbar);
+  await vi.advanceTimersByTimeAsync(1000);
+  expect(handoff).not.toHaveBeenCalled();
+  streaming.setAttribute("data-testid", "send-button");
+  for (let n = 0; n < 1000; n++) toolbar.setAttribute("class", `complete-${n}`);
+  await vi.advanceTimersByTimeAsync(500);
+  expect(handoff).toHaveBeenCalledExactlyOnceWith({ id: "fresh", source });
+  toolbar.setAttribute("class", "rerender");
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(handoff).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+  const cancelled = sectionTurn(document, "cancelled", source);
+  main.append(cancelled);
+  await vi.advanceTimersByTimeAsync(200);
+  active = false;
+  await vi.advanceTimersByTimeAsync(500);
+  expect(handoff).toHaveBeenCalledTimes(1);
+  expect(error).not.toHaveBeenCalled();
+  stop();
+  expect(vi.getTimerCount()).toBe(0);
 });
 it("does no DOM queries, text reads or timers during 60 seconds idle with 3000 old turns; coalesces streaming bursts", async () => {
   const { document: doc, window } = parseHTML(

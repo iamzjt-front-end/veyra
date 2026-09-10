@@ -3,6 +3,7 @@ import { build } from "esbuild";
 import type { BrowserContext } from "playwright";
 import type { sendToConversation } from "../src/page.js";
 import type { watchConversation } from "../src/watch.js";
+import { sectionTurnMarkup } from "./fixtures/chatgpt-turn.js";
 
 declare global {
   interface Window {
@@ -24,7 +25,7 @@ const conversation = "https://chatgpt.com/c/dc6aee38-ef73-470c-ae9f-d70d57c1c412
 const marker = "5fb3c5c9-6ccc-40a4-bc6b-c4e741a357dc";
 const payload = `Veyra binding ${marker}\n\n中文 / English\nVEYRA_HANDOFF_BEGIN\n${JSON.stringify({ goal: "中文 and English", tasks: Array.from({ length: 300 }, (_, id) => ({ id, description: `实现 task ${id}`, lines: "first\n\nsecond" })) }, null, 2)}\n\nVEYRA_HANDOFF_END`;
 const html =
-  '<!doctype html><html><body><main></main><div id="prompt-textarea" contenteditable="true"></div><button data-testid="send-button">Send</button></body></html>';
+  '<!doctype html><html><head><meta charset="utf-8"></head><body><main></main><div id="prompt-textarea" contenteditable="true"></div><button data-testid="send-button">Send</button></body></html>';
 
 /** Real Chromium DOM/events; intentionally no real ChatGPT account or native executor. */
 export async function browserRegressions(context: BrowserContext) {
@@ -188,13 +189,22 @@ export async function browserRegressions(context: BrowserContext) {
   // the production observer active. Count DOM queries, not a machine-dependent CPU threshold.
   await page.goto(conversation);
   await page.addScriptTag({ content: source });
-  await page.evaluate(() => {
+  await page.evaluate((sectionMarkup) => {
     const main = document.querySelector("main");
     if (!main) throw new Error("Missing fixture main");
     for (let n = 0; n < 3000; n++) {
-      const article = document.createElement("article");
-      article.innerHTML = `<div data-message-author-role="assistant" data-message-id="old-${n}">${"old history ".repeat(40)}</div><button data-testid="copy-turn-action-button"></button>`;
-      main.append(article);
+      const turn = document.createElement(n % 2 === 0 ? "section" : "article");
+      turn.setAttribute("data-testid", `conversation-turn-${n}`);
+      turn.innerHTML = sectionMarkup;
+      const message = turn.querySelector('[data-message-author-role="assistant"]');
+      const actions = turn.querySelector('[role="group"]');
+      if (!message || !actions) throw new Error("Missing fixture turn");
+      message.setAttribute("data-message-id", `old-${n}`);
+      message.textContent = "old history ".repeat(40);
+      const copy = document.createElement("button");
+      copy.dataset.testid = "copy-turn-action-button";
+      actions.append(copy);
+      main.append(turn);
     }
     window.fixtureChecks = 0;
     window.fixtureStop = window.bridgeTest.watchConversation(
@@ -214,11 +224,11 @@ export async function browserRegressions(context: BrowserContext) {
         Object.defineProperty(prototype, method, {
           value: function (this: Document & Element, selector: string) {
             window.queryCount++;
-            return original.call(this, selector);
+            return Reflect.apply(original, this, [selector]);
           },
         });
       }
-  });
+  }, sectionTurnMarkup);
   const client = await context.newCDPSession(page);
   await client.send("Performance.enable");
   const before = await client.send("Performance.getMetrics");
@@ -232,19 +242,22 @@ export async function browserRegressions(context: BrowserContext) {
   const after = await client.send("Performance.getMetrics");
   const metric = (values: typeof before) =>
     values.metrics.find((m) => m.name === "TaskDuration")?.value ?? 0;
-  await page.evaluate(() => {
-    const article = document.createElement("article"),
-      assistant = document.createElement("div");
-    assistant.dataset.messageAuthorRole = "assistant";
-    assistant.dataset.messageId = "fresh";
-    article.append(assistant);
-    document.querySelector("main")?.append(article);
+  await page.evaluate((sectionMarkup) => {
+    const turn = document.createElement("section");
+    turn.dataset.testid = "conversation-turn-fresh";
+    turn.dataset.turn = "assistant";
+    turn.innerHTML = sectionMarkup;
+    const assistant = turn.querySelector('[data-message-author-role="assistant"]');
+    const actions = turn.querySelector('[role="group"]');
+    if (!assistant || !actions) throw new Error("Missing fixture turn");
+    assistant.setAttribute("data-message-id", "fresh");
+    document.querySelector("main")?.append(turn);
     for (let n = 0; n < 1000; n++) assistant.textContent = `token-${n}`;
     assistant.textContent = 'VEYRA_HANDOFF_BEGIN\n{"goal":"fixture"}\nVEYRA_HANDOFF_END';
     const copy = document.createElement("button");
     copy.dataset.testid = "copy-turn-action-button";
-    article.append(copy);
-  });
+    actions.append(copy);
+  }, sectionTurnMarkup);
   await page.waitForFunction(() => window.fixtureChecks === 1);
   await page.evaluate(() => window.fixtureStop?.());
   await client.detach();

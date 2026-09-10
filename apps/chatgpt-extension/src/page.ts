@@ -1,6 +1,12 @@
 import { conversationUrl, extractHandoffBlock } from "./contracts.js";
 
 const assistantSelector = '[data-message-author-role="assistant"]';
+/** Completion belongs to this explicit turn, never an adjacent turn or the whole page. */
+export function conversationTurn(message: Element): Element | null {
+  // Current ChatGPT uses SECTION; its toolbar is outside the message's direct parent.
+  // Older layouts use ARTICLE. Neither CSS classes nor translated button labels route work.
+  return message.closest('[data-testid^="conversation-turn-"]') ?? message.closest("article");
+}
 export function assistantId(message: Element): string | undefined {
   return (
     message.getAttribute("data-message-id") ??
@@ -30,7 +36,7 @@ export function latestHandoff(
   if (!message) return;
   const id = assistantId(message);
   if (!id || ignored.has(id)) return;
-  const turn = message.closest("article") ?? message.parentElement;
+  const turn = conversationTurn(message);
   // A finished assistant turn needs its normal completion toolbar. Unknown DOM fails closed.
   if (!turn?.querySelector('[data-testid="copy-turn-action-button"]')) return;
   // Inspect only this new completed assistant turn; forward only its delimited engineering data.

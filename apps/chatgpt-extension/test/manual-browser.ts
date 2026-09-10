@@ -13,9 +13,11 @@ import { startDaemon, stopDaemon } from "@veyraoss/daemon";
 import { initializeProject, ProjectRegistry } from "@veyraoss/project";
 import { parseConfig } from "@veyraoss/config";
 import { EXTENSION_ORIGIN, parsePairing } from "../src/contracts.js";
+import { sectionTurnMarkup } from "./fixtures/chatgpt-turn.js";
 
 // This is an offline fixture, not a ChatGPT account/native-auth acceptance claim.
-const fixtureHtml = `<!doctype html><html><body><main></main><div id="prompt-textarea" contenteditable="true"></div><button data-testid="send-button">Send</button><script>
+const native = process.argv.includes("--native");
+const fixtureHtml = `<!doctype html><html><head><meta charset="utf-8"></head><body><main></main><div id="prompt-textarea" contenteditable="true"></div><button data-testid="send-button">Send</button><script>
 let turns=0;
 const main=document.querySelector('main'), editor=document.querySelector('#prompt-textarea');
 document.querySelector('button').onclick=()=>{
@@ -26,15 +28,18 @@ document.querySelector('button').onclick=()=>{
  if(sessionStorage.getItem('pauseFixture')==='yes')return;
  if(!match && text!=='Implement the fixture feature')return;
  const source=match?match[1]:sessionStorage.getItem('fixture-plan');if(!source)return;
- const handoff=JSON.parse(source);handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';handoff.requestedVerification=[{id:'verify',kind:'test'}];
+ let handoff;try{handoff=JSON.parse(source);}catch{throw new Error('Invalid fixture plan: '+JSON.stringify(source.slice(0,180)));}handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';if(handoff.context.plan){handoff.context.plan.summary=handoff.context.goal;handoff.context.plan.tasks[0].description=handoff.context.goal;}handoff.requestedVerification=[{id:'verify',kind:'test'}];
  const stop=document.createElement('button');stop.dataset.testid='stop-button';document.body.append(stop);
- const article=document.createElement('article'), assistant=document.createElement('div');assistant.dataset.messageAuthorRole='assistant';assistant.dataset.messageId=crypto.randomUUID();
- const pre=document.createElement('pre'), code=document.createElement('code');code.className='language-veyra-handoff';code.textContent='{';pre.append(code);assistant.append(pre);article.append(assistant);main.append(article);
- setTimeout(()=>{code.textContent='VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END';const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';article.append(copy);setTimeout(()=>{stop.dataset.testid='fixture-finished-control';},100);},100);
+ const sectionLayout=${native};
+ const turn=document.createElement(sectionLayout?'section':'article');
+ if(sectionLayout){turn.dataset.testid='conversation-turn-'+turns;turn.dataset.turn='assistant';turn.innerHTML=${JSON.stringify(sectionTurnMarkup)};}
+ const assistant=sectionLayout?turn.querySelector('[data-message-author-role="assistant"]'):document.createElement('div');assistant.dataset.messageAuthorRole='assistant';assistant.dataset.messageId=crypto.randomUUID();
+ const body=document.createElement(sectionLayout?'p':'code');body.textContent='{';if(sectionLayout)assistant.append(body);else{const pre=document.createElement('pre');body.className='language-veyra-handoff';pre.append(body);assistant.append(pre);turn.append(assistant);}main.append(turn);
+ const actions=sectionLayout?turn.querySelector('[role="group"]'):turn;
+ setTimeout(()=>{body.textContent='VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END';const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';actions.append(copy);setTimeout(()=>{stop.dataset.testid='fixture-finished-control';},100);},100);
 };
 </script></body></html>`;
 
-const native = process.argv.includes("--native");
 const root = await mkdtemp(join(tmpdir(), "veyra-extension-browser-"));
 const project = await initializeProject(root);
 const registryRoot = join(root, "registry");
@@ -558,6 +563,7 @@ try {
       executions: executed,
       sameConversationReturns: 2,
       streamingControlReused: true,
+      assistantLayout: native ? "observed section with nested sibling toolbar" : "legacy article",
       ...(native
         ? { armedRefreshRestored: true, bootstrapReplayed: false, lazyCoordinator: true }
         : {}),
