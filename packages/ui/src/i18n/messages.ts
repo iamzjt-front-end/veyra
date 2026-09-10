@@ -380,6 +380,12 @@ export const chinese: Readonly<Record<string, string>> = {
     "本机授权已变化，请重新连接并明确绑定项目。",
   "Project authorization expired or location changed. Bind explicitly again.":
     "项目授权已过期或位置发生变化，请明确重新绑定。",
+  "Invalid handoff: requestedVerification belongs at the top level, beside context. Nothing was executed.":
+    "任务格式错误：验证检查 requestedVerification 必须放在最外层，与 context 同级。没有执行任何任务。",
+  "Invalid handoff: context.currentTask must be a task ID string from context.plan.tasks. Nothing was executed.":
+    "任务格式错误：context.currentTask 必须是计划中某个任务 ID 的字符串，不能是对象。没有执行任何任务。",
+  "Invalid handoff: context.decisions must contain objects with id, summary, rationale and provenance, or remain empty. Nothing was executed.":
+    "任务格式错误：context.decisions 必须为空数组，或包含 id、summary、rationale、provenance 的决策对象，不能是字符串数组。没有执行任何任务。",
   "The local connection is idle.": "本地连接已休眠。",
   "Automatic dispatch and handback are paused.": "自动派发与结果回传已暂停。",
   "This run needs local approval or recovery. The extension cannot approve it.":

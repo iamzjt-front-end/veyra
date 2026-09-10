@@ -123,8 +123,30 @@ export function parseHandoff(source: string, projectId: ProjectId, runId: string
   } catch {
     throw new Error("Handoff JSON 不完整或无效。");
   }
+  if (!isProjectHandoff(value)) {
+    // Explain observed planner mistakes without repairing, moving or accepting invalid data.
+    // The protocol package remains the authority for every schema decision.
+    if (object(value) && object(value.context)) {
+      const context = value.context;
+      if (Object.hasOwn(context, "requestedVerification"))
+        throw new Error(
+          "Invalid handoff: requestedVerification belongs at the top level, beside context. Nothing was executed.",
+        );
+      if (context.currentTask !== undefined && typeof context.currentTask !== "string")
+        throw new Error(
+          "Invalid handoff: context.currentTask must be a task ID string from context.plan.tasks. Nothing was executed.",
+        );
+      if (
+        Array.isArray(context.decisions) &&
+        context.decisions.some((item) => typeof item === "string")
+      )
+        throw new Error(
+          "Invalid handoff: context.decisions must contain objects with id, summary, rationale and provenance, or remain empty. Nothing was executed.",
+        );
+    }
+    throw new Error("Handoff schema、Project 或本轮 runId 不匹配；没有执行。");
+  }
   if (
-    !isProjectHandoff(value) ||
     value.projectId !== projectId ||
     value.runId !== runId ||
     !["planner", "reviewer"].includes(value.provenance.role)
@@ -150,12 +172,36 @@ export function handoffTemplate(binding: Binding): ProjectHandoff {
   };
 }
 export function instruction(binding: Binding): string {
-  return binding.count >= binding.maxRuns
-    ? "本次绑定的自动执行次数已用尽。请 Review；不要继续执行。"
-    : `你是当前 Project 的 Planner / Reviewer。仅按用户已授权的目标规划。需要实现/修复时，输出一个完整的以下 BEGIN/END 区块（可以置于一个 text 代码块中）。使用现有 canonical schema 和本轮身份，替换 context.goal，并填写 context.plan（id/revision/summary/tasks:[{id,description}]/acceptanceCriteria/provenance）；plan.provenance 使用同一来源信息。可加入 currentTask、references、requestedVerification（只选已提供的检查 id 和 kind）。不能提供 shell 命令、凭证、根路径或审批。没有待执行目标时只确认就绪，不要照抄模板触发执行。最多还可执行 ${binding.maxRuns - binding.count} 次（含 repair）。\n${frameHandoff(handoffTemplate(binding))}`;
+  if (binding.count >= binding.maxRuns)
+    return "本次绑定的自动执行次数已用尽。请 Review；不要继续执行。";
+  const base = handoffTemplate(binding);
+  const example: ProjectHandoff = {
+    ...base,
+    context: {
+      ...base.context,
+      plan: {
+        id: binding.nextRunId,
+        revision: 1,
+        summary: "填写本轮计划摘要",
+        tasks: [{ id: "task-1", description: "填写用户已授权的具体任务" }],
+        acceptanceCriteria: ["填写可验证的验收条件"],
+        provenance: base.provenance,
+      },
+      currentTask: "task-1",
+    },
+    references: [],
+    requestedVerification: [],
+  };
+  return `你是当前 Project 的 Planner / Reviewer。仅按用户已授权的目标规划。需要执行检查、实现或修复时，输出一个完整的以下 BEGIN/END 区块（可以置于一个 text 代码块中）。保留本轮 id/projectId/runId 和 provenance，替换描述占位内容。严格使用现有 canonical schema：
+- context.goal 是目标；context.plan 填写计划、tasks 和 acceptanceCriteria；plan.provenance 使用同一来源信息。
+- context.currentTask 是 context.plan.tasks 中某个任务 id 的字符串，例如 "task-1"，不能是对象。
+- context.decisions 没有决策时保持 []；每项必须是含 id/summary/rationale/provenance 的对象，不能填字符串数组。任务限制写入 context.constraints。
+- references 和 requestedVerification 位于 JSON 最外层，与 context 同级，不得放进 context。requestedVerification 每项是 {"id":"已提供的检查 id","kind":"该检查的 kind"}，只能选择项目快照已有的检查，不得臆造命令；不需要时保持 []。
+不能提供 shell 命令、凭证、根路径或审批。没有待执行目标时只确认就绪，不要照抄模板触发执行。最多还可执行 ${binding.maxRuns - binding.count} 次（含 repair）。
+${frameHandoff(example, true)}`;
 }
-export const frameHandoff = (value: unknown) =>
-  `VEYRA_HANDOFF_BEGIN\n${JSON.stringify(value)}\nVEYRA_HANDOFF_END`;
+export const frameHandoff = (value: unknown, pretty = false) =>
+  `VEYRA_HANDOFF_BEGIN\n${JSON.stringify(value, null, pretty ? 2 : undefined)}\nVEYRA_HANDOFF_END`;
 export const reviewInstruction = `请作为 Reviewer：按原计划和验收条件审查，不要仅相信 Codex summary，优先检查 Verification Evidence 与 Diff。缺失或截断证据不能视为 PASS。请返回独立的结构化 review：\nVEYRA_REVIEW_BEGIN\n{"verdict":"PASS | FAIL | HUMAN_DECISION","summary":"...","findings":[{"severity":"critical | warning | info","description":"..."}],"nextAction":"complete | repair | human"}\nVEYRA_REVIEW_END\n每个枚举只选择一个值。PASS 时结束或提出下一步；FAIL 时另输出新的完整 repair handoff；需要人类决策时停止。单独的 review 不会执行；修复必须另有显式 handoff，且不能超过本次执行上限。`;
 export function resultMessage(binding: Binding, data: unknown, id: string): string {
   if (!object(data) || !object(data.result)) throw new Error("缺少结构化执行结果。");

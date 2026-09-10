@@ -622,7 +622,7 @@ Initial P0.11 verification selected official ChatGPT web Developer mode + authen
 
 ## P0.12 — Experimental ChatGPT Web Bridge for Pro product proof
 
-**Status:** [!] Real Pro re-testing confirms the localized Side Panel can show Ready and the exact conversation binding, but then repeatedly showed disconnected while new explicit handoffs produced no Project execution records. The worker/native recovery repair below is implemented and deterministically verified; Reload and real same-conversation execution/result re-acceptance are still required. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
+**Status:** [!] After the reconnect repair, real Pro stayed Ready and explicitly bound, but a new complete handoff was not dispatched. Read-only inspection of that exact live conversation found the new section/toolbar layout and malformed planner fields. The turn-container and planner-template repair below is locally verified; user Reload and real same-conversation execution/result re-acceptance remain required. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
 
 **Depends on:** P0.11
 
@@ -699,7 +699,7 @@ The repair keeps DOM logic inside `apps/chatgpt-extension`: unique-marker/BEGIN-
 
 ### Blocker, attempts and unlock
 
-Installation, native authorization and same-conversation binding are already user-confirmed; asking the user to install from scratch is no longer the blocker. The current live gate is **Reload the repaired extension and refresh the original ChatGPT page**, then verify the enabled native binding restores without another Bind or bootstrap. After more than one idle minute, a new explicit handoff must wake the coordinator, execute and return evidence to that same conversation. Existing messages and Project/run evidence must be retained; an uncertain dispatch/delivery stays paused and must not be replayed.
+Installation, native authorization and same-conversation binding are already user-confirmed; asking the user to install from scratch is no longer the blocker. The current live gate is **Reload the repaired extension and refresh the original ChatGPT page**. For this planner-template update only, first verify there is no active run, then explicitly Unbind/Bind the same Project once so ChatGPT receives the corrected field guidance. No setup/init/pairing is needed. After more than one idle minute, a new test request must generate a valid handoff, wake the coordinator, execute and return evidence to that same conversation. Existing messages and Project/run evidence must be retained; an uncertain dispatch/delivery stays paused and must not be replayed. Normal same-conversation refresh continues to restore a confirmed binding without resending bootstrap.
 
 The user must confirm the fixed behavior and real-page performance. No personal browser profile, ChatGPT login, unrelated conversation, Codex credential or public forwarder was accessed by the repair tests. The previous tunnel proposal remains superseded. Deterministic fixtures cannot replace this live Pro confirmation; P0.12 remains incomplete and P0.13–P0.15 remain unstarted by explicit user instruction.
 
@@ -723,6 +723,25 @@ Verification:
 - `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**2,030 passed**) and `pnpm build` all passed. Source and CLI-packaged extension outputs contain the same **14 files**, verified byte-for-byte. The existing user Project, grants and conversation were not reset; test-owned browser/host/coordinator resources were cleaned up.
 
 Next live step: Reload Veyra in `chrome://extensions`, refresh the original bound conversation, confirm the same Project restores, wait over one minute, then issue a new test task. No setup/init/pairing is needed for the existing native installation. Stop after the focused fix commit/push for this real Pro re-acceptance.
+
+### Live turn-container and handoff-guidance repair — user report, 2026-09-10
+
+**Status:** [x] Local repair and deterministic verification only; real P0.12 remains [!].
+
+Depends on the locally verified reconnect repair. The user reloaded/rebound and sent a fresh read-only test handoff; the Side Panel remained Ready with no run. Read-only DOM inspection of only the specified conversation's latest assistant turn found a completed `section` with its normal copy toolbar, no streaming and an empty composer. The old `article`/direct-parent scope had no completion button; the explicit `conversation-turn-…` scope did. The Project still has no handoff/run/result evidence.
+
+Recognize the observed explicit conversation-turn container, reuse it in both event-driven and direct completion checks, retain legacy article support and same-turn completion/identity guards. Add sanitized live-layout fixtures, no sibling-toolbar borrowing/old-turn replay tests, both native/HTTP browser checks and the baseline. Verify the fixed read-only parser against the original page without dispatching or replaying its handoff. Commit/push, then stop for Reload and real P0.12 re-acceptance; P0.13–P0.15 remain blocked.
+
+The fixed parser recognizes the original live message, but the unchanged canonical validator correctly rejects it: `context.decisions` contains strings instead of decision objects, `context.currentTask` is an object instead of a plan task ID string, and `requestedVerification` is incorrectly nested inside `context`. The existing planner instruction did not explain these types/locations and its minimal example omitted them. Provide a full, indented canonical example and explicit field guidance, plus localized rejection reasons. Never coerce/rewrite that invalid input into a dispatch. The live read-only probe reported recognition with schema rejection and `dispatchAttempted: false`; no message, native run or Project file was created.
+
+Verification:
+
+- **96 extension tests pass**, including the observed section with a nested sibling toolbar, legacy article support, old-turn exclusion, refusal to borrow an adjacent/outside toolbar, unknown-container rejection, streaming completion, mutation bursts, deferred handback, complete template validity and three malformed-field rejections before transport/state writes. The canonical Protocol validator and human approval boundaries are unchanged.
+- Both `smoke:native-browser` and `smoke:browser` pass in Chromium **149.0.7827.55**. The native fixture uses the observed nested section layout and plain paragraph handoffs; the HTTP fixture retains legacy article/code blocks. Both consume the complete planner template, execute exactly twice, verify failure then success, and return exactly two results to the same fixture conversation. Native smoke also passes real 60-second coordinator idle shutdown, two worker evictions, automatic binding/readiness recovery and new-handoff dispatch without bootstrap replay. The HTML fixtures explicitly declare UTF-8 so indented Chinese/English instructions and NBSP normalization are tested correctly.
+- Both fixtures pass **14 normalization/safety cases**, **3,000 mixed section/article old turns**, **60 wall-clock idle seconds**, **0 idle DOM queries**, and one check after **1,000 mutations**. Main-thread TaskDuration deltas: native **0.0604s**, HTTP **0.0348s**. No polling/keepalive timer was added. These are isolated fixtures, not whole-machine CPU or real-account execution proof.
+- `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**2,040 passed**) and `pnpm build` all pass. The source and CLI-packaged extension have the same **14 files**, byte-for-byte. Test-owned browser/host/coordinator resources were cleaned up. The user's actual Project still contains only `project.yaml`; its grants, files and conversation were not reset or replayed.
+
+Next live step: Reload the built extension, refresh the original conversation, confirm no active run, then Unbind/Bind the same Project once to deliver the corrected planner instructions. Send a new ordinary read-only test request; do not resend the malformed old JSON. This one-time template refresh does not change the normal Bind-once behavior. Stop after focused commits/push; require real native execution and same-conversation result evidence before completing P0.12.
 
 ### Product onboarding support (implementation started before the GUI phase order)
 
@@ -948,6 +967,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**Real P0.12 ChatGPT Pro re-acceptance after the reconnect repair.** GUI-1–GUI-6, Chinese/English localization and the live reconnect repair are implemented and deterministically verified. Stop after the focused repair commit/push for user Reload and testing in the original conversation. Do not infer real account acceptance from fixtures or screenshots, or start P0.13–P0.15 before P0.12 passes.
+**Real P0.12 ChatGPT Pro re-acceptance after the turn-container and planner-template repair.** GUI-1–GUI-6, Chinese/English localization and the live repairs are implemented and deterministically verified. Stop after focused commits/push for user Reload and testing in the original conversation with refreshed planner guidance. Do not infer real account acceptance from fixtures or screenshots, or start P0.13–P0.15 before P0.12 passes.
 
 Optional API smoke is not a blocker.

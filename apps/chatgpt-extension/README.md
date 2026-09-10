@@ -28,7 +28,11 @@ Native port 空闲 5 秒自动关闭，下次操作重连；独立 coordinator �
 
 页面复用“停止生成”控件、只修改属性时，也会重新检查新回答是否完成。仍然要求正常完成工具栏、400ms 稳定期、明确协议边界、schema 和绑定身份匹配；不会扫描旧回答或把普通文字派发给 Codex。
 
-**2026-09-10 断线修复复验：** 已完成本机设置并保持启用绑定的用户，只需在 `chrome://extensions` 重新加载 Veyra，然后刷新**原来的 ChatGPT 对话**。不需要重跑 setup/init、重新配对或重新绑定。确认项目与对话绑定恢复，闲置超过一分钟，再通过该对话提出验收任务，检查自动唤醒、执行和同会话结果回传。刷新前后均保留 Project 证据；若之前的发送/执行未确认，绑定仍会暂停，需先检查证据，旧任务不会自动重发。当前真实 Pro 验收仍未通过，不能用测试夹具代替。
+真实页面的回答容器同时支持 `data-testid="conversation-turn-…"`（当前为 `section`）和旧 `article`。完成工具栏必须属于该回答；不能借用上一条/相邻回答的按钮，也不能把未知的共同父容器当作回答边界。测试布局只保留观察到的结构，不包含真实聊天记录。
+
+**2026-09-10 任务识别与模板修复复验：** 这次更新还补齐了发给 ChatGPT 的计划模板和字段说明。重新加载扩展、刷新原对话后，先核对没有进行中的任务，再在原项目上解除绑定并绑定一次，让 ChatGPT 收到新说明；这个步骤只为更新旧对话里的协议说明，不是日常操作。随后发送普通的只读验收请求。不要重发旧 JSON。`requestedVerification` 必须在最外层，`context.currentTask` 必须是计划任务 ID 字符串，`context.decisions` 必须是决策对象数组或空数组。格式错误会暂停并在 Diagnostics 给出中文/英文原因，不会自动修正、执行或重发。
+
+**断线修复的独立复验（不涉及模板更新时）：** 已完成本机设置并保持启用绑定的用户，只需在 `chrome://extensions` 重新加载 Veyra，然后刷新**原来的 ChatGPT 对话**。不需要重跑 setup/init、重新配对或重新绑定。确认项目与对话绑定恢复，闲置超过一分钟，再通过该对话提出验收任务，检查自动唤醒、执行和同会话结果回传。刷新前后均保留 Project 证据；若之前的发送/执行未确认，绑定仍会暂停，需先检查证据，旧任务不会自动重发。当前真实 Pro 验收仍未通过，不能用测试夹具代替。
 
 安全停止：Pause 停止自动派发/回传；Diagnostics → Cancel Run 取消当前运行；Unbind 删除该对话绑定；在 `chrome://extensions` 禁用/移除扩展停止浏览器桥接。需要全机撤销时执行 `ve setup --revoke`。保留 `.veyra/` 证据；高级 `ve daemon stop` 仍可用于显式停止 coordinator。
 
@@ -36,7 +40,7 @@ Native port 空闲 5 秒自动关闭，下次操作重连；独立 coordinator �
 
 ## 首次使用或从 HTTP 迁移：完整验收
 
-GUI-1–GUI-6 已实现 Side Panel 和 Local Control Center。已有原生绑定的用户按上面的“断线修复复验”更新即可；以下完整步骤用于首次安装或 HTTP 迁移。**真实 ChatGPT Pro 复验尚未通过**，开发截图不代替它。
+GUI-1–GUI-6 已实现 Side Panel 和 Local Control Center。已有原生绑定的用户按上面的“任务识别与模板修复复验”更新即可；以下完整步骤用于首次安装或 HTTP 迁移。**真实 ChatGPT Pro 复验尚未通过**，开发截图不代替它。
 
 1. 在原绑定对话中检查是否有 active run。有则先 Cancel 并核对终态；保留 Project 证据。更新后如仍显示旧 HTTP 绑定，先 Unbind 再切换传输，避免把旧运行路由到新的 registry。
 2. 在本仓库执行 `pnpm ve -- setup`。它注册本机 Native Host，自动检查 Codex 登录和 coordinator；不需要手动 daemon、localhost、pairing JSON 或 API Key。此步骤是一次性机器接入，不是每天的操作。
