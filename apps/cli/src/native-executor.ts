@@ -84,6 +84,7 @@ export function nativeExecution(
       ),
     },
   };
+  const checks: { id: string; commands: string[] }[] = [];
   let previous = "execute";
   for (const requested of handoff.requestedVerification ?? []) {
     const step = verification?.workflow.steps[requested.id];
@@ -93,13 +94,38 @@ export function nativeExecution(
         "Configure each requested check as a command step in the Project's local veyra.yaml workflow; 'execute' is reserved for the native executor.",
       );
     const prior = setup.workflow.steps[previous];
-    if (prior) prior.next = requested.id;
+    if (prior) {
+      prior.next = requested.id;
+      // Collect independent evidence after a settled failure, without revisiting any node.
+      prior.on = { failure: requested.id };
+    }
     setup.workflow.steps[requested.id] = {
       type: "command",
       run: [...step.run],
       timeoutMs: step.timeoutMs ?? 120000,
+      // Core charges first entry from a failure edge against the target's recovery budget.
+      // This acyclic sequence permits that entry only; it never retries execution or a check.
+      retry: { max: 1 },
     };
+    checks.push({ id: requested.id, commands: [...step.run] });
     previous = requested.id;
+  }
+  if (checks.length) {
+    const execute = setup.workflow.steps.execute;
+    if (execute)
+      execute.instructions =
+        "Veyra will independently run the following Project-configured checks after your execution. " +
+        "Check IDs are not npm script names. If you run these checks as part of the task, use their exact configured commands instead of guessing alternatives. " +
+        "Your summary and commandsRun are execution claims, not Verifier evidence. Preserve the task's read-only/repair and human-approval constraints. " +
+        JSON.stringify(checks);
+    if (verification?.workflow.policy) {
+      const { approval, ...policy } = verification.workflow.policy;
+      const before = approval?.before.filter((id) => Object.hasOwn(setup.workflow.steps, id));
+      setup.workflow.policy = {
+        ...policy,
+        ...(before?.length ? { approval: { before } } : {}),
+      };
+    }
   }
   return setup;
 }

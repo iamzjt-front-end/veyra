@@ -96,19 +96,12 @@ it.each(["pass", "fail", "skip"])(
             },
           );
           expect(setup.workflow.steps.verify?.timeoutMs).toBe(120000);
-          setup.workflow.steps = {
-            execute: {
-              type: "agent",
-              agent: "executor",
-              ...(outcome !== "skip" ? { next: "verify" } : {}),
-            },
-            verify: {
-              type: "command",
-              run: [
-                "node -e \"if(require('node:fs').readFileSync('answer.txt','utf8')!=='42')process.exit(1)\"",
-              ],
-            },
-          };
+          // Exercise the production composition. Only the negative missing-evidence case
+          // deliberately removes the edge; never replace the generated happy/failure graph.
+          if (outcome === "skip" && setup.workflow.steps.execute) {
+            delete setup.workflow.steps.execute.next;
+            delete setup.workflow.steps.execute.on;
+          }
           return setup;
         },
       });

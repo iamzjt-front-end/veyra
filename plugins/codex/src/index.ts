@@ -319,6 +319,9 @@ export class CodexAdapter implements AgentAdapter {
       return finish(result);
     } catch (error) {
       if (error instanceof ProcessExecutionError) {
+        // Cleanup uncertainty must reach Core's fatal process-lifecycle boundary. It is
+        // not an ordinary negative result that may continue into independent checks.
+        if (error.code === "termination_failed") throw error;
         processResult = error.result;
         return failure(
           error.code === "executable_not_found" ? "codex_not_found" : `codex_${error.code}`,

@@ -237,9 +237,12 @@ export class RunCoordinator {
     const report = this.report(handoff, completed, events);
     if (completed.status === "completed" && report.status === "failed") {
       completed.status = "failed";
+      const executorFailure = report.risks?.find((risk) => risk.code === "executor_failed");
       completed.error = {
-        code: "verification_incomplete",
-        message: "The workflow ended without passing every requested verification check.",
+        code: executorFailure?.code ?? "verification_incomplete",
+        message:
+          executorFailure?.summary.slice(0, 512) ??
+          "The workflow ended without passing every requested verification check.",
       };
     }
     if (report.session) {
@@ -331,6 +334,14 @@ export class RunCoordinator {
         contentTrust: "untrusted",
       },
     };
+    if (last?.type === "agent.completed" && last.result.status === "failure") {
+      if (result.status === "completed") result.status = "failed";
+      result.risks?.push({
+        code: "executor_failed",
+        source: "executor",
+        summary: last.result.summary.slice(0, 2048),
+      });
+    }
     if (handoff.requestedVerification) {
       result.verification = handoff.requestedVerification.map((requested) => {
         const event = [...events]
