@@ -240,6 +240,20 @@ describe("bound review receipt and no-replay persistence", () => {
       expect(f.submits()).toHaveLength(0);
     },
   );
+  it("rejects a conflicting later verdict without claiming it was saved or rewriting evidence", async () => {
+    const f = fixture();
+    await f.delivered();
+    await f.message("review", { source: frame() });
+    const saved = f.saved();
+    await expect(
+      f.message("review", {
+        source: frame({ ...compact, verdict: "FAIL", nextAction: "repair" }),
+      }),
+    ).rejects.toThrow("不会覆盖或重发");
+    expect(f.saved()).toEqual(saved);
+    expect(f.saved()?.verdict).toBe("pass");
+    expect(f.submits()).toHaveLength(1);
+  });
   it.each(["tab", "epoch", "binding", "url", "delivery"])(
     "rejects mismatched %s authority",
     async (kind) => {

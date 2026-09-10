@@ -4,6 +4,7 @@ import {
   isProjectExecutionResult,
   isProjectId,
   isProjectReview,
+  serializeProjectEnvelope,
 } from "@veyraoss/protocol";
 import type { NativeTransport } from "./native-client.js";
 import { exchangePairing, LocalClient } from "./client.js";
@@ -502,7 +503,20 @@ export class BridgeController {
         throw new Error("Review 只能关联当前对话已确认收到的执行结果。");
       if (target.phase === "pending") target.at = new Date().toISOString();
       const review = parseReview(value.source, binding.projectId, target);
-      if (target.phase === "recorded") return { binding };
+      if (target.phase === "recorded") {
+        // Do not label a conflicting later answer as saved. An identical duplicate
+        // is acknowledged from canonical evidence without replaying the write.
+        const saved = await client().call("reviews.get", {
+          projectId: binding.projectId,
+          runId: target.runId,
+        });
+        if (
+          !isProjectReview(saved) ||
+          serializeProjectEnvelope(saved) !== serializeProjectEnvelope(review)
+        )
+          throw new Error("该结果已有审查，新的内容与保存记录不一致；不会覆盖或重发。");
+        return { binding };
+      }
       if (target.phase !== "pending")
         throw new Error("审查提交未确认，请检查 Project 记录；不会重发。");
       target.phase = "submitting";
