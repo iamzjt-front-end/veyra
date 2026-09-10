@@ -47,6 +47,51 @@ function setup(run: ExecutionSetup["agents"][string]["run"]): ExecutionSetup {
 }
 
 describe("local daemon tool API", { timeout: 30000 }, () => {
+  it.each([
+    { budget: undefined, stepBudget: undefined, expected: 120000, timedOut: false },
+    { budget: 900000, stepBudget: undefined, expected: 900000, timedOut: false },
+    { budget: 900000, stepBudget: 100, expected: 100, timedOut: true },
+  ])(
+    "honors trusted execution and stricter step deadlines: %j",
+    async ({ budget, stepBudget, expected, timedOut }) => {
+      await withFixtureWorkspace(async ({ path }) => {
+        const project = await initializeProject(path);
+        const registryRoot = join(path, "registry");
+        let observed: number | undefined;
+        const composition = setup(async (_input, options) => {
+          observed = options?.timeoutMs;
+          if (timedOut) await delay(30000, undefined, { signal: options?.signal });
+          return { status: "success", summary: "completed within the configured budget" };
+        });
+        composition.timeoutMs = budget;
+        const execute = composition.workflow.steps.execute;
+        if (execute) execute.timeoutMs = stepBudget;
+        const daemon = await startDaemon({ registryRoot, resolveExecution: () => composition });
+        try {
+          const api = new DaemonClient({ registryRoot });
+          await api.call("projects.register", { path });
+          const request = handoff(project);
+          const locator = { projectId: project.id, runId: request.runId };
+          await api
+            .call("runs.dispatch", { ...locator, handoff: request, timeoutMs: 1 } as never)
+            .then(
+              () => {
+                throw new Error("Remote callers must not control execution deadlines");
+              },
+              (error: unknown) => expect(error).toMatchObject({ code: "invalid_request" }),
+            );
+          await api.call("runs.dispatch", { projectId: project.id, handoff: request });
+          const result = await api.call("runs.wait", { ...locator, waitMs: 20000 });
+          expect(observed).toBe(expected);
+          expect(result.status).toBe(timedOut ? "failed" : "completed");
+          if (timedOut) expect(result.error?.code).toBe("step_timeout");
+        } finally {
+          await daemon.stop();
+        }
+      });
+    },
+  );
+
   it("shuts down an idle lazy coordinator without polling and preserves active runs across idle deadlines", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const registryRoot = join(path, "registry");

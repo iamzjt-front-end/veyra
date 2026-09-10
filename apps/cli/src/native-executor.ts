@@ -60,6 +60,8 @@ export function nativeExecution(
   if (verification) config.approval = verification.config.approval;
   const setup: ExecutionSetup = {
     config,
+    // Native reasoning/transport recovery can exceed two minutes. Keep the adapter's bounded default.
+    timeoutMs: 15 * 60_000,
     workflow: {
       version: 1,
       name: "project-executor",
@@ -95,7 +97,7 @@ export function nativeExecution(
     setup.workflow.steps[requested.id] = {
       type: "command",
       run: [...step.run],
-      ...(step.timeoutMs !== undefined ? { timeoutMs: step.timeoutMs } : {}),
+      timeoutMs: step.timeoutMs ?? 120000,
     };
     previous = requested.id;
   }

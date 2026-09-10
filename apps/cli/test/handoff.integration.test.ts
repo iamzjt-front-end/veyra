@@ -34,6 +34,8 @@ it.each(["pass", "fail", "skip"])(
       if (received.kind !== "handoff") throw new Error("Wrong envelope");
       const runner = vi.fn<ProcessRunner>(async (request) => {
         expect(request.cwd).toBe(project.root);
+        // The daemon must not shorten the native adapter's 15-minute budget to two minutes.
+        expect(request.timeoutMs).toBe(15 * 60_000);
         expect(request.stdin).toContain(JSON.stringify(wire).slice(1, -1));
         await writeFile(join(path, "answer.txt"), outcome === "fail" ? "0" : "42");
         return {
@@ -93,6 +95,7 @@ it.each(["pass", "fail", "skip"])(
               },
             },
           );
+          expect(setup.workflow.steps.verify?.timeoutMs).toBe(120000);
           setup.workflow.steps = {
             execute: {
               type: "agent",

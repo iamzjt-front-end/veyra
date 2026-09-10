@@ -601,7 +601,15 @@ try {
     await panel
       .getByRole("button", { name: "View run", exact: true })
       .evaluate((node) => (node as HTMLButtonElement).click());
-    const opened = context.waitForEvent("page");
+    const opened = context.waitForEvent("page").catch(async (error: unknown) => {
+      const detail = await panel
+        .locator('[role="alert"]')
+        .allTextContents()
+        .catch(() => []);
+      throw new Error(`Fixture Control Center did not open: ${detail.join(" ").slice(0, 2000)}`, {
+        cause: error,
+      });
+    });
     await panel
       .getByRole("button", { name: "Open Control Center" })
       .evaluate((node) => (node as HTMLButtonElement).click());

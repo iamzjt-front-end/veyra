@@ -24,7 +24,7 @@ import { collectSecretValues } from "@veyraoss/runtime";
 import { DaemonError } from "./files.js";
 
 /** Trusted local composition, never supplied as JavaScript or a workflow by an IPC caller. */
-export type ExecutionSetup = Pick<RunRequest, "config" | "workflow" | "agents"> & {
+export type ExecutionSetup = Pick<RunRequest, "config" | "workflow" | "agents" | "timeoutMs"> & {
   redactValues?: readonly string[];
 };
 export type ExecutionResolver = (
@@ -193,7 +193,7 @@ export class RunCoordinator {
         },
         cwd: project.root,
         signal: job.controller.signal,
-        timeoutMs: 120000,
+        timeoutMs: setup.timeoutMs ?? 120000,
       });
     } catch (error) {
       result = {
