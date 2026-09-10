@@ -254,6 +254,22 @@ The user then simply talks to ChatGPT normally.
 
 No separate "detect daemon", "refresh readiness", "pair", or "enable automation" steps should appear in the normal flow.
 
+### Run, Verification and Review are separate
+
+After execution, the Side Panel and run detail show compact independent rows, for example:
+
+```text
+Run             Completed
+Verification    1 failed · 2 passed
+Review          Approved
+```
+
+This is valid for a read-only evidence-collection task: completing the run and approving its task outcome do not make a failing project test pass. If all checks pass but the reviewer identifies a problem, show `3 passed` and `Needs changes` independently. Map PASS → Approved / 审查认可, FAIL → Needs changes / 需要修改, HUMAN_DECISION → Needs your decision / 需要你决定. Preserve the original verdict under Diagnostics. Before a recorded review arrives, show Waiting for ChatGPT / 等待 ChatGPT; old runs without a review stay readable.
+
+ChatGPT's new completed `VEYRA_REVIEW` reply is validated against the current conversation binding and its acknowledged Project/run/result, then saved in the Project's canonical envelope/shared-state stores. Storage events refresh the Side Panel from that saved evidence. Reopening the panel or refreshing the conversation restores the verdict without replaying old messages. Browser storage holds receipt/routing metadata only, not review bodies or chat history. An uncertain submission is checked locally, never resent automatically. A human-decision review stops automatic work; the bridge cannot approve it on the user's behalf.
+
+The current user-confirmed real Happy Path reaches ChatGPT Review with actual native execution and test/build/diff evidence. The 2026-09-10 review-persistence repair still needs a real-account re-test after Reload and same-conversation refresh. Request only a **new review of the existing result**, not another execution or a repair of the deliberate BROKEN fixture. Normal onboarding remains Setup once. Bind once. Then just talk.
+
 ## 7. GUI interaction and motion quality
 
 Veyra should feel calm, fast and intentional, not like a dashboard full of status noise.
@@ -320,7 +336,8 @@ Use event-driven snapshots and refresh automatically when:
 - native host reconnects;
 - Project registry changes;
 - Codex readiness changes;
-- run state changes.
+- run state changes;
+- the current result's review is saved.
 
 A manual Refresh action can live under Diagnostics.
 
@@ -330,7 +347,7 @@ Structured handoff/result blocks are necessary for the experimental bridge but s
 
 For the browser bridge:
 
-- continue using explicit canonical handoff/result markers for machine safety;
+- continue using explicit canonical handoff/result/review markers for machine safety;
 - after dispatch/receipt, visually collapse Veyra machine blocks into a small reversible status card where feasible;
 - never delete or mutate persisted Project evidence;
 - user can expand the raw structured payload when debugging.

@@ -1,3 +1,4 @@
+import type { ProjectId } from "@veyraoss/protocol";
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { fixtureProjectState } from "../../../test/helpers/project-state.js";
@@ -9,14 +10,15 @@ import {
   isProjectExecutionResult,
   serializeProjectEnvelope,
   parseProjectEnvelope,
-  type ProjectId,
 } from "../src/index.js";
 
 describe("canonical review and independent execution lifecycle", () => {
   const state = fixtureProjectState(randomUUID() as ProjectId);
+  const { handoff, result: originalResult, review: originalReview } = state;
+  if (!handoff || !originalResult || !originalReview) throw new Error("Missing fixture state");
   const review = {
-    ...state.review!,
-    handoffId: state.handoff!.id,
+    ...originalReview,
+    handoffId: handoff.id,
     findings: [
       {
         severity: "warning" as const,
@@ -27,7 +29,7 @@ describe("canonical review and independent execution lifecycle", () => {
   };
   it("round-trips findings and original verdict without upgrading verification", () => {
     const result = {
-      ...state.result!,
+      ...originalResult,
       executionStatus: "completed" as const,
       status: "failed" as const,
     };

@@ -61,7 +61,7 @@ The exact files/directories may be created lazily, but ownership is stable:
 - project identity and metadata;
 - active/previous run state;
 - structured context and decisions;
-- handoffs/results;
+- handoffs/results/reviews;
 - artifacts/evidence.
 
 Provider credentials do not belong in project state.
@@ -98,7 +98,7 @@ It owns:
 - run dispatch/status/wait/cancel;
 - event streaming;
 - safe session references;
-- project-scoped handoffs/results;
+- project-scoped handoffs/results/reviews;
 - local IPC/tool API;
 - integration with Core/Runtime/Verifier.
 
@@ -122,9 +122,23 @@ For the current ChatGPT Pro proof, [ADR 001](ADR-001-CHATGPT-BRIDGE.md) selects 
 
 Full MCP is the preferred future official production path after verifying write/action entitlement. Replacing the browser surface must preserve the existing handoff protocol, shared Project `.veyra/` state, native Codex integration and Project/Daemon/Core/Runtime/Protocol/Verifier responsibilities. No browser selectors or composer operations belong in those packages.
 
-The retained HTTP fallback exchanges a private, ten-minute single-use pairing invitation for an eight-hour local grant scoped to the launcher's Project allowlist. Explicit extension confirmation is required; authenticated revocation, expiry and daemon restart invalidate access. Host/Origin/CORS, request validation and Project scope are independent checks; localhost alone is not trusted. The page never receives pairing material. The current conversation's new completed assistant turn is inspected only for `VEYRA_HANDOFF_BEGIN/END`; only that bounded canonical envelope crosses to the daemon. Results use `VEYRA_RESULT_BEGIN/END` and an explicit Reviewer instruction. Review framing is reserved for P0.14; it is not a second workflow engine in the extension.
+The retained HTTP fallback exchanges a private, ten-minute single-use pairing invitation for an eight-hour local grant scoped to the launcher's Project allowlist. Explicit extension confirmation is required; authenticated revocation, expiry and daemon restart invalidate access. Host/Origin/CORS, request validation and Project scope are independent checks; localhost alone is not trusted. The page never receives pairing material. The current conversation's new completed assistant turn is inspected for explicit `VEYRA_HANDOFF_BEGIN/END` and `VEYRA_REVIEW_BEGIN/END` frames. Only bounded, validated engineering envelopes cross to the daemon. Results use `VEYRA_RESULT_BEGIN/END` with an explicit Reviewer instruction and exact result association. Review text never executes commands or satisfies a human approval gate. The formal P0.14 repair engine remains deferred.
 
 The page adapter resolves the explicit `data-testid="conversation-turn-…"` container (observed as `section`) or the legacy `article`, then requires the normal completion toolbar inside that same turn. A generic parent or a sibling's toolbar is not completion evidence. Planner instructions show a complete canonical example: `context.currentTask` is a plan task ID string, decisions are structured objects, and verification requests belong beside `context`. The existing Protocol validator remains authoritative; bridge-specific error hints do not coerce malformed planner data into execution.
+
+### Review persistence and independent outcomes
+
+`ProjectReview` remains the canonical model: `projectId`, `runId`, `resultId`, optional `handoffId`, reviewer provenance, `verdict`, `summary`, `findings`, `nextAction` and evidence references. Legacy reviews/absent findings remain readable; the bridge retains the original uppercase verdict as `sourceVerdict`. The web adapter maps existing compact PASS/FAIL/HUMAN_DECISION objects to pass/fail/needs_input. Any supplied IDs must match the current binding's acknowledged result; omitted legacy IDs are supplied only from that exact result receipt, never from chat text or project names.
+
+`reviews.submit` / `reviews.get` reuse typed daemon IPC and the Project-scoped `projectTool` API, including grant checks before and after operations. `ProjectHandoffStore` extends its existing immutable envelope archive with `<runId>.review.json` in `.veyra/handoffs/`. A per-run lock plus bounded, no-follow, atomic private writes makes identical submissions idempotent and rejects conflicting replacements. The latest `ProjectSharedState.review` mirrors that same envelope through revision-checked updates; a late historical review cannot replace another run's active context. `results.get` includes the matching archived review, including after coordinator restart. No separate UI JSON database is introduced.
+
+The extension stores only a review receipt (IDs, timestamp and pending/submitting/recorded delivery phase) with its durable binding. It records intent before submitting, never resends an uncertain write, and reconciles through read-only `reviews.get` on restoration. The acknowledged result must belong to this exact tab/document/binding/conversation. Initial assistant IDs are excluded on reattachment; only new completed turns are read. Receipt changes notify open surfaces through existing storage events; Side Panel then fetches canonical Project evidence. This adds no periodic DOM scanning or idle network timer. HUMAN_DECISION pauses automatic work without granting approval; an explicit validated later handoff still uses the existing dispatch budget/gates.
+
+Run presentation projects three distinct facts:
+
+- **Execution** uses optional `executionStatus` in daemon run/result contracts, derived from actual lifecycle/agent events. A settled negative task finding may still have completed execution; cancellation, timeout, native errors, interruption and approval pauses remain distinct. Existing `status` retains its conservative aggregate semantics for compatible callers. Historical reports derive lifecycle from their Core run when available and do not invent missing proof.
+- **Verification** comes only from actual requested checks/evidence: pending, running, passed, failed or incomplete. Missing/not-run evidence cannot be presented as a pass.
+- **Review** comes only from a persisted review for this exact result: pending, approved, needs_changes or human_decision. No “reviewing” status is invented from a spinner or unstructured model prose. PASS is displayed as Approved, independently of verification failures.
 
 ### Native browser installation and lifecycle
 

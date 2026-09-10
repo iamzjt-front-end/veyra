@@ -622,7 +622,7 @@ Initial P0.11 verification selected official ChatGPT web Developer mode + authen
 
 ## P0.12 — Experimental ChatGPT Web Bridge for Pro product proof
 
-**Status:** [!] Real Pro dispatch, native Codex execution and automatic same-conversation result return now work. The latest execution finishes in about 68 seconds but reports failure, causing the generated workflow to skip every independent verification check. The independent-verification repair below collects configured checks after ordinary failures, preserves failed outcomes and passes actual native success/failure tests plus both browser transports. Real same-conversation re-acceptance remains required. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
+**Status:** [!] The user has demonstrated the real ChatGPT Pro → native Codex → independent Verifier → same-conversation result → ChatGPT review Happy Path. The deliberate test failure now has real persisted evidence alongside build/diff success. This task fixes the remaining review persistence and UI synchronization gap; real-account re-testing of that new behavior remains required. Earlier failure records below are historical. Full MCP remains the preferred future official production path; no tunnel, public server or API key is selected.
 
 **Depends on:** P0.11
 
@@ -632,13 +632,13 @@ Allow one real ChatGPT workflow to interact with the local Veyra daemon/project.
 
 ### Minimum bridge capabilities
 
-- [ ] select/bind a Veyra project;
-- [ ] submit a structured planner handoff;
-- [ ] dispatch to native Codex through daemon;
-- [ ] wait/observe completion without manual copy/paste;
-- [ ] obtain structured result/evidence;
-- [ ] return that result to the same active ChatGPT workflow where the selected bridge permits it;
-- [ ] clearly show when native/project/daemon readiness is missing.
+- [x] select/bind a Veyra project;
+- [x] submit a structured planner handoff;
+- [x] dispatch to native Codex through daemon;
+- [x] wait/observe completion without manual copy/paste;
+- [x] obtain structured result/evidence;
+- [x] return that result to the same active ChatGPT workflow where the selected bridge permits it;
+- [x] clearly show when native/project/daemon readiness is missing.
 
 ### Security requirements
 
@@ -662,7 +662,7 @@ A real ChatGPT session can submit a task to a disposable registered project and 
 - [x] mandatory standalone `VEYRA_HANDOFF_BEGIN/END`, JSON/canonical schema validation, fresh run identity, native readiness and no dispatch from ordinary prose;
 - [x] native dispatch API reuse, polling, one-time acknowledged `VEYRA_RESULT_BEGIN/END` handback and explicit Reviewer instructions;
 - [x] current-conversation binding, Project name/root/UUID, Enabled/Disabled, Run ID/status, agent event status, Codex readiness, daemon connectivity, Last Result and cancellation controls;
-- [x] bounded explicit repair handoffs (default three total executions), reserved review framing without implementing the P0.14 workflow;
+- [x] bounded explicit repair handoffs (default three total executions); the review-persistence task below completes framed review capture without implementing the P0.14 automatic repair workflow;
 - [x] deterministic DOM, unit/integration/security tests; actual Chromium extension fixture; disposable live-test preparation and independent protected-file/test/build inspection;
 - [x] all seven product/status documents updated, retained official MCP app and complete twelve-step Stage B guide.
 
@@ -697,11 +697,13 @@ The repair keeps DOM logic inside `apps/chatgpt-extension`: unique-marker/BEGIN-
 - All five required baseline commands pass: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,950 passed**), `pnpm build`.
 - One browser startup attempt timed out waiting for its extension service worker while baseline/build work was running; the independently rerun built extension passed all browser checks above. Test-owned browser/profile/daemon resources were cleaned up. The user's real daemon, conversation and Project evidence were not reset.
 
-### Blocker, attempts and unlock
+### Current real evidence and remaining re-test — 2026-09-10
 
-Installation, native authorization, canonical dispatch, settled native execution and automatic same-conversation handback are now user-confirmed. The latest run is terminal `failed`: the executor's negative result stops the workflow before any independent checks. Its evidence must be retained. After the independent-verification repair, keep the current conversation and Project binding. The rebuilt local coordinator loads after idle shutdown; no Extension Reload, setup/init/pairing, or Unbind/Bind is required. A fresh user-directed request must collect three persisted checks and return them to the same conversation. The current proof Project intentionally returns `BROKEN`, so read-only acceptance should report test failure with build/diff success, not three `not_run` entries. Do not silently repair that Project, replay an old handoff or override its human-decision review.
+The user now confirms the complete real Happy Path through ChatGPT Review. Local Project evidence for run `1461c8a5-eeb7-465e-8f09-c99d3eae48f9`, result `eaeffc0e-37a4-46b6-af5e-4ff069972f9e`, independently records test failure (exit 1), build success (both configured commands exit 0) and diff success (exit 0), with three persisted verifier events and no source changes. Native Codex used its existing login with no API key. The same conversation received the result automatically and ChatGPT returned `PASS` for the read-only evidence-collection task. This is not a claim that the deliberately broken project passes its tests.
 
-The user must confirm real-page behavior and complete result evidence. Browser regressions and actual native success/failure tests use disposable Projects, existing Codex login and no API key, without touching the original Project or unrelated conversations. Neither local backend proof nor simulated ChatGPT replaces this real Pro confirmation. P0.12 remains incomplete and P0.13–P0.15 remain unstarted by explicit user instruction.
+The former missing-evidence blocker is resolved. The current gap is that the review stayed in the conversation while the Side Panel still showed “Waiting for ChatGPT.” The focused review task below adds canonical persistence and status separation. After its local checks and push, Reload the built extension and refresh the same bound conversation. Ask for a **new review of the already returned result**, with no handoff or execution; old assistant messages will not be replayed. Confirm the three independent rows and their restoration after refresh. Keep `BROKEN`, the current Project/binding and all existing evidence intact. No setup, init, pairing or manual daemon command is needed.
+
+Do not mark the new real review-persistence acceptance complete on fixture evidence. P0.13–P0.15 remain unstarted in this user-directed repair task.
 
 ---
 
@@ -880,11 +882,19 @@ All five repository checks passed (**2,016 tests**, including 72 extension tests
 
 ### Review persistence and layered run status — user request, 2026-09-10
 
-**Status:** [-]
+**Status:** [x] Implementation and deterministic/local verification complete. The new real-account review-persistence re-test remains open under P0.12 [!].
 
 The user has now demonstrated real native execution, three persisted Verifier checks and automatic result return to the same ChatGPT Pro conversation. Run `1461c8a5-eeb7-465e-8f09-c99d3eae48f9` independently records test failure (the deliberate `BROKEN` fixture), build success and diff success; ChatGPT reviews that evidence. The remaining gap is review persistence/UI synchronization, not missing verification evidence.
 
-This explicit task takes priority over other TODOs. Reuse the canonical Project review and existing envelope/shared-state stores; capture only new completed bound-conversation review blocks, validate exact result identity, persist once and restore through the daemon evidence API. Separate execution lifecycle, verification outcome and review verdict in the Side Panel and shared GUI. Preserve the broken proof Project, human gates, no uncertain replay and near-zero idle work. Verify protocol/store/transport/controller/UI/security/performance cases, all browser smokes, visual regression and the repository/CI baseline. Commit focused stages, push, then report the remaining real-account review re-test. Do not implement the automatic repair engine or start unrelated TODOs.
+The existing `ProjectReview` schema now supports findings, raw bridge verdict and optional handoff identity. The existing Project envelope archive stores one immutable review per result, with identical-submission idempotency and matching latest shared state. Project-scoped `reviews.submit/get` and `results.get` expose it through the same daemon/native/HTTP evidence APIs. The extension expands its existing marker parser and completed-turn observer, associates reviews only with an acknowledged result in the current bound conversation, and stores routing/receipt metadata rather than review bodies in browser storage. Refresh and lost-reply recovery read the Project record without replaying a mutation. Human-decision reviews stop automatic bridge work; review text grants no command or approval authority.
+
+Execution lifecycle is now independent of the conservative aggregate result status. Shared read-only GUI projections show three small rows: Run, Verification and Review. `PASS` maps to Approved / 审查认可, `FAIL` to Needs changes / 需要修改, and `HUMAN_DECISION` to Needs your decision / 需要你决定. A completed execution with one failed check and an approved evidence-collection review remains visibly one failed check. Historical envelopes without the new fields remain readable, and absent reviews remain pending; no guessed “reviewing” event or approval is invented.
+
+All five baseline commands pass: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**2,165 passed**, including 161 extension, 19 shared UI, 198 protocol and 23 daemon tests), and `pnpm build`; frozen-lockfile installation also passes. New/extended cases cover malformed framing/schema, exact Project/run/result/binding identity, duplicate/concurrent writes, private and symlink-safe archive access, revocation, response loss, legacy restoration, wrong/stale GUI evidence, all three verdicts, independent lifecycle failures/timeouts/cancellation, and 3,000 old review turns with no idle scan.
+
+`smoke:browser`, `smoke:native-browser`, `smoke:panel`, `smoke:gui` and `pnpm ui:test` pass. Both actual MV3 transport fixtures persist two reviews for two matching results, without adding an execution; the native fixture restores the final review after refresh and shows the same saved verdict in the Control Center. Both retain 14 composer/safety cases and zero DOM queries over 60 idle seconds with 3,000 old turns (native 0.0417s / HTTP 0.0360s browser TaskDuration). Production GUI idle records zero API calls and UI mutations (0.0127s TaskDuration). The 54 bilingual screenshots compare with zero differing pixels and pass automated accessibility, keyboard and width checks. The source and CLI-packaged extension builds contain the same 14 files. See [GUI acceptance](GUI-ACCEPTANCE.md).
+
+The original proof Project still returns `BROKEN`; its pre-existing `.gitignore` change and all old run/result evidence are preserved. No real ChatGPT message or review was sent/imported by this implementation task. Only a fresh user-requested review in the same already-bound conversation remains to prove the new capture/persistence/UI behavior with the real account. No automatic repair engine or later TODO was started. Focused commits and remote CI results are reported with the delivery.
 
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
@@ -1030,6 +1040,4 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**Real P0.12 result evidence after the independent-verification repair.** Preserve the failed run and current binding; stop after local native success/failure proof, browser regressions and focused commits/push. A new read-only request on the current intentionally broken Project should return test failure and build/diff success with three actual evidence records. This is distinct from a bridge failure or missing evidence. No Extension Reload, rebind, setup/init/pairing or old-handoff replay is required. Repair of the fixture requires a separate user-directed task. Do not start P0.13–P0.15 before real P0.12 acceptance passes.
-
-Optional API smoke is not a blocker.
+**Real P0.12 review persistence re-test after this focused fix.** The real native execution, three-check evidence and automatic same-conversation return are already demonstrated. Reload the extension, refresh the same bound conversation and request only a fresh review of its existing result. Confirm Run Completed, Verification 1 failed · 2 passed, and the persisted review verdict; then refresh and confirm it survives. Preserve the intentionally broken Project. Do not replay old handoffs or start P0.13–P0.15 in this task.

@@ -49,6 +49,12 @@ Codex is editing 4 files
 [ Pause ]                    [ Details ]
 ```
 
+### Completed runs: three independent rows
+
+Use small text/dot rows for Run, Verification and Review. Example: `Completed` / `1 failed · 2 passed` / `Approved`. Do not combine them into a single PASS/FAIL badge, and do not let a review approval erase a failed verification. A passing check set with `Needs changes` is also valid. Before persistence, Review remains `Waiting for ChatGPT`; do not invent review progress from DOM prose or motion.
+
+Review labels are `Approved`, `Needs changes`, `Needs your decision` (中文：审查认可、需要修改、需要你决定). Details show the saved summary/findings. Raw verdict, IDs and protocol payload belong in collapsed Diagnostics. Use the existing subdued accent and compact badges, with no additional card grid, large colored banners, continuous animation or idle polling.
+
 ### Review / repair
 
 ```text

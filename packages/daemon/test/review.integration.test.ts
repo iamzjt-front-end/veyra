@@ -17,12 +17,14 @@ describe("persisted Project review API", { timeout: 30000 }, () => {
     await withFixtureWorkspace(async ({ path }) => {
       const project = await initializeProject(path);
       const fixture = fixtureProjectState(project.id);
+      if (!fixture.handoff || !fixture.result || !fixture.review)
+        throw new Error("Missing fixture state");
       const archive = new ProjectHandoffStore({ project });
       const shared = new ProjectStateStore({ project });
       const runId = randomUUID();
-      const handoff = { ...fixture.handoff!, runId };
+      const handoff = { ...fixture.handoff, runId };
       const result = {
-        ...fixture.result!,
+        ...fixture.result,
         runId,
         evidence: [],
         artifacts: [],
@@ -30,7 +32,7 @@ describe("persisted Project review API", { timeout: 30000 }, () => {
         executionStatus: "completed" as const,
       };
       const review = {
-        ...fixture.review!,
+        ...fixture.review,
         runId,
         evidence: [],
         handoffId: handoff.id,
@@ -126,12 +128,14 @@ describe("persisted Project review API", { timeout: 30000 }, () => {
     await withFixtureWorkspace(async ({ path }) => {
       const project = await initializeProject(path);
       const fixture = fixtureProjectState(project.id);
+      if (!fixture.handoff || !fixture.result || !fixture.review)
+        throw new Error("Missing fixture state");
       const runId = randomUUID();
       const store = new ProjectHandoffStore({ project, redactValues: ["fixture-secret-value"] });
-      const handoff = { ...fixture.handoff!, runId };
-      const result = { ...fixture.result!, runId, evidence: [], artifacts: [] };
+      const handoff = { ...fixture.handoff, runId };
+      const result = { ...fixture.result, runId, evidence: [], artifacts: [] };
       const review = {
-        ...fixture.review!,
+        ...fixture.review,
         runId,
         evidence: [],
         summary: "Inspect fixture-secret-value",
