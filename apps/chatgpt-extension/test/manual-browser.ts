@@ -30,7 +30,7 @@ document.querySelector('button').onclick=()=>{
  const stop=document.createElement('button');stop.dataset.testid='stop-button';document.body.append(stop);
  const article=document.createElement('article'), assistant=document.createElement('div');assistant.dataset.messageAuthorRole='assistant';assistant.dataset.messageId=crypto.randomUUID();
  const pre=document.createElement('pre'), code=document.createElement('code');code.className='language-veyra-handoff';code.textContent='{';pre.append(code);assistant.append(pre);article.append(assistant);main.append(article);
- setTimeout(()=>{code.textContent='VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END';stop.remove();const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';article.append(copy);},100);
+ setTimeout(()=>{code.textContent='VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END';const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';article.append(copy);setTimeout(()=>{stop.dataset.testid='fixture-finished-control';},100);},100);
 };
 </script></body></html>`;
 
@@ -164,7 +164,7 @@ try {
       return route.continue();
     return route.abort();
   });
-  const worker =
+  let worker =
     context.serviceWorkers()[0] ??
     (await context.waitForEvent("serviceworker", { timeout: 10000 }));
   assert.equal(worker.url(), `${EXTENSION_ORIGIN}/background.js`);
@@ -182,6 +182,10 @@ try {
   if (!native) {
     if (!daemon?.http) throw new Error("Missing HTTP transport");
     invitation = JSON.parse(await readFile(daemon.http.pairingFile, "utf8"));
+    // Let the default native probe finish before uploading the explicit HTTP fallback.
+    await popup.waitForFunction(
+      () => !document.querySelector<HTMLButtonElement>("#detect")?.disabled,
+    );
     await popup.locator("#diagnostics").evaluate((node) => {
       (node as HTMLDetailsElement).open = true;
     });
@@ -281,10 +285,107 @@ try {
       0,
       "No bootstrap replay on refresh",
     );
+    const beforeIdle = JSON.parse(
+      await readFile(join(registryRoot, "daemon", "daemon.json"), "utf8"),
+    );
+    console.log("Native recovery: waiting for the real 60-second coordinator idle shutdown.");
+    await delay(60000);
+    await delay(6000);
+    const idleMetadata = await readFile(join(registryRoot, "daemon", "daemon.json"), "utf8").catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return undefined;
+        throw error;
+      },
+    );
+    assert.equal(idleMetadata, undefined, "No active run: coordinator actually idles down");
+    const evictAndWake = async (wake: () => Promise<unknown>) => {
+      assert.ok(context);
+      const cdp = await context.newCDPSession(panel);
+      const workerUrl = worker.url();
+      const cleanups: (() => void)[] = [];
+      type Version = { versionId: string; scriptURL: string; runningStatus: string };
+      const versionAt = (status: string) => {
+        const pending = new Promise<Version>((resolve, reject) => {
+          const listener = ({ versions }: { versions: Version[] }) => {
+            const version = versions.find(
+              (item) => item.scriptURL === workerUrl && item.runningStatus === status,
+            );
+            if (version) {
+              cleanup();
+              resolve(version);
+            }
+          };
+          const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error(`Fixture worker did not become ${status}`));
+          }, 10000);
+          const cleanup = () => {
+            clearTimeout(timer);
+            cdp.off("ServiceWorker.workerVersionUpdated", listener);
+          };
+          cleanups.push(cleanup);
+          cdp.on("ServiceWorker.workerVersionUpdated", listener);
+        });
+        void pending.catch(() => {});
+        return pending;
+      };
+      try {
+        const running = versionAt("running");
+        await cdp.send("ServiceWorker.enable");
+        const version = await running;
+        await worker.evaluate(() => Object.assign(globalThis, { veyraColdWorkerProbe: true }));
+        const stopped = versionAt("stopped");
+        // Chromium retains the DevTools worker target across restarts. Use the actual
+        // service-worker lifecycle plus a lost global to prove a cold execution context.
+        await cdp.send("ServiceWorker.stopWorker", { versionId: version.versionId });
+        await stopped;
+        const resumed = versionAt("running");
+        await wake();
+        await resumed;
+        const activeWorker = context.serviceWorkers().find((item) => item.url() === workerUrl);
+        assert.ok(activeWorker);
+        worker = activeWorker;
+        assert.equal(
+          await worker.evaluate(() => "veyraColdWorkerProbe" in globalThis),
+          false,
+          "Worker globals must be lost; a warm snapshot is not recovery proof",
+        );
+      } finally {
+        for (const cleanup of cleanups) cleanup();
+        await cdp.detach();
+      }
+    };
+    await evictAndWake(async () => {
+      const response = await panel.evaluate(() => chrome.runtime.sendMessage({ type: "snapshot" }));
+      assert.equal(response.ok, true);
+      assert.equal(
+        response.data.connectivity.status,
+        "connected",
+        "Cold snapshots must rehydrate without Reconnect",
+      );
+      assert.equal(response.data.currentBound, true);
+      assert.equal(response.data.selected.readiness.ready, true);
+      assert.equal(response.data.binding.count, 0, "Snapshot recovery cannot replay a task");
+      await panel.evaluate(() => window.dispatchEvent(new Event("focus")));
+    });
+    const afterIdle = JSON.parse(
+      await readFile(join(registryRoot, "daemon", "daemon.json"), "utf8"),
+    );
+    assert.notEqual(afterIdle.id, beforeIdle.id, "The coordinator was restarted lazily");
+    assert.equal(
+      await page.locator('[data-message-author-role="user"]').count(),
+      0,
+      "Recovery cannot resend bootstrap",
+    );
+    assert.match(await panel.locator(".v-panel-header").innerText(), /Ready/);
+    // Now test an incoming handoff itself waking a cold worker/coordinator, with no panel refresh.
+    await stopDaemon({ registryRoot });
     // Only the simulated ChatGPT app keeps its own fixture plan, as a real planner would.
     await page.evaluate(() => sessionStorage.removeItem("pauseFixture"));
-    await page.locator("#prompt-textarea").fill("Implement the fixture feature");
-    await page.locator('[data-testid="send-button"]').click();
+    await evictAndWake(async () => {
+      await page.locator("#prompt-textarea").fill("Implement the fixture feature");
+      await page.locator('[data-testid="send-button"]').click();
+    });
   }
   const deadline = Date.now() + 45000;
   let state: { binding?: { phase: string; message: string; count: number } } = {};
@@ -456,6 +557,7 @@ try {
       browser: context.browser()?.version(),
       executions: executed,
       sameConversationReturns: 2,
+      streamingControlReused: true,
       ...(native
         ? { armedRefreshRestored: true, bootstrapReplayed: false, lazyCoordinator: true }
         : {}),
@@ -467,6 +569,9 @@ try {
             nativeAuthorizationVerified: true,
             unbindVerified: true,
             scopedControlCenterVerified: true,
+            coldWorkerSnapshotRecovered: true,
+            coordinatorIdleShutdownVerified: true,
+            coldWorkerHandoffDispatched: true,
           }
         : { revocationVerified: true }),
     }),

@@ -79,6 +79,10 @@ function fixture() {
       state = { bindings: durableBindings(state) };
       controller = new BridgeController(host, vi.fn(), native);
     },
+    restartWorker: () => {
+      // chrome.storage.session survives worker eviction; the document stays armed.
+      controller = new BridgeController(host, vi.fn(), native);
+    },
     navigate: (next = `https://chatgpt.com/c/${randomUUID()}`) => {
       url = next;
     },
@@ -97,6 +101,58 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
+it("recovers a cold worker snapshot without manual reconnect, rebinding or periodic checks", async () => {
+  const f = fixture();
+  await f.bind();
+  await f.controller().handle({ type: "status" }, popup);
+  const original = structuredClone(f.state());
+  const sends = vi.mocked(f.host.send).mock.calls.length;
+  f.restartWorker();
+  vi.mocked(f.native.call).mockClear();
+  expect(await f.controller().handle({ type: "snapshot" }, popup)).toMatchObject({
+    currentBound: true,
+    enabled: true,
+    connectivity: { status: "connected" },
+    selected: { readiness: { ready: true } },
+    binding: { id: original.binding?.id, phase: "armed" },
+  });
+  expect(vi.mocked(f.native.call).mock.calls.map(([method]) => method)).toEqual([
+    "projects.list",
+    "projects.get",
+  ]);
+  vi.mocked(f.native.call).mockClear();
+  for (let i = 0; i < 100; i++) await f.controller().handle({ type: "snapshot" }, popup);
+  expect(f.native.call).not.toHaveBeenCalled();
+  expect(f.state()).toEqual(original);
+  expect(f.host.send).toHaveBeenCalledTimes(sends);
+  expect(f.native.authorize).toHaveBeenCalledTimes(1);
+});
+it.each(["rotate", "move", "revoke"] as const)(
+  "cold snapshots do not hide %s authorization changes or renew grants",
+  async (change) => {
+    const f = fixture();
+    await f.bind();
+    const original = structuredClone(f.state());
+    f.restartWorker();
+    if (change === "revoke") {
+      const call = f.native.call;
+      f.native.call = vi.fn(async (method, params) => {
+        const value = await call(method, params);
+        return method === "projects.get" ? { ...(value as object), authorized: false } : value;
+      });
+    } else f[change]();
+    expect(await f.controller().handle({ type: "snapshot" }, popup)).toMatchObject({
+      currentBound: true,
+      connectivity: { status: "unavailable" },
+      selected: undefined,
+    });
+    expect(f.state()).toEqual(original);
+    expect(f.native.authorize).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(f.native.call).mock.calls.some(([method]) => method === "runs.dispatch")).toBe(
+      false,
+    );
+  },
+);
 it("binds explicitly once, survives document/worker/browser restarts without resending bootstrap", async () => {
   const f = fixture();
   await f.bind();

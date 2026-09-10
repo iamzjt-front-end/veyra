@@ -376,6 +376,10 @@ export const chinese: Readonly<Record<string, string>> = {
     "正在向当前对话回传结果，未确认时不会重发。",
   "Local coordinator connected and authorized.": "本机协调器已连接，授权有效。",
   "Local authorization is missing or expired.": "本地授权缺失或已过期。",
+  "Local authorization changed. Reconnect and explicitly bind again.":
+    "本机授权已变化，请重新连接并明确绑定项目。",
+  "Project authorization expired or location changed. Bind explicitly again.":
+    "项目授权已过期或位置发生变化，请明确重新绑定。",
   "The local connection is idle.": "本地连接已休眠。",
   "Automatic dispatch and handback are paused.": "自动派发与结果回传已暂停。",
   "This run needs local approval or recovery. The extension cannot approve it.":

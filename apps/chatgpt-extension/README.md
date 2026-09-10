@@ -24,13 +24,19 @@ Host 只允许固定扩展 ID `meibodpmcjcjdpfaaejdpiclijnpcclh`，不接受网�
 
 Native port 空闲 5 秒自动关闭，下次操作重连；独立 coordinator 无 active run/操作 60 秒后退出。运行中关闭 Chrome 不会杀掉 Codex。稳定 idle 无周期性计时器；有事件才产生 debounce，有 active run 才退避查询。日志见 Diagnostics、Project `.veyra/runs/` 和 `~/.veyra/daemon/daemon.jsonl`。Native Host 启动/协议错误可在扩展 Service Worker console 查看；其 stdout 仅用于 framing，不输出私密日志。
 
+后台被 Chrome 回收后，第一次状态请求会自动重新检查本机连接、原绑定身份和 Codex readiness；内存缓存丢失不再直接显示“断开”。握手或只读查询遇到端口中断时，等待 200ms 后最多恢复一次，查询恢复还要核对同一本机安装身份。授权变化、无效回复、超时和已发出的执行/取消请求仍明确报错，不自动重发。没有新事件或运行时，不产生定时重连或保活。
+
+页面复用“停止生成”控件、只修改属性时，也会重新检查新回答是否完成。仍然要求正常完成工具栏、400ms 稳定期、明确协议边界、schema 和绑定身份匹配；不会扫描旧回答或把普通文字派发给 Codex。
+
+**2026-09-10 断线修复复验：** 已完成本机设置并保持启用绑定的用户，只需在 `chrome://extensions` 重新加载 Veyra，然后刷新**原来的 ChatGPT 对话**。不需要重跑 setup/init、重新配对或重新绑定。确认项目与对话绑定恢复，闲置超过一分钟，再通过该对话提出验收任务，检查自动唤醒、执行和同会话结果回传。刷新前后均保留 Project 证据；若之前的发送/执行未确认，绑定仍会暂停，需先检查证据，旧任务不会自动重发。当前真实 Pro 验收仍未通过，不能用测试夹具代替。
+
 安全停止：Pause 停止自动派发/回传；Diagnostics → Cancel Run 取消当前运行；Unbind 删除该对话绑定；在 `chrome://extensions` 禁用/移除扩展停止浏览器桥接。需要全机撤销时执行 `ve setup --revoke`。保留 `.veyra/` 证据；高级 `ve daemon stop` 仍可用于显式停止 coordinator。
 
-真实 Pro 复验从“更新扩展 → ve setup → 在目标 test Project 内 ve init → 明确选择项目 Bind”开始；已有 HTTP grant 可在 Diagnostics 中切换到 Native Messaging（先暂停旧绑定）。检查 binding 只出现一次、刷新不再重发、目标 handoff 触发原生 Codex、结果自动返回**同一** conversation，以及失败、Cancel、闲置性能。这个人工门槛仍未通过，下面的脚本夹具不能替代它。
+首次安装的真实 Pro 验收从“加载扩展 → ve setup → 在目标 test Project 内 ve init → 明确选择项目 Bind”开始；已有 HTTP grant 可在 Diagnostics 中切换到 Native Messaging（先暂停旧绑定）。检查 binding 只出现一次、刷新不再重发、目标 handoff 触发原生 Codex、结果自动返回**同一** conversation，以及失败、Cancel、闲置性能。这个人工门槛仍未通过，下面的脚本夹具不能替代它。
 
-## 已安装用户：本次真实复验从这里开始
+## 首次使用或从 HTTP 迁移：完整验收
 
-GUI-1–GUI-6 已实现 Side Panel 和 Local Control Center；当前先做用户视觉 Review。**真实 ChatGPT Pro 复验尚未通过**，以下步骤仍是后续真实验收门槛，开发截图不代替它。
+GUI-1–GUI-6 已实现 Side Panel 和 Local Control Center。已有原生绑定的用户按上面的“断线修复复验”更新即可；以下完整步骤用于首次安装或 HTTP 迁移。**真实 ChatGPT Pro 复验尚未通过**，开发截图不代替它。
 
 1. 在原绑定对话中检查是否有 active run。有则先 Cancel 并核对终态；保留 Project 证据。更新后如仍显示旧 HTTP 绑定，先 Unbind 再切换传输，避免把旧运行路由到新的 registry。
 2. 在本仓库执行 `pnpm ve -- setup`。它注册本机 Native Host，自动检查 Codex 登录和 coordinator；不需要手动 daemon、localhost、pairing JSON 或 API Key。此步骤是一次性机器接入，不是每天的操作。

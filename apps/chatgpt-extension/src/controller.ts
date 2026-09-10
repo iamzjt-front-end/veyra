@@ -35,7 +35,7 @@ export interface ExtensionHost {
 
 /** Session-local bridge coordination only; all execution stays in the daemon. */
 export class BridgeController {
-  private connectivity = { status: "disconnected", message: "尚未检测 Daemon。" };
+  private connectivity?: { status: string; message: string };
   private actionEpoch = 0;
   private readiness?: { projectId: string; at: number; view: ProjectView };
   constructor(
@@ -496,15 +496,28 @@ export class BridgeController {
     const paired =
       (!!state.pairing && state.pairing.expiresAt > Date.now()) ||
       (!state.pairing && state.transport !== "http" && !!this.native);
-    let connectivity = paired
-      ? this.connectivity
-      : { status: "disconnected", message: "未配对或授权已过期。" };
+    // Worker eviction loses only this cache, not the document binding or local grant.
+    // Rehydrate once on the first requested snapshot; later idle snapshots stay read-only
+    // and cached. A missing cache is not evidence that the native bridge disconnected.
+    if (paired && !this.connectivity) inspect = true;
+    let connectivity =
+      paired && this.connectivity
+        ? this.connectivity
+        : { status: "disconnected", message: "未配对或授权已过期。" };
     let selected: ProjectView | undefined;
     let readinessAt: number | undefined;
     if (paired) {
       try {
         const client = this.client(state);
         if (inspect) {
+          if (
+            currentBound &&
+            state.binding?.installationId &&
+            !state.pairing &&
+            this.native &&
+            (await this.native.identity()) !== state.binding.installationId
+          )
+            throw new Error("Local authorization changed. Reconnect and explicitly bind again.");
           await client.call("projects.list", undefined);
           this.connectivity = { status: "connected", message: "本机 Daemon 已连接且授权有效。" };
           connectivity = this.connectivity;
@@ -533,6 +546,14 @@ export class BridgeController {
               typeof view.readiness.ready !== "boolean"
             )
               throw new Error("Project readiness 响应无效。");
+            if (
+              currentBound &&
+              state.binding?.projectId === projectId &&
+              (view.project.root !== state.binding.projectRoot || view.authorized === false)
+            )
+              throw new Error(
+                "Project authorization expired or location changed. Bind explicitly again.",
+              );
             this.readiness = { projectId, at: Date.now(), view };
           }
           if (this.readiness?.projectId === projectId) {

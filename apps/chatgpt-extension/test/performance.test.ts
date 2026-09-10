@@ -67,6 +67,38 @@ it("backs off only active-run queries and leaves no timer when finished or disab
   runs.stop();
   expect(vi.getTimerCount()).toBe(0);
 });
+it.each([
+  ["data-testid", "stop-button", "composer-speech-button"],
+  ["data-testid", "stop-generation-button", "send-button"],
+  ["data-is-streaming", "true", "false"],
+  ["class", "button result-streaming", "button complete"],
+])(
+  "detects completion when React reuses the streaming control: %s",
+  async (attribute, before, after) => {
+    const { document: doc, window } = parseHTML(
+      `<html><body><main></main><button id="control" ${attribute}="${before}"></button></body></html>`,
+    );
+    vi.stubGlobal("MutationObserver", window.MutationObserver);
+    const document = doc as unknown as Document;
+    const handoff = vi.fn();
+    const error = vi.fn();
+    const stop = watchConversation(document, handoff, vi.fn(), error);
+    const article = document.createElement("article");
+    article.innerHTML =
+      '<div data-message-author-role="assistant" data-message-id="new"><p>VEYRA_HANDOFF_BEGIN</p><p>{"goal":"只读验收 English"}</p><p>VEYRA_HANDOFF_END</p></div><button data-testid="copy-turn-action-button"></button>';
+    document.querySelector("main")?.append(article);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(handoff).not.toHaveBeenCalled();
+    document.getElementById("control")?.setAttribute(attribute, after);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(handoff).toHaveBeenCalledTimes(1);
+    expect(error).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(handoff).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+    stop();
+  },
+);
 it("does not revive polling after Stop while a request is in flight", async () => {
   let done: (status: string) => void = () => {};
   const poll = vi.fn(

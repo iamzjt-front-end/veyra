@@ -622,7 +622,7 @@ Initial P0.11 verification selected official ChatGPT web Developer mode + authen
 
 ## P0.12 — Experimental ChatGPT Web Bridge for Pro product proof
 
-**Status:** [!] Send-confirmation normalization, polling-overhead and native-onboarding support are locally verified. Real Chrome installation, pairing, injection and same-conversation binding-message receipt/reply are user-confirmed; the remaining blocker is user Reload and real ChatGPT Pro re-acceptance of the repaired extension. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
+**Status:** [!] Real Pro re-testing confirms the localized Side Panel can show Ready and the exact conversation binding, but then repeatedly showed disconnected while new explicit handoffs produced no Project execution records. The worker/native recovery repair below is implemented and deterministically verified; Reload and real same-conversation execution/result re-acceptance are still required. The retained MCP app is the preferred future official Full MCP production path. No tunnel or public server is selected.
 
 **Depends on:** P0.11
 
@@ -699,11 +699,30 @@ The repair keeps DOM logic inside `apps/chatgpt-extension`: unique-marker/BEGIN-
 
 ### Blocker, attempts and unlock
 
-Installation and pairing are already user-confirmed; asking the user to install from scratch is no longer the blocker. The next live gate is **Reload the repaired extension, refresh the target ChatGPT page and explicitly rebind the same disposable Project**, then verify that the real binding echo/reply leaves the extension Enabled. Continue the P0.12 structured native handoff/result acceptance only after that succeeds. Existing messages and Project/run evidence must be retained; do not retry an uncertain dispatch.
+Installation, native authorization and same-conversation binding are already user-confirmed; asking the user to install from scratch is no longer the blocker. The current live gate is **Reload the repaired extension and refresh the original ChatGPT page**, then verify the enabled native binding restores without another Bind or bootstrap. After more than one idle minute, a new explicit handoff must wake the coordinator, execute and return evidence to that same conversation. Existing messages and Project/run evidence must be retained; an uncertain dispatch/delivery stays paused and must not be replayed.
 
 The user must confirm the fixed behavior and real-page performance. No personal browser profile, ChatGPT login, unrelated conversation, Codex credential or public forwarder was accessed by the repair tests. The previous tunnel proposal remains superseded. Deterministic fixtures cannot replace this live Pro confirmation; P0.12 remains incomplete and P0.13–P0.15 remain unstarted by explicit user instruction.
 
 ---
+
+### Live reconnect repair — user report, 2026-09-10
+
+**Status:** [x] Local repair and deterministic verification only; real P0.12 remains [!].
+
+Depends on the implemented native onboarding and GUI. The user reproduced Ready → disconnected while remaining in the explicitly bound ChatGPT conversation and generating a new framed handoff. Local logs show successful coordinator startup followed by its normal 60-second idle shutdown; the selected Project still contains only `project.yaml`, with no handoff/run/result evidence. Reconnecting repeatedly is not an acceptable product recovery flow.
+
+Repair worker-wakeup connection snapshots and bounded native recovery, test completed-turn detection across streaming-control changes, and preserve exact Project/conversation identity, human gates and no replay of uncertain writes. Add worker/port/DOM/security/idle regressions, run native and HTTP Chromium smoke plus all five baseline commands, rebuild source and packaged extension assets, commit/push, then stop for real Pro re-acceptance. Do not mark P0.12 complete or start P0.13–P0.15.
+
+Verification:
+
+- A cold worker rehydrates connectivity, bound installation/Project identity and readiness once on its first requested snapshot. Another 100 idle snapshots make no native requests or binding writes. Rotated installation identity, changed Project root and revoked grants remain blocked; recovery never re-authorizes a Project.
+- A native handshake or allowlisted read interrupted by a dropped port can recover once after 200ms. Reads require the same installation identity. Invalid replies, repeated failures and uncertain dispatch writes fail closed; stale old-port replies cannot affect a replacement. No periodic retry/keepalive is added.
+- Completed-turn detection now observes old streaming attributes when ChatGPT reuses its Stop button. Four attribute variants pass without weakening the new-turn, completion-toolbar, quiet-period, schema or exact-conversation checks.
+- Extension tests: **86 passed**. Both `smoke:native-browser` and `smoke:browser` passed in Chromium **149.0.7827.55**. Native smoke verifies actual 60-second coordinator idle exit, two forced worker restarts with lost globals, automatic snapshot recovery, and a new handoff waking the cold worker/coordinator without manual Reconnect or bootstrap replay. Each transport executes exactly twice and returns exactly two same-conversation results, with failed then passed Verifier evidence. ChatGPT and the executor are simulated; transport, host, coordinator and Verifier are real.
+- Both Chromium fixtures pass **14 normalization/safety cases**, **3,000 old turns**, **60 wall-clock idle seconds**, **0 idle DOM queries**, and one completed-turn check per **1,000-mutation burst**. Main-thread TaskDuration deltas are native **0.0249s** / HTTP **0.0237s**; these are isolated fixture measurements, not whole-machine CPU claims.
+- `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**2,030 passed**) and `pnpm build` all passed. Source and CLI-packaged extension outputs contain the same **14 files**, verified byte-for-byte. The existing user Project, grants and conversation were not reset; test-owned browser/host/coordinator resources were cleaned up.
+
+Next live step: Reload Veyra in `chrome://extensions`, refresh the original bound conversation, confirm the same Project restores, wait over one minute, then issue a new test task. No setup/init/pairing is needed for the existing native installation. Stop after the focused fix commit/push for this real Pro re-acceptance.
 
 ### Product onboarding support (implementation started before the GUI phase order)
 
@@ -722,7 +741,7 @@ This supporting work follows [UX-FLOW](UX-FLOW.md). It does not complete the rea
 - `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**1,974 passed**) and `pnpm build`: **all passed**. Both source and CLI-packaged extension directories are built.
 - `env -u OPENAI_API_KEY pnpm ve -- doctor --json`: native **Codex 0.153.4**, available/authenticated/Ready on macOS arm64 and Node 22.22.0. This is a supported non-secret readiness probe, not a live model request.
 
-**Real-account acceptance remains blocked.** The user explicitly confirmed re-testing has not happened. Follow the [installed-user re-acceptance guide](../apps/chatgpt-extension/README.md#已安装用户本次真实复验从这里开始). No fixture or native readiness result completes P0.12 or substitutes for real-account acceptance. The later explicit GUI-first decision below removes this as a GUI implementation prerequisite.
+**Real-account acceptance remained blocked at this onboarding checkpoint.** The user then confirmed re-testing had not happened. The later 2026-09-10 live reconnect report above supersedes that snapshot. Follow the [Native Messaging re-acceptance guide](../apps/chatgpt-extension/README.md#native-messaging-产品流程). No fixture or native readiness result completes P0.12 or substitutes for real-account acceptance. The later explicit GUI-first decision below removes this as a GUI implementation prerequisite.
 
 ### GUI productization phases — user decision, 2026-09-09
 
@@ -929,6 +948,6 @@ Homebrew and other distribution channels remain optional after a useful npm rele
 
 # Next task
 
-**User review of the localized GUI, then real P0.12 ChatGPT Pro re-acceptance.** GUI-1–GUI-6 and the requested Chinese/English interface are implemented and deterministically verified. Stop after the localization commit/push; do not infer real browser acceptance from screenshots or start P0.13–P0.15 before P0.12 passes.
+**Real P0.12 ChatGPT Pro re-acceptance after the reconnect repair.** GUI-1–GUI-6, Chinese/English localization and the live reconnect repair are implemented and deterministically verified. Stop after the focused repair commit/push for user Reload and testing in the original conversation. Do not infer real account acceptance from fixtures or screenshots, or start P0.13–P0.15 before P0.12 passes.
 
 Optional API smoke is not a blocker.

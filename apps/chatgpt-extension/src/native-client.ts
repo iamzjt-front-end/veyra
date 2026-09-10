@@ -2,6 +2,15 @@ import type { DaemonMethod, DaemonOperations } from "@veyraoss/protocol";
 import { object } from "./contracts.js";
 import { validateReply } from "./client.js";
 export const NATIVE_HOST = "com.veyraoss.bridge";
+class NativeDisconnect extends Error {}
+const readMethods = new Set<DaemonMethod>([
+  "projects.list",
+  "projects.get",
+  "runs.get",
+  "handoffs.get",
+  "results.get",
+]);
+const reconnectDelay = () => new Promise<void>((resolve) => setTimeout(resolve, 200));
 export interface NativeTransport {
   identity(): Promise<string>;
   call<M extends DaemonMethod>(method: M, params: DaemonOperations[M]["input"]): Promise<unknown>;
@@ -26,15 +35,27 @@ export class NativeClient implements NativeTransport {
   constructor(private readonly connect = () => chrome.runtime.connectNative(NATIVE_HOST)) {}
   identity(): Promise<string> {
     if (this.port && this.installationId) return Promise.resolve(this.installationId);
-    this.connecting ??= this.open().finally(() => {
+    this.connecting ??= this.openWithRecovery().finally(() => {
       this.connecting = undefined;
     });
     return this.connecting;
+  }
+  private async openWithRecovery() {
+    try {
+      return await this.open();
+    } catch (error) {
+      // Hello has no execution/grant authority. Recover one transient port loss only;
+      // protocol, timeout and authorization failures remain explicit failures.
+      if (!(error instanceof NativeDisconnect)) throw error;
+      await reconnectDelay();
+      return this.open();
+    }
   }
   private async open() {
     const port = this.connect();
     this.port = port;
     port.onMessage.addListener((value) => {
+      if (this.port !== port) return;
       if (
         !object(value) ||
         typeof value.id !== "string" ||
@@ -58,9 +79,10 @@ export class NativeClient implements NativeTransport {
     });
     port.onDisconnect.addListener(() => {
       const message = chrome.runtime.lastError?.message;
-      if (this.port === port) this.close(message ?? "本机连接已断开；不确定操作不会重试。");
+      if (this.port === port) this.close(message ?? "本机连接已断开；不确定操作不会重试。", true);
     });
     const hello = await this.request("hello");
+    if (this.port !== port) throw new NativeDisconnect("本机连接已断开。");
     if (
       !object(hello) ||
       hello.version !== 1 ||
@@ -77,14 +99,14 @@ export class NativeClient implements NativeTransport {
     clearTimeout(this.idle);
     if (!this.pending.size) this.idle = setTimeout(() => this.close(), 5000);
   }
-  private close(message = "本机连接已休眠。") {
+  private close(message = "本机连接已休眠。", disconnected = false) {
     clearTimeout(this.idle);
     const port = this.port;
     this.port = undefined;
     this.installationId = undefined;
     for (const item of this.pending.values()) {
       clearTimeout(item.timer);
-      item.reject(new Error(message));
+      item.reject(disconnected ? new NativeDisconnect(message) : new Error(message));
     }
     this.pending.clear();
     port?.disconnect();
@@ -119,8 +141,18 @@ export class NativeClient implements NativeTransport {
     });
   }
   async call<M extends DaemonMethod>(method: M, params: DaemonOperations[M]["input"]) {
-    await this.identity();
-    return validateReply(method, await this.request(method, params));
+    const identity = await this.identity();
+    try {
+      return validateReply(method, await this.request(method, params));
+    } catch (error) {
+      // A lost read can be retried once with the same installation. Dispatch, cancel,
+      // approval, registration and grant mutations never enter this recovery path.
+      if (!(error instanceof NativeDisconnect) || !readMethods.has(method)) throw error;
+      await reconnectDelay();
+      if ((await this.identity()) !== identity)
+        throw new Error("Local authorization changed. Reconnect and explicitly bind again.");
+      return validateReply(method, await this.request(method, params));
+    }
   }
   async authorize(projectId: string) {
     await this.identity();

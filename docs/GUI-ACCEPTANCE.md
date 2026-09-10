@@ -44,7 +44,7 @@ For an existing installation, keep its loaded directory: open `chrome://extensio
 
 On an existing `https://chatgpt.com/c/...` conversation, open Veyra's popup → **Open Veyra**. The Side Panel shows the selected Project/path and whether this conversation is bound. Bind explicitly once; confirmed native bindings restore after refresh. Pause/Unbind remain immediate controls, and View run exposes cancellation/evidence. Existing uncertain sends do not auto-retry. Diagnostics retains raw state and the HTTP fallback.
 
-Do not change a binding while its run outcome is uncertain. The later real-account gate starts from the [installed-user re-acceptance steps](../apps/chatgpt-extension/README.md#已安装用户本次真实复验从这里开始), using the original disposable `veyra-pro-proof` Project. For this delivery, review the UI first.
+Do not change a binding while its run outcome is uncertain. Existing native users follow the reconnect re-test instructions in the [Native Messaging guide](../apps/chatgpt-extension/README.md#native-messaging-产品流程), using the original disposable `veyra-pro-proof` Project; first-time/HTTP migration instructions follow separately. Real ChatGPT Pro acceptance is still required.
 
 ## Screenshots and repeatability
 
@@ -80,12 +80,14 @@ A production-asset browser session against a real disposable local Daemon, with 
 Stable idle has no UI polling, full conversation scan or repeating animation:
 
 - Content script observes newly completed assistant turns; its 400ms completion debounce exists only after mutations. Real sends retain bounded button/echo deadlines.
-- Popup and Side Panel use cached change notifications, coalesced for 100ms only when events arrive. Hidden surfaces stop refreshing; close removes listeners and pending work. Only a changed binding/run evidence identity causes a bounded evidence read.
+- Popup and Side Panel use cached change notifications, coalesced for 100ms only when events arrive. The first requested snapshot after worker eviction rehydrates connection/readiness once instead of treating a lost memory cache as disconnection. Hidden surfaces stop refreshing; close removes listeners and pending work. Only a changed binding/run evidence identity causes a bounded evidence read.
 - Active runs retain bounded backoff/long-wait behavior; completion, Pause/Cancel or Unbind clears active work. No run means no run timer.
 - Control Center uses batched SSE (250ms after meaningful state events), closes it when hidden, and retries a broken stream at most three times (2/4/8s). There is no heartbeat or periodic refresh.
-- Native ports close after a one-shot 5s idle deadline. GUI/coordinator have one-shot 60s idle shutdown deadlines; active Codex work is preserved.
+- Native ports close after a one-shot 5s idle deadline. A dropped handshake or allowlisted read may schedule one 200ms recovery delay; mutations, invalid replies, authorization failures and timeouts never replay. GUI/coordinator have one-shot 60s idle shutdown deadlines; active Codex work is preserved.
 
 The real MV3 browser fixture covers two executions and same-conversation handbacks, failed/passed Verifier evidence, native refresh/Unbind, HTTP pairing/revocation, 14 send-normalization/safety cases, 3,000 old turns, 60s idle and a 1,000-mutation burst. It uses a simulated ChatGPT page and executor, while exercising the real extension, transport, coordinator and Verifier. Native smoke also opens the real built Control Center from the Side Panel and verifies the matching Project/run.
+
+The 2026-09-10 reconnect regression also stops the actual coordinator through its normal 60-second idle deadline, evicts the extension worker twice and verifies its globals were lost. A snapshot restores the same binding without manual Reconnect; a subsequent new handoff wakes a cold worker/coordinator without replaying bootstrap or old work. Reusing a Stop control through attribute changes also completes dispatch. Native and HTTP browser checks passed with zero idle DOM queries (TaskDuration 0.0249s / 0.0237s). All five baseline commands passed with **2,030 tests**, including **86 extension tests**. Real Pro Reload/re-acceptance remains pending; this does not mark P0.12 complete.
 
 The GUI server binds only 127.0.0.1 and checks Host/Origin, one-use invitation, HttpOnly/SameSite session, CSRF, Project root/scope and live installation/grant revocation. It exposes bounded evidence reads and cancellation, with no dispatch, shell, arbitrary file access or approval override. Sign-out clears the browser snapshot; `.veyra/` remains the source of engineering memory. API providers remain optional, and no native credentials or full conversation history are collected.
 

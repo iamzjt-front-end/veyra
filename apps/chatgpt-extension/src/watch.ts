@@ -8,6 +8,20 @@ const completion = '[data-testid="copy-turn-action-button"]';
 const streaming =
   '[data-testid="stop-button"], [data-testid="stop-generation-button"], .result-streaming, [data-is-streaming="true"]';
 
+function wasStreaming(record: MutationRecord): boolean {
+  if (record.type !== "attributes") return false;
+  switch (record.attributeName) {
+    case "data-testid":
+      return ["stop-button", "stop-generation-button"].includes(record.oldValue ?? "");
+    case "data-is-streaming":
+      return record.oldValue === "true";
+    case "class":
+      return (record.oldValue ?? "").split(/\s+/).includes("result-streaming");
+    default:
+      return false;
+  }
+}
+
 /** One identity snapshot on explicit binding; thereafter inspect only changed/new subtrees. */
 export function watchConversation(
   document: Document,
@@ -76,7 +90,9 @@ export function watchConversation(
       }
       if (newest && (newest.closest("article") ?? newest.parentElement)?.contains(target))
         changed = true;
-      if (target.matches(streaming)) {
+      // React can turn the existing Stop control into Send/Voice without removing it.
+      // Its old streaming attribute is the completion event; there may be no later DOM change.
+      if (target.matches(streaming) || wasStreaming(record)) {
         changed = true;
         composerChanged = true;
       }
@@ -108,6 +124,7 @@ export function watchConversation(
     subtree: true,
     characterData: true,
     attributes: true,
+    attributeOldValue: true,
     attributeFilter: [
       "data-message-id",
       "data-message-author-role",
