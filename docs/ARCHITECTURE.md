@@ -148,6 +148,8 @@ Veyra may store safe project/session references where supported, but never copie
 
 The trusted native execution composition supplies a 15-minute invocation ceiling, matching the Codex adapter's bounded default. The daemon's generic fallback remains two minutes; explicit command checks retain their own deadlines and default to two minutes. Core applies the stricter step/composition limit and preserves cancellation/cleanup. Neither a browser handoff nor IPC request can change the execution ceiling. A connectivity failure is not a reason to replay an interrupted task or bypass human decisions.
 
+Native Project verification is an acyclic evidence sequence: a settled executor failure or ordinary check failure can continue into the next requested, locally configured check. Each check runs at most once; it does not repair or re-invoke the agent. Cancellation, timeout, needs-input, cleanup failures and explicit workflow stop/approval policies still terminate or pause execution. A failed last executor or any failed/missing required check keeps the Project result failed, even when the final workflow node succeeds. Exact local check commands are supplied as executor guidance; `commandsRun` and native command logs remain execution claims, while only persisted Verifier events supply verification status and evidence.
+
 The P0 golden path must work without `OPENAI_API_KEY`.
 
 API-based model adapters remain optional providers behind the same provider-neutral architecture.

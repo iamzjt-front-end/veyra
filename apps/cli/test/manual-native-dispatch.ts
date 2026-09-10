@@ -5,7 +5,10 @@ import { nativeDispatchFixture } from "./native-dispatch-fixture.js";
 // Explicit opt-in only, excluded from ordinary tests. Native Codex owns authentication.
 const controller = new AbortController();
 const interrupt = () => controller.abort();
-const deadline = setTimeout(interrupt, 180000);
+const mode = process.argv[3];
+if (mode !== undefined && mode !== "inspect-failure" && mode !== "inspect-success")
+  throw new Error("Expected inspect-failure or inspect-success for a read-only native proof.");
+const deadline = setTimeout(interrupt, mode ? 330000 : 180000);
 process.once("SIGINT", interrupt);
 process.once("SIGTERM", interrupt);
 try {
@@ -15,6 +18,7 @@ try {
   const report = await nativeDispatchFixture(executable, {
     signal: controller.signal,
     progress: (stage) => console.error(stage),
+    ...(mode ? { mode } : {}),
   });
   console.log(JSON.stringify({ ...report, codexVersion: readiness.version }, null, 2));
 } finally {

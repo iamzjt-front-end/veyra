@@ -28,7 +28,7 @@ document.querySelector('button').onclick=()=>{
  if(sessionStorage.getItem('pauseFixture')==='yes')return;
  if(!match && text!=='Implement the fixture feature')return;
  const source=match?match[1]:sessionStorage.getItem('fixture-plan');if(!source)return;
- let handoff;try{handoff=JSON.parse(source);}catch{throw new Error('Invalid fixture plan: '+JSON.stringify(source.slice(0,180)));}handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';if(handoff.context.plan){handoff.context.plan.summary=handoff.context.goal;handoff.context.plan.tasks[0].description=handoff.context.goal;}handoff.requestedVerification=[{id:'verify',kind:'test'}];
+ let handoff;try{handoff=JSON.parse(source);}catch{throw new Error('Invalid fixture plan: '+JSON.stringify(source.slice(0,180)));}handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';if(handoff.context.plan){handoff.context.plan.summary=handoff.context.goal;handoff.context.plan.tasks[0].description=handoff.context.goal;}handoff.requestedVerification=[{id:'verify',kind:'test'},{id:'build',kind:'build'},{id:'diff',kind:'shell'}];
  const stop=document.createElement('button');stop.dataset.testid='stop-button';document.body.append(stop);
  const sectionLayout=${native};
  const turn=document.createElement(sectionLayout?'section':'article');
@@ -44,6 +44,29 @@ const root = await mkdtemp(join(tmpdir(), "veyra-extension-browser-"));
 console.log(`Disposable browser fixture: ${root}`);
 const project = await initializeProject(root);
 const registryRoot = join(root, "registry");
+const fixtureChecks = {
+  verify: {
+    type: "command" as const,
+    run: [
+      `${process.execPath} -e 'if(require("node:fs").readFileSync("answer.txt","utf8")!=="42")process.exit(1)'`,
+    ],
+    next: "build",
+    on: { failure: "build" },
+    retry: { max: 1 },
+  },
+  build: {
+    type: "command" as const,
+    run: [`${process.execPath} -e 'console.log("fixture build evidence")'`],
+    next: "diff",
+    on: { failure: "diff" },
+    retry: { max: 1 },
+  },
+  diff: {
+    type: "command" as const,
+    run: [`${process.execPath} -e 'console.log("fixture diff evidence")'`],
+    retry: { max: 1 },
+  },
+};
 if (native) {
   const executable = join(root, "codex");
   await writeFile(
@@ -58,7 +81,7 @@ else {
  const count=fs.existsSync('executions.txt')?Number(fs.readFileSync('executions.txt','utf8'))+1:1;
  fs.writeFileSync('executions.txt',String(count));fs.writeFileSync('answer.txt',count===1?'WRONG':'42');
  console.log(JSON.stringify({type:'thread.started',thread_id:randomUUID()}));
- console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify({status:'success',summary:'Fixture native executor',changedFiles:['answer.txt'],commandsRun:[]})}}));
+ console.log(JSON.stringify({type:'item.completed',item:{type:'agent_message',text:JSON.stringify({status:count===1?'failure':'success',summary:'Fixture native executor',changedFiles:['answer.txt'],commandsRun:[]})}}));
  console.log(JSON.stringify({type:'turn.completed'}));
 }
 `,
@@ -78,14 +101,7 @@ else {
       version: 1,
       name: "fixture",
       start: "verify",
-      steps: {
-        verify: {
-          type: "command",
-          run: [
-            `${process.execPath} -e 'if(require("node:fs").readFileSync("answer.txt","utf8")!=="42")process.exit(1)'`,
-          ],
-        },
-      },
+      steps: fixtureChecks,
     }),
   );
 }
@@ -109,7 +125,7 @@ const daemon = native
         inspectProject: async () => ({
           ready: true,
           message: "Fixture executor; not native authentication proof",
-          checks: [{ id: "verify" }],
+          checks: [{ id: "verify" }, { id: "build" }, { id: "diff" }],
         }),
       },
       resolveExecution: () => ({
@@ -119,13 +135,13 @@ const daemon = native
           name: "fixture",
           start: "execute",
           steps: {
-            execute: { type: "agent", agent: "executor", next: "verify" },
-            verify: {
-              type: "command",
-              run: [
-                `${process.execPath} -e 'if(require("node:fs").readFileSync("answer.txt","utf8")!=="42")process.exit(1)'`,
-              ],
+            execute: {
+              type: "agent",
+              agent: "executor",
+              next: "verify",
+              on: { failure: "verify" },
             },
+            ...fixtureChecks,
           },
         },
         agents: {
@@ -136,7 +152,7 @@ const daemon = native
               executed++;
               await writeFile(join(root, "answer.txt"), executed === 1 ? "WRONG" : "42");
               return {
-                status: "success",
+                status: executed === 1 ? "failure" : "success",
                 summary: "Fixture implementation",
                 data: { changedFiles: ["answer.txt"] },
               };
@@ -551,6 +567,30 @@ try {
   assert.match(messages[2] ?? "", /"status":"completed"/);
   assert.match(messages[1] ?? "", /"exitCode":1/);
   assert.match(messages[2] ?? "", /"exitCode":0/);
+  for (const [index, message] of messages.slice(1).entries()) {
+    const match = /VEYRA_RESULT_BEGIN\n([\s\S]*?)\nVEYRA_RESULT_END/.exec(message);
+    assert.ok(match?.[1]);
+    const result = JSON.parse(match[1]);
+    assert.deepEqual(
+      result.verification.map((check: { id: string; status: string }) => [check.id, check.status]),
+      [
+        ["verify", index === 0 ? "failed" : "passed"],
+        ["build", "passed"],
+        ["diff", "passed"],
+      ],
+    );
+    assert.equal(
+      result.verificationEvidence.length,
+      3,
+      "Each handback must include all independent checks, even after executor/test failure",
+    );
+    for (const check of result.verification) {
+      const evidence = result.verificationEvidence.find(
+        (event: { eventId: string }) => event.eventId === check.evidence.eventId,
+      );
+      assert.equal(evidence.results[0].exitCode, check.status === "failed" ? 1 : 0);
+    }
+  }
   const pairing = native
     ? undefined
     : parsePairing(
