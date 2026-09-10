@@ -161,6 +161,7 @@ export async function projectTool(
       );
     data = {
       result,
+      review: result ? await client.call("reviews.get", locator) : null,
       verificationEvidence,
       workspaceDiff: result ? await workspaceDiff(selected, env) : null,
     };
@@ -176,6 +177,13 @@ export async function projectTool(
         data = await client.call(body.method, body.params);
         break;
       case "handoffs.get":
+        data = await client.call(body.method, body.params);
+        break;
+      case "reviews.get":
+        data = await client.call(body.method, body.params);
+        break;
+      case "reviews.submit":
+        await requireGrant();
         data = await client.call(body.method, body.params);
         break;
       default:

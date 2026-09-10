@@ -9,6 +9,7 @@ import {
 } from "@veyraoss/project";
 import {
   isProjectExecutionResult,
+  isProjectReviewForResult,
   isNativeSessionReference,
   serializeProjectEnvelope,
   type DaemonRunView,
@@ -16,12 +17,35 @@ import {
   type ProjectDescriptor,
   type ProjectExecutionResult,
   type ProjectHandoff,
+  type ProjectReview,
+  type ProjectExecutionStatus,
   type ProjectId,
   type VeyraEvent,
   type EvidenceReference,
 } from "@veyraoss/protocol";
 import { collectSecretValues } from "@veyraoss/runtime";
 import { DaemonError } from "./files.js";
+
+function lifecycle(status: DaemonRunView["status"], code?: string): ProjectExecutionStatus {
+  if (code === "run_cancelled") return "cancelled";
+  if (code === "run_timeout" || code === "step_timeout" || code === "timeout") return "timed_out";
+  return status;
+}
+function executionLifecycle(view: DaemonRunView, events: VeyraEvent[]): ProjectExecutionStatus {
+  const state = lifecycle(view.status, view.error?.code);
+  if (["cancelled", "timed_out", "paused", "interrupted"].includes(state)) return state;
+  const agent = [...events]
+    .reverse()
+    .find((event) => ["agent.started", "agent.completed", "agent.failed"].includes(event.type));
+  if (agent?.type !== "agent.completed") return state;
+  if (agent.result.error) return "failed";
+  if (agent.result.status === "needs_input") return "paused";
+  // Negative task findings with a settled invocation are not transport/execution failures.
+  // Fatal lifecycle errors still dominate even if earlier execution evidence exists.
+  return !view.error || ["unhandled_step_failure", "failure_policy_stop"].includes(view.error.code)
+    ? "completed"
+    : state;
+}
 
 /** Trusted local composition, never supplied as JavaScript or a workflow by an IPC caller. */
 export type ExecutionSetup = Pick<RunRequest, "config" | "workflow" | "agents" | "timeoutMs"> & {
@@ -145,6 +169,7 @@ export class RunCoordinator {
           projectId,
           runId: handoff.runId,
           status: "queued",
+          executionStatus: "queued",
           createdAt: now,
           updatedAt: now,
         },
@@ -177,7 +202,14 @@ export class RunCoordinator {
     const engine = new VeyraEngine({
       store: stores.run,
       emit: (event) => {
-        if (event.type === "run.started") job.view.status = "running";
+        if (event.type === "run.started") {
+          job.view.status = "running";
+          job.view.executionStatus = "running";
+        }
+        if (event.type === "agent.started") job.view.executionStatus = "running";
+        if (event.type === "agent.completed")
+          job.view.executionStatus = executionLifecycle(job.view, [event]);
+        if (event.type === "agent.failed") job.view.executionStatus = "failed";
         job.view.updatedAt = new Date().toISOString();
       },
     });
@@ -209,6 +241,7 @@ export class RunCoordinator {
     }
     const completed: DaemonRunView = {
       ...job.view,
+      executionStatus: lifecycle(result.status, result.error?.code),
       status:
         result.status === "failed" && result.error?.code === "run_cancelled"
           ? "cancelled"
@@ -234,6 +267,7 @@ export class RunCoordinator {
       if (!(error instanceof Error) || !("code" in error) || error.code !== "not_found")
         throw error;
     }
+    completed.executionStatus = executionLifecycle(completed, events);
     const report = this.report(handoff, completed, events);
     if (completed.status === "completed" && report.status === "failed") {
       completed.status = "failed";
@@ -313,6 +347,7 @@ export class RunCoordinator {
       projectId: handoff.projectId,
       runId: handoff.runId,
       handoffId: handoff.id,
+      executionStatus: view.executionStatus ?? lifecycle(view.status, view.error?.code),
       status:
         view.status === "completed"
           ? "completed"
@@ -456,6 +491,68 @@ export class RunCoordinator {
     const project = await this.available(projectId);
     return (await this.stores(project).archive.getResult(runId)) ?? null;
   }
+  async review(projectId: ProjectId, runId: string): Promise<ProjectReview | null> {
+    const result = await this.result(projectId, runId);
+    if (!result) return null;
+    const stores = this.stores(await this.available(projectId));
+    const archived = await stores.archive.getReview(runId);
+    if (archived) return archived;
+    // Older authorized surfaces could write only the latest shared-state review.
+    const previous = (await stores.shared.read())?.review;
+    return isProjectReviewForResult(previous, result) ? previous : null;
+  }
+  async submitReview(
+    projectId: ProjectId,
+    runId: string,
+    review: ProjectReview,
+  ): Promise<ProjectReview> {
+    const result = await this.result(projectId, runId);
+    if (!isProjectReviewForResult(review, result) || review.provenance.role !== "reviewer")
+      throw new DaemonError("invalid_review", "Review must match a persisted Project/run/result.");
+    const stores = this.stores(await this.available(projectId));
+    const prior = await this.review(projectId, runId);
+    if (prior) await stores.archive.createReview(prior);
+    const saved = await stores.archive.createReview(review);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const current = await stores.shared.read();
+      // A late review is historical evidence, never authority to replace another run's context.
+      if (
+        !current ||
+        current.result?.id !== saved.resultId ||
+        current.handoff?.id !== result?.handoffId
+      )
+        return saved;
+      if (
+        current.review &&
+        serializeProjectEnvelope(current.review) === serializeProjectEnvelope(saved)
+      )
+        return saved;
+      if (current.review)
+        throw new DaemonError("review_conflict", "Shared state already has a different review.");
+      try {
+        await stores.shared.save(
+          {
+            context: current.context,
+            provenance: saved.provenance,
+            handoff: current.handoff,
+            result: current.result,
+            review: saved,
+          },
+          current.revision,
+        );
+        return saved;
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          !("code" in error) ||
+          error.code !== "state_conflict" ||
+          attempt === 2
+        )
+          throw error;
+      }
+    }
+    return saved;
+  }
   async get(projectId: ProjectId, runId: string): Promise<DaemonRunView> {
     const handoff = await this.handoff(projectId, runId);
     const active = this.#active.get(`${projectId}:${runId}`);
@@ -471,6 +568,7 @@ export class RunCoordinator {
           projectId,
           runId,
           status: "interrupted",
+          executionStatus: "interrupted",
           createdAt: state.createdAt,
           updatedAt: state.updatedAt,
           error: {
@@ -483,6 +581,9 @@ export class RunCoordinator {
         version: 1,
         projectId,
         runId,
+        executionStatus:
+          report?.executionStatus ??
+          (state.status === "running" ? "interrupted" : lifecycle(state.status, state.error?.code)),
         status: report
           ? report.status
           : state.status === "running"
@@ -510,6 +611,7 @@ export class RunCoordinator {
         projectId,
         runId,
         status: result?.status ?? "interrupted",
+        executionStatus: result?.executionStatus ?? "interrupted",
         createdAt: handoff.provenance.at,
         updatedAt: result?.provenance.at ?? handoff.provenance.at,
       };

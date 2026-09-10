@@ -878,6 +878,14 @@ All five repository checks passed (**2,016 tests**, including 72 extension tests
 
 `smoke:panel`, `smoke:gui`, both extension transport smokes and `pnpm ui:test` passed. **48 bilingual screenshots compared with zero differing pixels**, with automated WCAG A/AA, keyboard and width checks. Source and CLI-packaged extension assets are rebuilt; existing Chrome installations require Reload and a target ChatGPT page refresh. See [GUI acceptance](GUI-ACCEPTANCE.md). These are deterministic local proofs; **P0.12 remains [!] for real Pro re-acceptance, and P0.13–P0.15 remain unstarted.**
 
+### Review persistence and layered run status — user request, 2026-09-10
+
+**Status:** [-]
+
+The user has now demonstrated real native execution, three persisted Verifier checks and automatic result return to the same ChatGPT Pro conversation. Run `1461c8a5-eeb7-465e-8f09-c99d3eae48f9` independently records test failure (the deliberate `BROKEN` fixture), build success and diff success; ChatGPT reviews that evidence. The remaining gap is review persistence/UI synchronization, not missing verification evidence.
+
+This explicit task takes priority over other TODOs. Reuse the canonical Project review and existing envelope/shared-state stores; capture only new completed bound-conversation review blocks, validate exact result identity, persist once and restore through the daemon evidence API. Separate execution lifecycle, verification outcome and review verdict in the Side Panel and shared GUI. Preserve the broken proof Project, human gates, no uncertain replay and near-zero idle work. Verify protocol/store/transport/controller/UI/security/performance cases, all browser smokes, visual regression and the repository/CI baseline. Commit focused stages, push, then report the remaining real-account review re-test. Do not implement the automatic repair engine or start unrelated TODOs.
+
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]

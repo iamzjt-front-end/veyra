@@ -8,6 +8,10 @@ import {
 import {
   isProjectHandoff,
   isProjectExecutionResult,
+  isProjectReview,
+  isProjectExecutionStatus,
+  type ProjectExecutionStatus,
+  type ProjectReview,
   type ProjectHandoff,
   type ProjectExecutionResult,
 } from "./project-state.js";
@@ -33,6 +37,7 @@ export interface DaemonRunView {
   projectId: ProjectId;
   runId: string;
   status: "queued" | "running" | "paused" | "completed" | "failed" | "cancelled" | "interrupted";
+  executionStatus?: ProjectExecutionStatus;
   createdAt: string;
   updatedAt: string;
   error?: { code: string; message: string };
@@ -63,6 +68,8 @@ export interface DaemonOperations {
   "runs.cancel": { input: ProjectRunLocator; output: DaemonRunView };
   "handoffs.get": { input: ProjectRunLocator; output: ProjectHandoff };
   "results.get": { input: ProjectRunLocator; output: ProjectExecutionResult | null };
+  "reviews.get": { input: ProjectRunLocator; output: ProjectReview | null };
+  "reviews.submit": { input: ProjectRunLocator & { review: ProjectReview }; output: ProjectReview };
 }
 export type DaemonMethod = keyof DaemonOperations;
 export type DaemonRequest<M extends DaemonMethod = DaemonMethod> = M extends DaemonMethod
@@ -107,7 +114,16 @@ export function isDaemonRunView(value: unknown): value is DaemonRunView {
   return (
     isJsonValue(value) &&
     object(value) &&
-    keys(value, ["version", "projectId", "runId", "status", "createdAt", "updatedAt", "error"]) &&
+    keys(value, [
+      "version",
+      "projectId",
+      "runId",
+      "status",
+      "executionStatus",
+      "createdAt",
+      "updatedAt",
+      "error",
+    ]) &&
     value.version === 1 &&
     isProjectId(value.projectId) &&
     uuid(value.runId) &&
@@ -116,6 +132,7 @@ export function isDaemonRunView(value: unknown): value is DaemonRunView {
     ) &&
     date(value.createdAt) &&
     date(value.updatedAt) &&
+    (value.executionStatus === undefined || isProjectExecutionStatus(value.executionStatus)) &&
     (value.error === undefined ||
       (object(value.error) &&
         keys(value.error, ["code", "message"]) &&
@@ -154,6 +171,14 @@ export function isDaemonRequest(value: unknown): value is DaemonRequest {
       uuid(params.handoff.runId)
     );
   if (!uuid(params.runId)) return false;
+  if (value.method === "reviews.submit")
+    return (
+      keys(params, ["projectId", "runId", "review"]) &&
+      isProjectReview(params.review) &&
+      params.review.projectId === params.projectId &&
+      params.review.runId === params.runId &&
+      params.review.provenance.role === "reviewer"
+    );
   if (value.method === "runs.wait")
     return (
       keys(params, ["projectId", "runId", "waitMs"]) &&
@@ -162,8 +187,9 @@ export function isDaemonRequest(value: unknown): value is DaemonRequest {
       Number(params.waitMs) <= 30000
     );
   return (
-    ["runs.get", "runs.cancel", "handoffs.get", "results.get"].includes(String(value.method)) &&
-    keys(params, ["projectId", "runId"])
+    ["runs.get", "runs.cancel", "handoffs.get", "results.get", "reviews.get"].includes(
+      String(value.method),
+    ) && keys(params, ["projectId", "runId"])
   );
 }
 export function isDaemonResponse<M extends DaemonMethod>(
@@ -220,6 +246,8 @@ export function isDaemonResponse<M extends DaemonMethod>(
     );
   if (method === "handoffs.get") return isProjectHandoff(result);
   if (method === "results.get") return result === null || isProjectExecutionResult(result);
+  if (method === "reviews.get") return result === null || isProjectReview(result);
+  if (method === "reviews.submit") return isProjectReview(result);
   return isDaemonRunView(result);
 }
 

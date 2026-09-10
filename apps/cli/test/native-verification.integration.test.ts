@@ -172,6 +172,16 @@ it.each([
                 ? "completed"
                 : "failed",
         );
+        const executionStatus = paused
+          ? "paused"
+          : scenario.boundary === "cancel"
+            ? "cancelled"
+            : scenario.boundary === "timeout"
+              ? "timed_out"
+              : scenario.boundary === "cleanup"
+                ? "failed"
+                : "completed";
+        expect(view.executionStatus).toBe(executionStatus);
         const payload = (await projectTool(
           { version: 1, method: "results.get", params: locator },
           {
@@ -208,6 +218,7 @@ it.each([
             expect(events.some((event) => event.type === "approval.required")).toBe(true);
         } else {
           expect(payload.result?.status).toBe(view.status);
+          expect(payload.result?.executionStatus).toBe(executionStatus);
           expect(payload.verificationEvidence.map((event) => event.stepId)).toEqual(expectedIds);
           for (const check of payload.result?.verification ?? []) {
             expect(check.status).toBe(
@@ -235,6 +246,7 @@ it.each([
             expect(view.error?.code).toBe("process_termination_failed");
           // Repeated reads and daemon snapshots cannot replay a failed execution/check.
           expect((await api.call("runs.get", locator)).status).toBe(view.status);
+          expect((await api.call("runs.get", locator)).executionStatus).toBe(executionStatus);
           expect(runner).toHaveBeenCalledTimes(1);
         }
       } finally {

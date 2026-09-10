@@ -6,6 +6,8 @@ import {
   isProjectHandoff,
   isProjectExecutionResult,
   isProjectResultForHandoff,
+  isProjectReview,
+  isProjectReviewForResult,
   isNativeSessionReference,
   serializeProjectEnvelope,
   MAX_PROJECT_ENVELOPE_BYTES,
@@ -14,8 +16,9 @@ import {
   type ProjectDescriptor,
   type ProjectHandoff,
   type ProjectExecutionResult,
+  type ProjectReview,
 } from "@veyraoss/protocol";
-import { createSecretRedactor, type SecretRedactor } from "@veyraoss/runtime";
+import { acquireLocalLock, createSecretRedactor, type SecretRedactor } from "@veyraoss/runtime";
 import { loadProject, projectPaths } from "./index.js";
 
 export class ProjectHandoffError extends Error {
@@ -87,14 +90,64 @@ export class ProjectHandoffStore {
     await this.write(safe, "result");
     return safe;
   }
-  private validate(value: unknown, runId: string, kind: "handoff" | "result" | "session") {
+  async getReview(runId: string): Promise<ProjectReview | undefined> {
+    const value = await this.read(runId, "review");
+    if (value === undefined) return;
+    const review = this.validate(value, runId, "review") as ProjectReview;
+    if (!isProjectReviewForResult(review, await this.getResult(runId)))
+      throw new ProjectHandoffError(
+        "invalid_handoff",
+        "Review does not reference this run's result.",
+      );
+    return review;
+  }
+  /** One immutable review per result. Identical concurrent submissions do not rewrite evidence. */
+  async createReview(review: ProjectReview): Promise<ProjectReview> {
+    if (!isProjectReview(review))
+      throw new ProjectHandoffError("invalid_handoff", "Invalid review.");
+    const safe = this.validate(review, review.runId, "review") as ProjectReview;
+    if (!isProjectReviewForResult(safe, await this.getResult(safe.runId)))
+      throw new ProjectHandoffError(
+        "invalid_handoff",
+        "Review does not reference this run's result.",
+      );
+    const directory = (await this.directory(true)) as string;
+    const lock = await acquireLocalLock({
+      directory: join(directory, `.review-lock-${safe.runId}`),
+      holder: safe.id,
+      waitMs: 10000,
+      recoverStale: true,
+    });
+    try {
+      const existing = await this.getReview(safe.runId);
+      if (existing) {
+        if (serializeProjectEnvelope(existing) !== serializeProjectEnvelope(safe))
+          throw new ProjectHandoffError(
+            "handoff_exists",
+            "A different review already exists for this result; it will not be overwritten.",
+          );
+        return existing;
+      }
+      await this.write(safe, "review");
+      return safe;
+    } finally {
+      await lock.release();
+    }
+  }
+  private validate(
+    value: unknown,
+    runId: string,
+    kind: "handoff" | "result" | "session" | "review",
+  ) {
     this.validateId(runId);
     const guard =
       kind === "handoff"
         ? isProjectHandoff
         : kind === "result"
           ? isProjectExecutionResult
-          : isNativeSessionReference;
+          : kind === "review"
+            ? isProjectReview
+            : isNativeSessionReference;
     if (!guard(value) || value.projectId !== this.project.id || value.runId !== runId)
       throw new ProjectHandoffError(
         "invalid_handoff",
@@ -136,7 +189,10 @@ export class ProjectHandoffStore {
     }
     return directory;
   }
-  private async read(runId: string, kind: "handoff" | "result" | "session"): Promise<unknown> {
+  private async read(
+    runId: string,
+    kind: "handoff" | "result" | "session" | "review",
+  ): Promise<unknown> {
     this.validateId(runId);
     const directory = await this.directory(false);
     if (!directory) return;
@@ -177,8 +233,8 @@ export class ProjectHandoffStore {
     }
   }
   private async write(
-    value: ProjectHandoff | ProjectExecutionResult | NativeSessionReference,
-    kind: "handoff" | "result" | "session",
+    value: ProjectHandoff | ProjectExecutionResult | NativeSessionReference | ProjectReview,
+    kind: "handoff" | "result" | "session" | "review",
   ) {
     const directory = (await this.directory(true)) as string;
     const path = join(directory, `${value.runId}.${kind}.json`);

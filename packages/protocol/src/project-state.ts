@@ -60,10 +60,34 @@ export interface ProjectVerificationRequest {
 }
 /** Reuses existing artifact IDs/producer metadata without copying arbitrary artifact payloads. */
 export type ProjectArtifactReference = Pick<ArtifactRef, "id" | "kind" | "path" | "producer">;
+/** Execution lifecycle only; a completed invocation can produce negative verification/review. */
+export type ProjectExecutionStatus =
+  | "queued"
+  | "running"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "timed_out"
+  | "paused"
+  | "interrupted";
+export function isProjectExecutionStatus(value: unknown): value is ProjectExecutionStatus {
+  return [
+    "queued",
+    "running",
+    "completed",
+    "failed",
+    "cancelled",
+    "timed_out",
+    "paused",
+    "interrupted",
+  ].includes(String(value));
+}
 export interface ProjectExecutionResult extends ProjectEnvelope {
   kind: "result";
   handoffId: string;
   status: "completed" | "failed" | "cancelled";
+  /** Optional for historical envelopes. status remains the conservative aggregate outcome. */
+  executionStatus?: ProjectExecutionStatus;
   summary: string;
   changedFiles: string[];
   evidence: EvidenceReference[];
@@ -80,10 +104,14 @@ export interface ProjectExecutionResult extends ProjectEnvelope {
 export interface ProjectReview extends ProjectEnvelope {
   kind: "review";
   resultId: string;
+  handoffId?: string;
   verdict: "pass" | "fail" | "needs_input";
   summary: string;
   nextAction: "complete" | "repair" | "continue" | "wait";
   evidence: EvidenceReference[];
+  findings?: { severity: "critical" | "warning" | "info"; description: string }[];
+  /** Original bridge verdict, retained for Diagnostics, never approval authority. */
+  sourceVerdict?: "PASS" | "FAIL" | "HUMAN_DECISION";
 }
 export interface ProjectSharedState {
   version: 1;
@@ -300,6 +328,7 @@ export function isProjectExecutionResult(value: unknown): value is ProjectExecut
       ...envelopeKeys,
       "handoffId",
       "status",
+      "executionStatus",
       "summary",
       "changedFiles",
       "evidence",
@@ -312,6 +341,7 @@ export function isProjectExecutionResult(value: unknown): value is ProjectExecut
     value.kind === "result" &&
     id(value.handoffId) &&
     ["completed", "failed", "cancelled"].includes(String(value.status)) &&
+    (value.executionStatus === undefined || isProjectExecutionStatus(value.executionStatus)) &&
     text(value.summary) &&
     list(value.changedFiles, relativePath, 256) &&
     evidence(value.evidence, value.runId) &&
@@ -362,13 +392,51 @@ export function isProjectReview(value: unknown): value is ProjectReview {
   return (
     boundedJson(value, MAX_PROJECT_ENVELOPE_BYTES) &&
     envelope(value) &&
-    keys(value, [...envelopeKeys, "resultId", "verdict", "summary", "nextAction", "evidence"]) &&
+    keys(value, [
+      ...envelopeKeys,
+      "resultId",
+      "handoffId",
+      "verdict",
+      "summary",
+      "nextAction",
+      "evidence",
+      "findings",
+      "sourceVerdict",
+    ]) &&
     value.kind === "review" &&
     id(value.resultId) &&
+    (value.handoffId === undefined || id(value.handoffId)) &&
     ["pass", "fail", "needs_input"].includes(String(value.verdict)) &&
     text(value.summary) &&
     ["complete", "repair", "continue", "wait"].includes(String(value.nextAction)) &&
-    evidence(value.evidence, value.runId)
+    evidence(value.evidence, value.runId) &&
+    (value.findings === undefined ||
+      list(
+        value.findings,
+        (finding) =>
+          object(finding) &&
+          keys(finding, ["severity", "description"]) &&
+          ["critical", "warning", "info"].includes(String(finding.severity)) &&
+          text(finding.description, 4096),
+        64,
+      )) &&
+    (value.sourceVerdict === undefined ||
+      (value.sourceVerdict === "PASS" && value.verdict === "pass") ||
+      (value.sourceVerdict === "FAIL" && value.verdict === "fail") ||
+      (value.sourceVerdict === "HUMAN_DECISION" && value.verdict === "needs_input"))
+  );
+}
+export function isProjectReviewForResult(
+  review: unknown,
+  result: unknown,
+): review is ProjectReview {
+  return (
+    isProjectReview(review) &&
+    isProjectExecutionResult(result) &&
+    review.projectId === result.projectId &&
+    review.runId === result.runId &&
+    review.resultId === result.id &&
+    (review.handoffId === undefined || review.handoffId === result.handoffId)
   );
 }
 /** Link a result to the exact requested checks, not just to matching producer labels. */
@@ -426,11 +494,8 @@ export function isProjectSharedState(value: unknown): value is ProjectSharedStat
     return false;
   if (
     value.review !== undefined &&
-    (!isProjectReview(value.review) ||
-      !isProjectExecutionResult(value.result) ||
-      value.review.projectId !== value.projectId ||
-      value.review.runId !== value.result.runId ||
-      value.review.resultId !== value.result.id)
+    (!isProjectReviewForResult(value.review, value.result) ||
+      value.review.projectId !== value.projectId)
   )
     return false;
   return true;

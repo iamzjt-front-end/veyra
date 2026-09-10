@@ -235,6 +235,16 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
             case "results.get":
               result = await coordinator.result(request.params.projectId, request.params.runId);
               break;
+            case "reviews.get":
+              result = await coordinator.review(request.params.projectId, request.params.runId);
+              break;
+            case "reviews.submit":
+              result = await coordinator.submitReview(
+                request.params.projectId,
+                request.params.runId,
+                request.params.review,
+              );
+              break;
           }
           const response = redactor.json({ version: 1, ok: true, result } as JsonValue, false);
           if (!isDaemonResponse(response, request.method))
