@@ -85,7 +85,7 @@ it("never invents approval or test counts and does not attach evidence from a di
       cancel: () => {},
     }),
   );
-  expect(markup).toContain("Review pending");
+  expect(markup).toContain("Waiting for ChatGPT");
   expect(markup).toContain("pre-existing edits");
   expect(markup).not.toMatch(/Approved|100 tests passed|WRONG_EVENT/);
 });
@@ -123,7 +123,7 @@ it("shows recorded review verdicts and links only matching diff-file evidence", 
       cancel: () => {},
     }),
   );
-  expect(markup).toContain("Changes requested");
+  expect(markup).toContain("Needs changes");
   expect(markup).toContain("Check session expiry");
   evidence.review.resultId = "another-result";
   expect(
@@ -134,7 +134,7 @@ it("shows recorded review verdicts and links only matching diff-file evidence", 
         cancel: () => {},
       }),
     ),
-  ).toContain("Review pending");
+  ).toContain("Waiting for ChatGPT");
 });
 
 import { I18nProvider, LocaleStore } from "@veyraoss/ui";

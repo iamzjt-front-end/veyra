@@ -5,6 +5,7 @@ import {
   isDaemonRunView,
   isProjectHandoff,
   isProjectExecutionResult,
+  isProjectReviewForResult,
   type DaemonRunSummary,
   type RegisteredProject,
   type DaemonMethod,
@@ -134,9 +135,12 @@ export class ControlClient {
       (payload.result &&
         (!isProjectExecutionResult(payload.result) ||
           payload.result.runId !== runId ||
-          payload.result.projectId !== projectId))
+          payload.result.projectId !== projectId ||
+          payload.result.handoffId !== handoff.id))
     )
       throw new Error("Result evidence is invalid.");
+    if (payload.review && !isProjectReviewForResult(payload.review, payload.result))
+      throw new Error("Review evidence is invalid.");
     return {
       ...payload,
       run,

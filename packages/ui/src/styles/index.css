@@ -1,3 +1,25 @@
+.v-run-outcomes {
+  margin: 20px 0;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
+}
+.v-run-outcomes > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 12px;
+}
+.v-run-outcomes dt {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.v-run-outcomes dd {
+  margin: 0;
+  text-align: right;
+}
+
 :root {
   color-scheme: light dark;
   --surface-base: #f6f8f6;

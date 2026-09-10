@@ -10,7 +10,12 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { chromium } from "playwright";
 import { startDaemon, stopDaemon } from "@veyraoss/daemon";
-import { initializeProject, ProjectRegistry } from "@veyraoss/project";
+import {
+  initializeProject,
+  ProjectRegistry,
+  ProjectHandoffStore,
+  ProjectStateStore,
+} from "@veyraoss/project";
 import { parseConfig } from "@veyraoss/config";
 import { EXTENSION_ORIGIN, parsePairing } from "../src/contracts.js";
 import { sectionTurnMarkup } from "./fixtures/chatgpt-turn.js";
@@ -26,9 +31,12 @@ document.querySelector('button').onclick=()=>{
  const match=[...text.matchAll(/VEYRA_HANDOFF_BEGIN\\n([\\s\\S]*?)\\nVEYRA_HANDOFF_END/g)].at(-1);
  if(match)sessionStorage.setItem('fixture-plan',match[1]);
  if(sessionStorage.getItem('pauseFixture')==='yes')return;
- if(!match && text!=='Implement the fixture feature')return;
- const source=match?match[1]:sessionStorage.getItem('fixture-plan');if(!source)return;
- let handoff;try{handoff=JSON.parse(source);}catch{throw new Error('Invalid fixture plan: '+JSON.stringify(source.slice(0,180)));}handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';if(handoff.context.plan){handoff.context.plan.summary=handoff.context.goal;handoff.context.plan.tasks[0].description=handoff.context.goal;}handoff.requestedVerification=[{id:'verify',kind:'test'},{id:'build',kind:'build'},{id:'diff',kind:'shell'}];
+ const returned=/VEYRA_RESULT_BEGIN\\n([\\s\\S]*?)\\nVEYRA_RESULT_END/.exec(text);
+ if(!match && !returned && text!=='Implement the fixture feature')return;
+ const source=match?match[1]:returned?null:sessionStorage.getItem('fixture-plan');
+ const result=returned?JSON.parse(returned[1]):null;
+ const review=result?{version:1,projectId:result.projectId,runId:result.runId,resultId:result.id,handoffId:result.handoffId,verdict:result.status==='failed'?'PASS':'FAIL',summary:result.status==='failed'?'Read-only evidence collected despite the deliberate failure.':'Checks pass; the reviewer still requests changes.',findings:[{severity:'warning',description:'Review and verification are independent.'}],nextAction:result.status==='failed'?'complete':'repair'}:null;
+ let handoff;if(source){try{handoff=JSON.parse(source);}catch{throw new Error('Invalid fixture plan: '+JSON.stringify(source.slice(0,180)));}handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';if(handoff.context.plan){handoff.context.plan.summary=handoff.context.goal;handoff.context.plan.tasks[0].description=handoff.context.goal;}handoff.requestedVerification=[{id:'verify',kind:'test'},{id:'build',kind:'build'},{id:'diff',kind:'shell'}];}
  const stop=document.createElement('button');stop.dataset.testid='stop-button';document.body.append(stop);
  const sectionLayout=${native};
  const turn=document.createElement(sectionLayout?'section':'article');
@@ -36,7 +44,7 @@ document.querySelector('button').onclick=()=>{
  const assistant=sectionLayout?turn.querySelector('[data-message-author-role="assistant"]'):document.createElement('div');assistant.dataset.messageAuthorRole='assistant';assistant.dataset.messageId=crypto.randomUUID();
  const body=document.createElement(sectionLayout?'p':'code');body.textContent='{';if(sectionLayout)assistant.append(body);else{const pre=document.createElement('pre');body.className='language-veyra-handoff';pre.append(body);assistant.append(pre);turn.append(assistant);}main.append(turn);
  const actions=sectionLayout?turn.querySelector('[role="group"]'):turn;
- setTimeout(()=>{body.textContent='VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END';const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';actions.append(copy);setTimeout(()=>{stop.dataset.testid='fixture-finished-control';},100);},100);
+ setTimeout(()=>{body.textContent=handoff?'VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END':'';if(review){const pre=document.createElement('pre');pre.textContent='VEYRA_REVIEW_BEGIN\\n'+JSON.stringify(review)+'\\nVEYRA_REVIEW_END';assistant.prepend(pre);if(sectionLayout && handoff){const task=document.createElement('pre');task.textContent=body.textContent;body.replaceWith(task);}}const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';actions.append(copy);setTimeout(()=>{stop.dataset.testid='fixture-finished-control';},100);},100);
 };
 </script></body></html>`;
 
@@ -527,13 +535,20 @@ try {
     });
   }
   const deadline = Date.now() + 45000;
-  let state: { binding?: { phase: string; message: string; count: number } } = {};
+  let state: {
+    binding?: { phase: string; message: string; count: number; review?: { phase: string } };
+  } = {};
   while (Date.now() < deadline) {
     state =
       ((await worker.evaluate(
         async () => (await chrome.storage.session.get("state")).state,
       )) as typeof state) ?? {};
-    if (state.binding?.phase === "stopped") break;
+    if (
+      state.binding?.phase === "armed" &&
+      state.binding.count === 2 &&
+      state.binding.review?.phase === "recorded"
+    )
+      break;
     if (state.binding?.phase === "paused") throw new Error(state.binding.message);
     if (!state.binding && Date.now() > deadline - 35000)
       throw new Error(
@@ -544,7 +559,7 @@ try {
   }
   assert.equal(
     state.binding?.phase,
-    "stopped",
+    "armed",
     JSON.stringify({
       message: state.binding?.message,
       count: state.binding?.count,
@@ -558,6 +573,7 @@ try {
     }),
   );
   assert.equal(state.binding?.count, 2);
+  assert.equal(state.binding?.review?.phase, "recorded");
   if (native) executed = Number(await readFile(join(root, "executions.txt"), "utf8"));
   assert.equal(executed, 2);
   assert.equal(await readFile(join(root, "answer.txt"), "utf8"), "42");
@@ -571,6 +587,11 @@ try {
     const match = /VEYRA_RESULT_BEGIN\n([\s\S]*?)\nVEYRA_RESULT_END/.exec(message);
     assert.ok(match?.[1]);
     const result = JSON.parse(match[1]);
+    const archive = new ProjectHandoffStore({ project });
+    const review = await archive.getReview(result.runId);
+    assert.equal(review?.resultId, result.id, "Review links to this exact handback");
+    assert.equal(review?.verdict, index === 0 ? "pass" : "fail");
+    assert.equal((await archive.getResult(result.runId))?.executionStatus, "completed");
     assert.deepEqual(
       result.verification.map((check: { id: string; status: string }) => [check.id, check.status]),
       [
@@ -591,6 +612,7 @@ try {
       assert.equal(evidence.results[0].exitCode, check.status === "failed" ? 1 : 0);
     }
   }
+  assert.equal((await new ProjectStateStore({ project }).read())?.review?.verdict, "fail");
   const pairing = native
     ? undefined
     : parsePairing(
@@ -609,12 +631,18 @@ try {
   );
   assert.match(await panel.locator(".v-task-title").innerText(), /Repair after failed verifier/);
   assert.match(await panel.locator(".v-project-bound").innerText(), /veyra-extension-browser/);
-  assert.match(await panel.locator('.v-stepper [data-state="pending"]').innerText(), /Review/);
+  await panel.waitForFunction(() =>
+    document.querySelector("main .v-run-outcomes")?.textContent?.includes("Needs changes"),
+  );
+  assert.match(
+    await panel.getByRole("main").locator(".v-run-outcomes").innerText(),
+    /Completed[\s\S]*3 passed[\s\S]*Needs changes/,
+  );
 
   assert.equal(
     await page.locator('[data-veyra-status="true"]').count(),
-    native ? 4 : 5,
-    "Current machine handoffs/results fold reversibly (native binding preceded refresh)",
+    native ? 6 : 7,
+    "Current handoffs/results/reviews fold reversibly (native binding preceded refresh)",
   );
   // Preference updates repaint only extension UI and its own folded labels, never rebind/replay.
   const stateBeforeLanguage = await worker.evaluate(
@@ -663,15 +691,19 @@ try {
     await control.getByRole("button", { name: "语言 / Language", exact: true }).click();
     await control.getByRole("menuitem", { name: "English", exact: true }).click();
     await control.getByRole("heading", { name: "Verification", exact: true }).waitFor();
-    assert.match(await control.locator(".v-review").innerText(), /Review pending/);
+    assert.match(await control.locator(".v-review").innerText(), /Needs changes/);
     assert.match(new URL(control.url()).hash, new RegExp(project.id));
     await control.close();
     await page.bringToFront();
-    // Finished budget stays stopped across refresh; no duplicate binding/dispatch is sent.
+    // A recorded review and exhausted execution budget survive refresh without any replay.
     await page.reload();
     await popup.waitForFunction(() =>
       document.querySelector("#bound-project")?.textContent?.includes("veyra-extension-browser"),
     );
+    await panel.waitForFunction(() =>
+      document.querySelector(".v-run-outcomes")?.textContent?.includes("Needs changes"),
+    );
+    assert.equal((await new ProjectStateStore({ project }).read())?.review?.verdict, "fail");
     assert.equal(executed, 2);
     assert.equal(await page.locator('[data-message-author-role="user"]').count(), 0);
     await popup.locator("#unbind").click();
@@ -728,6 +760,8 @@ try {
       browser: context.browser()?.version(),
       executions: executed,
       sameConversationReturns: 2,
+      persistedReviews: ["pass", "fail"],
+      reviewRestoredAfterRefresh: native,
       streamingControlReused: true,
       assistantLayout: native ? "observed section with nested sibling toolbar" : "legacy article",
       ...(native

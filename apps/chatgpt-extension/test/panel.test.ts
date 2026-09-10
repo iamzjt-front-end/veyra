@@ -53,6 +53,84 @@ describe("Side Panel security and evidence", () => {
     expect(call).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
+  it("refreshes review from canonical evidence on receipt changes and restores it in a new panel", async () => {
+    const sample = panelFixture("review-approved");
+    const binding = sample.binding;
+    const result = sample.evidence.result;
+    if (!binding || !result) throw new Error("Missing fixture");
+    binding.review = {
+      id: "review-fixture",
+      runId: result.runId,
+      resultId: result.id,
+      handoffId: result.handoffId,
+      at: result.provenance.at,
+      phase: "pending",
+    };
+    let recorded = false;
+    const call = vi.fn(async (type: string) =>
+      type === "evidence"
+        ? { ...sample.evidence, review: recorded ? sample.evidence.review : null }
+        : { ...sample, binding: structuredClone(binding), connectivity: { status: "connected" } },
+    );
+    const store = new PanelStore(call);
+    await store.refresh();
+    expect(runSteps(store.snapshot().evidence).find((step) => step.id === "review")?.state).toBe(
+      "pending",
+    );
+    recorded = true;
+    binding.review.phase = "recorded";
+    await store.refresh();
+    expect(store.snapshot().evidence.review?.verdict).toBe("pass");
+    expect(runSteps(store.snapshot().evidence).find((step) => step.id === "review")?.trailing).toBe(
+      "Approved",
+    );
+    expect(runSteps(store.snapshot().evidence).find((step) => step.id === "verify")?.state).toBe(
+      "failed",
+    );
+    expect(call.mock.calls.filter(([type]) => type === "evidence")).toHaveLength(2);
+    await store.refresh();
+    expect(call.mock.calls.filter(([type]) => type === "evidence")).toHaveLength(2);
+    store.close();
+    const reopened = new PanelStore(call);
+    await reopened.refresh();
+    expect(reopened.snapshot().evidence.review).toEqual(sample.evidence.review);
+    reopened.close();
+  });
+  it("rejects a review for another result instead of showing a false approval", async () => {
+    const sample = panelFixture("review-approved");
+    if (!sample.evidence.review) throw new Error("Missing review fixture");
+    sample.evidence.review.resultId = "wrong-result";
+    const store = new PanelStore(
+      vi.fn(async (type: string) =>
+        type === "evidence"
+          ? sample.evidence
+          : { ...sample, connectivity: { status: "connected" } },
+      ),
+    );
+    await store.refresh();
+    expect(store.snapshot().error).toContain("Review evidence did not match");
+    expect(store.snapshot().evidence.review).toBeUndefined();
+    store.close();
+  });
+  it("clears a previous run's approval before loading another run, including failed reads", async () => {
+    const sample = panelFixture("review-approved");
+    const binding = sample.binding;
+    if (!binding) throw new Error("Missing fixture");
+    const store = new PanelStore(
+      vi.fn(async (type: string) =>
+        type === "evidence"
+          ? sample.evidence
+          : { ...sample, binding: structuredClone(binding), connectivity: { status: "connected" } },
+      ),
+    );
+    await store.refresh();
+    expect(store.snapshot().evidence.review?.verdict).toBe("pass");
+    binding.runId = "7f208d63-7bb7-435e-9ebd-1556a253dba6";
+    await store.refresh();
+    expect(store.snapshot().error).toContain("Run evidence did not match");
+    expect(store.snapshot().evidence.review).toBeUndefined();
+    store.close();
+  });
   it("includes the rendered conversation identity in every user action", async () => {
     const call = vi.fn(async () => ({
       connectivity: { status: "connected" },

@@ -63,7 +63,7 @@ export function RunRows({
       <span className="v-secondary">
         {projects.find((entry) => entry.project.id === run.projectId)?.project.name ?? t("Project")}
       </span>
-      <RunStatus status={run.status} />
+      <RunStatus status={run.executionStatus ?? run.status} />
       <span className="v-duration">{elapsed(run.createdAt, run.updatedAt, locale)}</span>
     </button>
   );
@@ -122,7 +122,7 @@ function ProjectRows({
         {entry.status === "stale" ? (
           <Status tone="warning">{t("Location unavailable")}</Status>
         ) : last?.status === "running" || last?.status === "queued" ? (
-          <RunStatus status={last.status} />
+          <RunStatus status={last.executionStatus ?? last.status} />
         ) : (
           <span className="v-caption">
             {last?.status === "completed"
@@ -314,7 +314,9 @@ export function WorkspaceView(props: WorkspaceViewProps) {
               )}
               {page === "project" && project && <PathText path={project.project.root} />}
             </div>
-            {isRun && evidence?.run && <RunStatus status={evidence.run.status} />}
+            {isRun && evidence?.run && (
+              <RunStatus status={evidence.run.executionStatus ?? evidence.run.status} />
+            )}
           </div>
           {props.error && (
             <ErrorState title={t("The local connection needs attention")}>
@@ -369,7 +371,7 @@ export function WorkspaceView(props: WorkspaceViewProps) {
                         </p>
                       </div>
                       <div className="v-active-status">
-                        <RunStatus status={run.status} />
+                        <RunStatus status={run.executionStatus ?? run.status} />
                         <span>{elapsed(run.createdAt, run.updatedAt, locale)}</span>
                       </div>
                       <Icon name="arrow" />

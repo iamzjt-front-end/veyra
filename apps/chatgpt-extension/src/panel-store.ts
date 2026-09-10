@@ -2,6 +2,7 @@ import {
   isDaemonRunView,
   isProjectHandoff,
   isProjectExecutionResult,
+  isProjectReviewForResult,
   type RegisteredProject,
 } from "@veyraoss/protocol";
 import type { RunEvidence } from "@veyraoss/ui";
@@ -127,13 +128,18 @@ export class PanelStore {
           transport: String(value.transport ?? "native"),
         });
         const key = binding?.runId
-          ? `${binding.id}:${binding.runId}:${binding.runStatus}:${binding.stage}`
+          ? `${binding.id}:${binding.runId}:${binding.runStatus}:${binding.stage}:${binding.phase}:${binding.review?.phase ?? ""}`
           : "";
         if (key !== this.evidenceKey) {
           if (!binding?.runId) {
             this.evidenceKey = "";
             this.set({ evidence: {} });
           } else {
+            if (
+              this.state.evidence.run?.runId !== binding.runId ||
+              this.state.evidence.run.projectId !== binding.projectId
+            )
+              this.set({ evidence: {} });
             const data = await this.call("evidence");
             if (!object(data) || !object(data.run)) return;
             const { execution, ...run } = data.run;
@@ -142,7 +148,8 @@ export class PanelStore {
               run.projectId !== binding.projectId ||
               run.runId !== binding.runId ||
               !isProjectHandoff(data.handoff) ||
-              data.handoff.runId !== run.runId
+              data.handoff.runId !== run.runId ||
+              data.handoff.projectId !== run.projectId
             )
               throw new Error("Run evidence did not match the bound Project.");
             const result = data.result;
@@ -150,9 +157,12 @@ export class PanelStore {
               result &&
               (!isProjectExecutionResult(result) ||
                 result.runId !== run.runId ||
-                result.projectId !== run.projectId)
+                result.projectId !== run.projectId ||
+                result.handoffId !== data.handoff.id)
             )
               throw new Error("Result evidence did not match the selected run.");
+            if (data.review && !isProjectReviewForResult(data.review, result))
+              throw new Error("Review evidence did not match the selected result.");
             this.evidenceKey = key;
             this.set({
               evidence: {

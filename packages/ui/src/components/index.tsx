@@ -405,6 +405,7 @@ export function RunStatus({ status }: { status: string }) {
     paused: [t("Paused"), "warning"],
     cancelled: [t("Cancelled"), "neutral"],
     interrupted: [t("Needs attention"), "warning"],
+    timed_out: [t("Timed out"), "danger"],
   };
   const [label, tone] = labels[status] ?? [t("Waiting"), "neutral"];
   return <Badge tone={tone}>{label}</Badge>;

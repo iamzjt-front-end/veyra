@@ -1,4 +1,5 @@
 import { translate, type Locale } from "./i18n/index.js";
+import { isProjectReviewForResult, type ProjectExecutionStatus } from "@veyraoss/protocol";
 import type {
   DaemonRunView,
   ProjectExecutionResult,
@@ -52,10 +53,8 @@ export function elapsed(start?: string, end?: string, locale: Locale = "en"): st
 export function runSteps(data: RunEvidence, locale: Locale = "en"): WorkflowStep[] {
   const { run, handoff, result, review, stage } = data;
   const active = run?.status === "running";
-  const reviewForRun =
-    review && result && review.runId === result.runId && review.resultId === result.id
-      ? review
-      : undefined;
+  const outcomes = runOutcomes(data);
+  const reviewForRun = isProjectReviewForResult(review, result) ? review : undefined;
   const checks = result?.verification;
   const verificationFailed = checks?.some((check) => check.status === "failed");
   const verified = !!checks?.length && checks.every((check) => check.status === "passed");
@@ -70,17 +69,18 @@ export function runSteps(data: RunEvidence, locale: Locale = "en"): WorkflowStep
       id: "execute",
       label: "Execute",
       state:
-        run?.status === "paused" || run?.status === "interrupted"
+        outcomes.execution === "paused" || outcomes.execution === "interrupted"
           ? "paused"
-          : run?.status === "cancelled"
+          : outcomes.execution === "cancelled"
             ? "paused"
-            : result?.status === "failed" && !verificationFailed
+            : outcomes.execution === "failed" || outcomes.execution === "timed_out"
               ? "failed"
-              : result || stage === "verify" || stage === "review"
+              : outcomes.execution === "completed" || stage === "verify" || stage === "review"
                 ? "passed"
                 : active
                   ? "running"
                   : "pending",
+      trailing: translate(locale, executionLabels[outcomes.execution]),
       detail:
         active && stage !== "verify" ? "Codex is working on your plan" : "Codex · Native executor",
     },
@@ -113,7 +113,78 @@ export function runSteps(data: RunEvidence, locale: Locale = "en"): WorkflowStep
             : reviewForRun?.verdict === "needs_input"
               ? "needs-attention"
               : "pending",
-      detail: reviewForRun?.summary ?? "Waiting for ChatGPT review",
+      trailing: translate(locale, reviewLabels[outcomes.review]),
+      detail: reviewForRun ? translate(locale, "Review saved") : "Waiting for ChatGPT review",
     },
   ];
+}
+
+export const executionLabels: Record<ProjectExecutionStatus | "idle", string> = {
+  idle: "Idle",
+  queued: "Queued",
+  running: "Working",
+  completed: "Completed",
+  failed: "Failed",
+  cancelled: "Cancelled",
+  timed_out: "Timed out",
+  paused: "Paused",
+  interrupted: "Interrupted",
+};
+export const reviewLabels = {
+  pending: "Waiting for ChatGPT",
+  approved: "Approved",
+  needs_changes: "Needs changes",
+  human_decision: "Needs your decision",
+} as const;
+/** Immutable envelope addresses remain stable even when two findings have identical text. */
+export function reviewFindings(review?: ProjectReview) {
+  return (review?.findings ?? []).map((finding, position) => ({
+    ...finding,
+    key: `${review?.id}/findings/${position}`,
+  }));
+}
+/** Read-only projection of canonical persisted evidence. Verdicts never rewrite check outcomes. */
+export function runOutcomes(data: RunEvidence) {
+  const execution: ProjectExecutionStatus | "idle" =
+    data.run?.executionStatus ?? data.result?.executionStatus ?? data.run?.status ?? "idle";
+  const checks = data.result?.verification ?? [];
+  const counts = { passed: 0, failed: 0, notRun: 0 };
+  for (const check of checks) {
+    if (check.status === "passed") counts.passed++;
+    else if (check.status === "failed") counts.failed++;
+    else counts.notRun++;
+  }
+  const verification =
+    data.run?.status === "running" && data.stage === "verify"
+      ? "running"
+      : counts.failed
+        ? "failed"
+        : counts.notRun || (data.result && !checks.length)
+          ? "incomplete"
+          : counts.passed
+            ? "passed"
+            : "pending";
+  const canonicalReview = isProjectReviewForResult(data.review, data.result)
+    ? data.review
+    : undefined;
+  const review =
+    canonicalReview?.verdict === "pass"
+      ? "approved"
+      : canonicalReview?.verdict === "fail"
+        ? "needs_changes"
+        : canonicalReview?.verdict === "needs_input"
+          ? "human_decision"
+          : "pending";
+  return { execution, verification, review, counts, canonicalReview } as const;
+}
+export function verificationLabel(data: RunEvidence, locale: Locale): string {
+  const { verification, counts } = runOutcomes(data);
+  const t = (key: string, params?: Record<string, string | number>) =>
+    translate(locale, key, params);
+  if (verification === "running") return t("Checking the work");
+  const parts = [];
+  if (counts.failed) parts.push(t("{count} failed", { count: counts.failed }));
+  if (counts.passed) parts.push(t("{count} passed", { count: counts.passed }));
+  if (counts.notRun) parts.push(t("{count} not run", { count: counts.notRun }));
+  return parts.join(" · ") || t(data.result ? "No verification evidence" : "Pending");
 }

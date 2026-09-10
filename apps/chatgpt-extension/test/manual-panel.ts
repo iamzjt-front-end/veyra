@@ -34,6 +34,9 @@ try {
     "verification",
     "completed",
     "failed",
+    "review-approved",
+    "review-changes",
+    "review-human",
     "paused",
     "disconnected",
     "no-projects",
@@ -46,6 +49,20 @@ try {
       `${state} fits 400px`,
     );
     assert.doesNotMatch(await page.locator("body").innerText(), /\bundefined\b|\bnull\b/);
+    if (state.startsWith("review-")) {
+      const rows = await page.getByRole("main").locator(".v-run-outcomes").innerText();
+      assert.match(rows, /Completed/);
+      assert.match(rows, state === "review-changes" ? /3 passed/ : /1 failed · 2 passed/);
+      assert.match(
+        rows,
+        state === "review-approved"
+          ? /Approved/
+          : state === "review-changes"
+            ? /Needs changes/
+            : /Needs your decision/,
+      );
+      assert.doesNotMatch(rows, /All checks passed/);
+    }
     await page.screenshot({
       path: resolve(directory, `side-panel-${state}.png`),
       fullPage: true,
@@ -93,7 +110,7 @@ try {
       status: "passed",
       screenshots: directory,
       browser: browser.version(),
-      states: 10,
+      states: 13,
       widths: [320, 360, 400, 420, 460],
       keyboard: "drawer Escape and native focus",
     }),

@@ -5,6 +5,10 @@ import {
   Icon,
   Stepper,
   runSteps,
+  RunOutcomes,
+  runOutcomes,
+  reviewLabels,
+  reviewFindings,
   elapsed,
   VerificationStatus,
   Status,
@@ -30,14 +34,8 @@ export function RunDetail({
   const [selected, select] = useState<string>();
   const diffRef = useRef<HTMLElement>(null);
   const files = useMemo(() => parseDiff(workspaceDiff?.patch ?? "").files, [workspaceDiff?.patch]);
-  const review =
-    evidence.review &&
-    result &&
-    evidence.review.runId === result.runId &&
-    evidence.review.resultId === result.id &&
-    evidence.review.projectId === result.projectId
-      ? evidence.review
-      : undefined;
+  const outcomes = runOutcomes(evidence);
+  const review = outcomes.canonicalReview;
   const focusFile = (path: string) => {
     select(path);
     diffRef.current?.scrollIntoView({ block: "start", behavior: "instant" });
@@ -65,16 +63,17 @@ export function RunDetail({
       <section className="v-run-workflow" aria-label={t("Workflow timeline")}>
         <Stepper horizontal steps={runSteps(evidence, locale)} />
       </section>
+      <RunOutcomes evidence={evidence} />
       <div className="v-run-outcome">
         <div>
           <h2>
-            {result?.verification?.some((check) => check.status === "failed")
+            {["failed", "incomplete"].includes(outcomes.verification)
               ? t("Verification needs attention")
-              : result?.status === "completed"
+              : outcomes.execution === "completed"
                 ? t("Execution completed")
-                : result?.status === "cancelled"
+                : outcomes.execution === "cancelled"
                   ? t("Run cancelled")
-                  : result?.status === "failed"
+                  : ["failed", "timed_out", "paused", "interrupted"].includes(outcomes.execution)
                     ? t("Execution needs attention")
                     : evidence.stage === "verify"
                       ? t("Checking the work")
@@ -259,13 +258,7 @@ export function RunDetail({
                       : "neutral"
               }
             >
-              {review?.verdict === "pass"
-                ? t("Approved")
-                : review?.verdict === "fail"
-                  ? t("Changes requested")
-                  : review?.verdict === "needs_input"
-                    ? t("Human decision needed")
-                    : t("Review pending")}
+              {t(reviewLabels[outcomes.review])}
             </Status>
             <p>
               {review?.summary ??
@@ -273,6 +266,20 @@ export function RunDetail({
                   "ChatGPT reviews the returned result in the bound conversation. No review verdict has been recorded for this result yet.",
                 )}
             </p>
+            {!!review?.findings?.length && (
+              <ul>
+                {reviewFindings(review).map((finding) => (
+                  <li key={finding.key}>
+                    <span className="v-caption">{t(finding.severity)}</span> · {finding.description}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {review && (
+              <Collapsible title={t("Run metadata")}>
+                <CodeText>{JSON.stringify(review, null, 2)}</CodeText>
+              </Collapsible>
+            )}
             {review?.evidence.map((ref) => {
               const path = relativeFile(ref.path);
               return files.some((file) => file.path === path) ? (

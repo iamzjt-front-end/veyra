@@ -12,6 +12,34 @@ const provenance = {
   contentTrust: "untrusted",
 } as const;
 export function panelFixture(name: string): PanelSnapshot {
+  if (["review-approved", "review-changes", "review-human"].includes(name)) {
+    const state = panelFixture(name === "review-changes" ? "completed" : "failed");
+    const result = state.evidence.result;
+    if (!result) throw new Error("Missing review fixture result");
+    state.evidence.review = {
+      version: 1,
+      kind: "review",
+      id: "review-fixture",
+      projectId: id,
+      runId,
+      resultId: result.id,
+      handoffId: result.handoffId,
+      verdict:
+        name === "review-approved" ? "pass" : name === "review-changes" ? "fail" : "needs_input",
+      summary:
+        name === "review-approved"
+          ? "Read-only checks completed with evidence. The deliberate test failure remains."
+          : "Review the evidence before continuing.",
+      findings: [
+        { severity: "warning", description: "The review decision is separate from verification." },
+      ],
+      nextAction:
+        name === "review-approved" ? "complete" : name === "review-changes" ? "repair" : "wait",
+      provenance: { ...provenance, role: "reviewer" },
+      evidence: [],
+    };
+    return state;
+  }
   if (["codex-unavailable", "project-missing", "loading"].includes(name)) {
     const state = panelFixture("unbound");
     if (name === "codex-unavailable" && state.selected) state.selected.readiness.ready = false;
@@ -87,6 +115,13 @@ export function panelFixture(name: string): PanelSnapshot {
       projectId: id,
       runId,
       status: terminal ? (name as "completed" | "failed" | "cancelled") : "running",
+      executionStatus: terminal
+        ? name === "cancelled"
+          ? "cancelled"
+          : "completed"
+        : name === "verification"
+          ? "completed"
+          : "running",
       createdAt: provenance.at,
       updatedAt: fixtureTime,
     },
@@ -131,6 +166,7 @@ export function panelFixture(name: string): PanelSnapshot {
       runId,
       handoffId: runId,
       status,
+      executionStatus: name === "cancelled" ? "cancelled" : "completed",
       summary: "Sign-in adapters and session validation are implemented.",
       changedFiles: [
         "src/auth/apple.ts",
@@ -150,7 +186,7 @@ export function panelFixture(name: string): PanelSnapshot {
           stepId: check,
           eventId: `verify-${check}`,
           sequence: 1,
-          path: "events.jsonl",
+          path: `/verification/${check}`,
         },
       })),
     };
@@ -175,6 +211,7 @@ export function panelFixture(name: string): PanelSnapshot {
   }
   if (name === "waiting-codex" && state.evidence.run) {
     state.evidence.run.status = "queued";
+    state.evidence.run.executionStatus = "queued";
     state.binding.runStatus = "queued";
   }
   if (name === "paused") {

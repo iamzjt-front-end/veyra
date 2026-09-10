@@ -17,7 +17,10 @@ import {
   Drawer,
   CodeText,
   VerificationStatus,
-  RunStatus,
+  RunOutcomes,
+  runOutcomes,
+  reviewLabels,
+  reviewFindings,
   elapsed,
   runSteps,
 } from "@veyraoss/ui";
@@ -45,12 +48,13 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
       ? { name: binding.projectName, root: binding.projectRoot }
       : project?.project;
   const result = evidence.result;
+  const outcomes = runOutcomes(evidence);
   const paused = binding?.pausedByUser === true;
   const uncertain = binding?.phase === "paused" || !!state.error;
   const pageConnectionIssue =
     state.error === PAGE_CONNECTION_CHANGED || state.error === PAGE_CONNECTION_UNAVAILABLE;
-  const failed = evidence.run?.status === "failed";
-  const cancelled = evidence.run?.status === "cancelled";
+  const failed = ["failed", "timed_out", "interrupted"].includes(outcomes.execution);
+  const cancelled = outcomes.execution === "cancelled";
   const queued = evidence.run?.status === "queued";
   const working =
     currentBound &&
@@ -59,6 +63,9 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
     !state.connected ||
     uncertain ||
     failed ||
+    outcomes.verification === "failed" ||
+    outcomes.verification === "incomplete" ||
+    ["needs_changes", "human_decision"].includes(outcomes.review) ||
     paused ||
     state.selected?.readiness.ready === false ||
     project?.status === "stale";
@@ -263,25 +270,11 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             {goal && evidence.handoff?.context.plan?.summary !== goal && (
               <p className="v-task-summary">{evidence.handoff?.context.plan?.summary}</p>
             )}
+            <RunOutcomes evidence={evidence} />
             <Stepper steps={steps} />
             {result && (
               <div className="v-result-summary">
-                <div>
-                  <Icon name={failed ? "warning" : "check"} />
-                  <strong>
-                    {cancelled
-                      ? t("Run cancelled")
-                      : failed
-                        ? t("Verification needs attention")
-                        : t("Work is ready for review")}
-                  </strong>
-                </div>
-                <p>
-                  {t("{count} files changed", { count: result.changedFiles.length })}
-                  {result.verification?.length
-                    ? ` · ${t("{passed}/{total} checks passed", { passed: result.verification.filter((check) => check.status === "passed").length, total: result.verification.length })}`
-                    : ` · ${t("No verification evidence")}`}
-                </p>
+                <p>{t("{count} files changed", { count: result.changedFiles.length })}</p>
                 <p className="v-caption">
                   {binding.lastResult?.delivery === "confirmed"
                     ? t("Result returned to this conversation")
@@ -390,7 +383,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
               <Icon name="arrow" />
             </Button>
           )}
-          <RunStatus status={evidence.run?.status ?? "pending"} />
+          <RunOutcomes evidence={evidence} />
           <section>
             <h3>{t("Changed files")}</h3>
             {result?.changedFiles.length ? (
@@ -427,14 +420,28 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
           </section>
           <section>
             <h3>{t("Review")}</h3>
+            <Status>{t(reviewLabels[outcomes.review])}</Status>
             <p className="v-secondary">
-              {t(
-                "ChatGPT reviews the result in the bound conversation. No approval has been inferred from execution success.",
-              )}
+              {outcomes.canonicalReview?.summary ??
+                t(
+                  "ChatGPT reviews the result in the bound conversation. No approval has been inferred from execution success.",
+                )}
             </p>
+            {!!outcomes.canonicalReview?.findings?.length && (
+              <ul>
+                {reviewFindings(outcomes.canonicalReview).map((finding) => (
+                  <li key={finding.key}>
+                    <span className="v-caption">{t(finding.severity)}</span> · {finding.description}
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
           <Collapsible title={t("Run metadata")}>
             <CodeText>{binding?.runId}</CodeText>
+            {outcomes.canonicalReview && (
+              <CodeText>{JSON.stringify(outcomes.canonicalReview, null, 2)}</CodeText>
+            )}
             <p className="v-caption">{t("Evidence belongs to this Project.")}</p>
           </Collapsible>
           {!result && (
