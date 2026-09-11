@@ -1,5 +1,18 @@
 /** Product-owned interface copy. Project content and protocol values are never translated. */
 export const chinese: Readonly<Record<string, string>> = {
+  "Awaiting binding": "等待绑定",
+  "Connection checks incomplete": "连接检查尚未完成",
+  "The current page, binding and executor must all be confirmed before work can start.":
+    "当前页面、项目绑定和执行器都确认可用后，才能开始任务。",
+  "Extension build": "扩展构建标识",
+  "Page receiver": "页面接收器",
+  "Bridge checkpoints": "桥接确认记录",
+  "Handoff detected": "已识别任务交接单",
+  "Handoff validated": "交接单校验通过",
+  "Daemon accepted": "本机已确认接收",
+  "Execution settled": "执行已结束",
+  "Delivery confirmed": "当前对话已确认收到结果",
+  "Review persisted": "审查已保存到项目",
   "Run outcomes": "运行结果",
   "Review saved": "审查已保存",
   critical: "严重",
@@ -431,6 +444,8 @@ export const chinese: Readonly<Record<string, string>> = {
   "Use theme=dark for a dark preview and fixed=1 for fixed screenshot fonts.":
     "在地址中加入 theme=dark 可预览深色界面；fixed=1 固定字体，供截图回归使用。",
   "No Projects": "暂无项目",
+  Unknown: "尚未确认",
+  "Different build": "构建版本不一致",
   "3,000 Projects": "3,000 个项目",
   "3,000 runs": "3,000 条运行记录",
 };

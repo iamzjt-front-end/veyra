@@ -185,6 +185,57 @@ export async function browserRegressions(context: BrowserContext) {
     }
     cases++;
   }
+  // Reproduce delayed React hydration after reload: a completed-looking old review
+  // arrives after the observer attaches. Only a real user send opens a new boundary.
+  for (const submit of ["click", "Enter"] as const) {
+    await page.goto(conversation);
+    await page.addScriptTag({ content: source });
+    await page.evaluate(() => {
+      window.fixtureChecks = 0;
+      window.fixtureStop = window.bridgeTest.watchConversation(
+        document,
+        () => {
+          window.fixtureChecks++;
+        },
+        () => {},
+        (error) => {
+          throw error;
+        },
+        () => true,
+        true,
+      );
+      const turn = document.createElement("article");
+      const message = document.createElement("div");
+      message.dataset.messageAuthorRole = "assistant";
+      message.dataset.messageId = "late-hydrated-review";
+      message.textContent =
+        'VEYRA_REVIEW_BEGIN\n{"verdict":"FAIL","nextAction":"human"}\nVEYRA_REVIEW_END';
+      const copy = document.createElement("button");
+      copy.dataset.testid = "copy-turn-action-button";
+      turn.append(message, copy);
+      document.querySelector("main")?.append(turn);
+      // Scripted clicks and UI layout changes are not a fresh user instruction.
+      document.querySelector<HTMLButtonElement>('[data-testid="send-button"]')?.click();
+    });
+    await page.waitForTimeout(700);
+    assert.equal(await page.evaluate(() => window.fixtureChecks), 0);
+    await page.locator("#prompt-textarea").fill("Review this new result");
+    if (submit === "click") await page.locator('[data-testid="send-button"]').click();
+    else await page.locator("#prompt-textarea").press("Enter");
+    await page.evaluate(() => {
+      const old = document.querySelector('[data-message-id="late-hydrated-review"]');
+      const turn = old?.closest("article");
+      if (!old || !turn) throw new Error("Missing late history fixture");
+      old.setAttribute("class", "layout-change-after-send");
+      const fresh = turn.cloneNode(true) as Element;
+      fresh
+        .querySelector('[data-message-author-role="assistant"]')
+        ?.setAttribute("data-message-id", "fresh-review");
+      document.querySelector("main")?.append(fresh);
+    });
+    await page.waitForFunction(() => window.fixtureChecks === 1);
+    await page.evaluate(() => window.fixtureStop?.());
+  }
   // Wall-clock 60-second idle test in real Chromium, with a large conversation and
   // the production observer active. Count DOM queries, not a machine-dependent CPU threshold.
   await page.goto(conversation);
@@ -269,5 +320,7 @@ export async function browserRegressions(context: BrowserContext) {
     idleDomQueries: idle.queries,
     idleTaskSeconds: Number((metric(after) - metric(before)).toFixed(4)),
     mutationBurstChecks: 1,
+    restoredHistoryIgnored: true,
+    trustedSubmitBoundaries: ["click", "Enter"],
   };
 }

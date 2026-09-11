@@ -29,14 +29,23 @@ export function watchConversation(
   onComposer: () => void,
   onError: (error: unknown) => void,
   active: () => boolean = () => true,
-): () => void {
+  restored = false,
+): (() => void) & { expectReply(): void } {
   const ignored = assistantIds(document);
+  // Restored React history may mount after our first identity snapshot. It is not
+  // a new planner/reviewer turn. Only a fresh user send or our own result delivery
+  // opens the boundary; no historical message body is read to establish it.
+  let accepting = !restored;
   let newest: Element | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
   const consider = (element: Element) => {
     const id = assistantId(element);
     if (!id || ignored.has(id)) return;
+    if (!accepting) {
+      ignored.add(id);
+      return;
+    }
     if (
       !newest?.isConnected ||
       element === newest ||
@@ -147,12 +156,37 @@ export function watchConversation(
     if (active() && (event.target as Element | null)?.closest?.(composer)) onComposer();
   };
   document.addEventListener("input", input, true);
-  return () => {
+  const expectReply = () => {
+    clearTimeout(timer);
+    timer = undefined;
+    for (const id of assistantIds(document)) ignored.add(id);
+    newest = undefined;
+    accepting = true;
+  };
+  const submit = (event: Event) => {
+    if (!event.isTrusted || !active()) return;
+    const target = event.target as Element | null;
+    if (
+      (event.type === "click" && target?.closest('[data-testid="send-button"]')) ||
+      (event instanceof KeyboardEvent &&
+        event.key === "Enter" &&
+        !event.shiftKey &&
+        !event.isComposing &&
+        target?.closest("#prompt-textarea"))
+    )
+      expectReply();
+  };
+  document.addEventListener("click", submit, true);
+  document.addEventListener("keydown", submit, true);
+  const stop = () => {
     stopped = true;
     clearTimeout(timer);
     observer.disconnect();
     document.removeEventListener("input", input, true);
+    document.removeEventListener("click", submit, true);
+    document.removeEventListener("keydown", submit, true);
   };
+  return Object.assign(stop, { expectReply });
 }
 
 /** Only active runs schedule reads: 1, 2, 4, 8, 15 seconds, reset on a status change. */

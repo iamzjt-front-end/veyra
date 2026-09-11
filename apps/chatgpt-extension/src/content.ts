@@ -1,6 +1,7 @@
 import { installContentOnce } from "./content-lifecycle.js";
 import { machinePresentation } from "./collapse.js";
-import { conversationUrl, object, parseHandoff, type Binding } from "./contracts.js";
+import { conversationUrl, object, type Binding } from "./contracts.js";
+import { BUILD_ID } from "./build-info.js";
 import { canCompose, sendToConversation } from "./page.js";
 import { RunBackoff, watchConversation } from "./watch.js";
 
@@ -13,11 +14,12 @@ installContentOnce((restoreOnLoad) => {
   let candidate: { id: string; source: string; review?: string } | undefined;
   let busy = false;
   let composerChanged = false;
-  let unwatch: (() => void) | undefined;
+  let unwatch: ReturnType<typeof watchConversation> | undefined;
   const send = async (type: string, fields: Record<string, unknown> = {}) => {
     if (disposed || !runtime.id) throw new Error("扩展后台不可用。");
     const response: unknown = await runtime.sendMessage({
       type,
+      buildId: BUILD_ID,
       epoch,
       bindingId: binding?.id,
       ...fields,
@@ -82,8 +84,13 @@ installContentOnce((restoreOnLoad) => {
       reply({ ok: true });
       return false;
     }
-    if (message.type === "prepare") {
-      reply({ epoch, conversation: conversationUrl(location.href) });
+    if (message.type === "prepare" || message.type === "probe") {
+      reply({
+        epoch,
+        conversation: conversationUrl(location.href),
+        buildId: BUILD_ID,
+        bindingId: binding?.id,
+      });
       return false;
     }
     if (message.type === "disarm") {
@@ -123,6 +130,7 @@ installContentOnce((restoreOnLoad) => {
         void fail(error, selected.id);
       },
       () => bound(selected.id),
+      message.restore === true,
     );
     void (
       message.restore === true
@@ -178,8 +186,11 @@ installContentOnce((restoreOnLoad) => {
           if (binding?.phase !== "armed") return;
         }
         if (!next.source) return;
-        parseHandoff(next.source, current.projectId, current.nextRunId);
-        if (!accept(await send("dispatch", { source: next.source }), current.id)) return;
+        // The trusted worker validates before dispatch and records a receipt on rejection.
+        if (
+          !accept(await send("dispatch", { source: next.source, assistantId: next.id }), current.id)
+        )
+          return;
         if (binding?.phase === "running") {
           runs.start();
           try {
@@ -189,6 +200,7 @@ installContentOnce((restoreOnLoad) => {
           }
         }
       } else if (current.phase === "ready_to_deliver" && canCompose(document)) {
+        unwatch?.expectReply();
         const claimed = await send("claim");
         if (
           !object(claimed) ||

@@ -32,6 +32,8 @@ export function durableBindings(state: SessionState): Record<string, Binding> {
           resumePhase: b.resumePhase,
           attached: false,
           review: b.review,
+          admission: b.admission,
+          checkpoints: b.checkpoints,
           message: "绑定已保存。",
           ...(b.lastResult
             ? {

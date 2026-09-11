@@ -6,6 +6,7 @@ import {
   type ProjectReview,
   type ProjectId,
 } from "@veyraoss/protocol";
+import type { BridgeCheckpoint } from "./checkpoints.js";
 
 export const EXTENSION_ORIGIN = "chrome-extension://meibodpmcjcjdpfaaejdpiclijnpcclh";
 export interface Pairing {
@@ -52,6 +53,9 @@ export interface Binding {
   pausedByUser?: boolean;
   resumePhase?: Binding["phase"];
   attached?: boolean;
+  /** Admission intent fingerprint; the actual handoff remains in Project state. */
+  admission?: { handoffId: string; fingerprint: string; confirmed: boolean };
+  checkpoints?: BridgeCheckpoint[];
   /** Receipt/association metadata only. Review bodies live in the Project envelope store. */
   review?: ReviewReceipt;
 }
@@ -62,6 +66,8 @@ export interface ReviewReceipt {
   handoffId: string;
   at: string;
   phase: "pending" | "submitting" | "recorded";
+  needsDecision?: boolean;
+  decisionAcknowledged?: boolean;
 }
 export function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -177,7 +183,7 @@ export function parseReview(
       !["PASS", "FAIL", "HUMAN_DECISION"].includes(String(value.verdict)) ||
       !["complete", "repair", "human"].includes(String(value.nextAction)) ||
       (value.verdict === "PASS" && value.nextAction !== "complete") ||
-      (value.verdict === "FAIL" && value.nextAction !== "repair") ||
+      (value.verdict === "FAIL" && !["repair", "human"].includes(String(value.nextAction))) ||
       (value.verdict === "HUMAN_DECISION" && value.nextAction !== "human")
     )
       throw invalid();

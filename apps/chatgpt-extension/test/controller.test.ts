@@ -29,8 +29,13 @@ function fixture(native?: NativeTransport) {
     activeTab: async () => ({ id: 10, url }),
     tab: async () => ({ id: 10, url }),
     send: vi.fn(async (_id, data) =>
-      (data as { type: string }).type === "prepare"
-        ? { epoch: "epoch", conversation: url }
+      ["prepare", "probe"].includes((data as { type: string }).type)
+        ? {
+            epoch: "epoch",
+            conversation: url,
+            buildId: "development",
+            bindingId: state.binding?.id,
+          }
         : { ok: true },
     ),
   };
@@ -167,11 +172,15 @@ describe("session-local extension coordination", () => {
     await expect(
       f.message("dispatch", { source: JSON.stringify(handoffTemplate(binding)) }),
     ).rejects.toThrow("边界");
-    await f.dispatch();
-    await f.controller.handle({ type: "disable" }, popup);
-    expect(f.state().binding).toMatchObject({ phase: "stopped" });
-    expect(f.calls).not.toContain("runs.cancel");
-    expect(f.state().binding?.message).toContain("继续执行");
+    expect(f.state().binding?.phase).toBe("paused");
+    expect(f.calls).not.toContain("runs.dispatch");
+    const running = fixture();
+    await running.bind();
+    await running.dispatch();
+    await running.controller.handle({ type: "disable" }, popup);
+    expect(running.state().binding).toMatchObject({ phase: "stopped" });
+    expect(running.calls).not.toContain("runs.cancel");
+    expect(running.state().binding?.message).toContain("继续执行");
   });
   it("pairs only through the popup, revokes before dropping the grant and preserves it on uncertain revocation", async () => {
     const f = fixture();
@@ -223,14 +232,19 @@ describe("session-local extension coordination", () => {
       "绑定权限",
     );
     await expect(f.message("poll", { epoch: "another-document" })).rejects.toThrow("绑定权限");
-    const binding = f.state().binding;
-    if (!binding) throw new Error("Missing binding");
-    for (const change of [{ projectId: randomUUID() }, { runId: randomUUID() }])
+    for (const change of [{ projectId: randomUUID() }, { runId: randomUUID() }]) {
+      const invalid = fixture();
+      await invalid.bind();
+      const binding = invalid.state().binding;
+      if (!binding) throw new Error("Missing binding");
       await expect(
-        f.message("dispatch", {
+        invalid.message("dispatch", {
           source: frameHandoff({ ...handoffTemplate(binding), ...change }),
         }),
       ).rejects.toThrow("不匹配");
+      expect(invalid.state().binding?.phase).toBe("paused");
+      expect(invalid.calls).not.toContain("runs.dispatch");
+    }
     expect(f.calls).not.toContain("runs.dispatch");
     expect(JSON.stringify((f.host.send as ReturnType<typeof vi.fn>).mock.calls)).not.toContain(
       "f".repeat(64),
@@ -299,7 +313,8 @@ describe("session-local extension coordination", () => {
     await f.dispatch();
     expect(f.state().binding?.phase).toBe("paused");
     await f.message("poll");
-    expect(f.request).toHaveBeenCalledTimes(2);
+    expect(f.request).toHaveBeenCalledTimes(3); // binding, dispatch, read-only handoff reconciliation
+    expect(f.calls.at(-1)).toBe("handoffs.get");
     const gate = fixture();
     await gate.bind();
     await gate.dispatch();

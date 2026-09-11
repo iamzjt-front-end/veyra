@@ -39,6 +39,7 @@ describe("existing web review protocol to canonical Project review", () => {
   it.each([
     ["PASS", "complete", "pass", "complete"],
     ["FAIL", "repair", "fail", "repair"],
+    ["FAIL", "human", "fail", "wait"],
     ["HUMAN_DECISION", "human", "needs_input", "wait"],
   ])(
     "accepts explicit %s markers and preserves the raw verdict",
@@ -155,8 +156,13 @@ function fixture() {
     activeTab: async () => ({ id: 10, url }),
     tab: async () => ({ id: 10, url }),
     send: vi.fn(async (_id, message) =>
-      object(message) && message.type === "prepare"
-        ? { epoch: "epoch", conversation: url }
+      object(message) && ["prepare", "probe"].includes(String(message.type))
+        ? {
+            epoch: "epoch",
+            conversation: url,
+            buildId: "development",
+            bindingId: state.binding?.id,
+          }
         : { ok: true },
     ),
   };
@@ -199,7 +205,11 @@ function fixture() {
     navigate: () => {
       url = `https://chatgpt.com/c/${randomUUID()}`;
     },
-    hello: () => controller.handle({ type: "hello", epoch: "new-epoch" }, { url, tabId: 10 }),
+    hello: () =>
+      controller.handle(
+        { type: "hello", epoch: "new-epoch", buildId: "development" },
+        { url, tabId: 10 },
+      ),
     submits: () =>
       vi.mocked(native.call).mock.calls.filter(([method]) => method === "reviews.submit"),
   };
@@ -229,6 +239,14 @@ describe("bound review receipt and no-replay persistence", () => {
     await f.message("review", { source: frame() });
     expect(f.saved()).toMatchObject({ verdict: "pass", summary: compact.summary });
     expect(f.state().binding?.review?.phase).toBe("recorded");
+    expect(f.state().binding?.checkpoints?.map((entry) => entry.stage)).toEqual([
+      "detected",
+      "validated",
+      "accepted",
+      "completed",
+      "delivered",
+      "reviewed",
+    ]);
     await f.message("review", { source: frame() });
     expect(f.submits()).toHaveLength(1);
     expect(JSON.stringify(durableBindings(f.state()))).not.toContain(compact.summary);
@@ -240,6 +258,7 @@ describe("bound review receipt and no-replay persistence", () => {
     });
     expect(f.submits()).toHaveLength(1);
     expect(f.native.authorize).toHaveBeenCalledTimes(1);
+    expect(f.state().binding?.checkpoints).toHaveLength(6);
     const binding = f.state().binding;
     if (!binding) throw new Error("Missing binding");
     await expect(
@@ -308,9 +327,30 @@ describe("bound review receipt and no-replay persistence", () => {
     await expect(f.message("review", { source: frame() })).rejects.toThrow("Lost reply");
     expect(f.state().binding?.review?.phase).toBe("submitting");
     await expect(f.message("review", { source: frame() })).rejects.toThrow("不会重发");
+    // The real content script reports a rejected send, pausing its observer.
+    await f.message("error", { message: "Lost review response" });
+    expect(f.state().binding?.phase).toBe("paused");
     f.restart();
     expect(await f.hello()).toMatchObject({ restored: persisted });
     expect(f.state().binding?.review?.phase).toBe(persisted ? "recorded" : "submitting");
+    expect(f.submits()).toHaveLength(1);
+  });
+  it("recovers a rejected review only for future turns, with the delivered result identity preserved", async () => {
+    const f = fixture();
+    await f.delivered();
+    const target = structuredClone(f.state().binding?.review);
+    await expect(
+      f.message("review", { source: frame({ ...compact, verdict: "MAYBE" }) }),
+    ).rejects.toThrow("schema");
+    await f.message("error", { message: "Invalid review" });
+    f.restart();
+    expect(await f.hello()).toMatchObject({
+      restored: true,
+      binding: { phase: "armed", review: target },
+    });
+    expect(f.saved()).toBeNull();
+    expect(f.submits()).toHaveLength(0);
+    await f.message("review", { source: frame() });
     expect(f.submits()).toHaveLength(1);
   });
   it("restores legacy bindings using only exact persisted result identity, with or without an existing review", async () => {
@@ -330,19 +370,50 @@ describe("bound review receipt and no-replay persistence", () => {
       expect(f.submits()).toHaveLength(recorded ? 1 : 0);
     }
   });
-  it("stores HUMAN_DECISION without dispatching or approving and keeps it stopped after restart", async () => {
+  it.each(["HUMAN_DECISION", "FAIL"])(
+    "stores %s with a human next action without dispatching or approving",
+    async (verdict) => {
+      const f = fixture();
+      await f.delivered();
+      await f.message("review", {
+        source: frame({ ...compact, verdict, nextAction: "human" }),
+      });
+      expect(f.state().binding).toMatchObject({ phase: "stopped", review: { phase: "recorded" } });
+      expect(f.saved()?.nextAction).toBe("wait");
+      f.restart();
+      expect(await f.hello()).toMatchObject({ restored: false });
+      expect(
+        vi.mocked(f.native.call).mock.calls.filter(([method]) => method === "runs.dispatch"),
+      ).toHaveLength(1);
+    },
+  );
+  it("requires an explicit local Resume for a human review and never replays its task", async () => {
     const f = fixture();
     await f.delivered();
     await f.message("review", {
-      source: frame({ ...compact, verdict: "HUMAN_DECISION", nextAction: "human" }),
+      source: frame({ ...compact, verdict: "FAIL", nextAction: "human" }),
     });
-    expect(f.state().binding).toMatchObject({ phase: "stopped", review: { phase: "recorded" } });
-    expect(f.saved()?.nextAction).toBe("wait");
+    expect(f.state().binding?.phase).toBe("stopped");
+    delete f.state().binding?.review?.needsDecision; // Existing installation receipt.
     f.restart();
     expect(await f.hello()).toMatchObject({ restored: false });
-    expect(
-      vi.mocked(f.native.call).mock.calls.filter(([method]) => method === "runs.dispatch"),
-    ).toHaveLength(1);
+    expect(f.state().binding).toMatchObject({
+      phase: "stopped",
+      review: { needsDecision: true },
+    });
+    expect(await f.controller().handle({ type: "resume" }, popup)).toMatchObject({
+      restored: true,
+    });
+    expect(f.state().binding).toMatchObject({
+      phase: "armed",
+      review: { decisionAcknowledged: true },
+    });
+    f.restart();
+    expect(await f.hello()).toMatchObject({ restored: true });
+    expect(vi.mocked(f.native.call).mock.calls.filter(([m]) => m === "runs.dispatch")).toHaveLength(
+      1,
+    );
+    expect(vi.mocked(f.native.call).mock.calls.some(([m]) => m.includes("approve"))).toBe(false);
   });
   it("does not revive an unbound conversation when review persistence completes late", async () => {
     const f = fixture();

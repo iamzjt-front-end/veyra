@@ -2,6 +2,7 @@ import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promis
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { expect, it } from "vitest";
 import { runProcess } from "../packages/runtime/src/process.js";
 
@@ -71,7 +72,7 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
             path,
           ) ||
             (directory === "apps/cli" &&
-              /^dist\/browser-extension\/(_locales\/(zh_CN|en)\/messages\.json|manifest\.json|popup\.html|popup\.css|sidepanel\.html|sidepanel\.css|diagnostics\.html|diagnostics\.css)$/.test(
+              /^dist\/browser-extension\/(_locales\/(zh_CN|en)\/messages\.json|manifest\.json|build-info\.json|popup\.html|popup\.css|sidepanel\.html|sidepanel\.css|diagnostics\.html|diagnostics\.css)$/.test(
                 path,
               )) ||
             (directory === "apps/cli" &&
@@ -118,6 +119,17 @@ it("packs only runtime assets and resolves exports, types, presets and ve outsid
           expect(messages.extensionName.message).toContain("Veyra");
         }
         expect(browser.permissions).toContain("nativeMessaging");
+        const identity = JSON.parse(
+          await readFile(join(staging, "dist/browser-extension/build-info.json"), "utf8"),
+        ) as { buildId: string; artifacts: Record<string, string> };
+        expect(identity.buildId).toMatch(/^[a-f0-9]{64}$/);
+        for (const [name, digest] of Object.entries(identity.artifacts)) {
+          expect(name).toMatch(/^[a-z-]+\.(js|css|html)$/);
+          const bytes = await readFile(join(staging, "dist/browser-extension", name));
+          expect(createHash("sha256").update(bytes).digest("hex")).toBe(digest);
+          if (["background.js", "content.js", "diagnostics.js"].includes(name))
+            expect(bytes.toString()).toContain(identity.buildId);
+        }
         for (const asset of ["background.js", "content.js", "popup.js", "popup.html", "popup.css"])
           expect(await readFile(join(staging, "dist/browser-extension", asset), "utf8")).not.toBe(
             "",

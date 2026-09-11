@@ -1,7 +1,7 @@
 import { useI18n } from "@veyraoss/ui";
 import { Brand, Button, Icon, Status, LanguageSelect } from "@veyraoss/ui";
 export interface LauncherState {
-  status: "Ready" | "Working" | "Needs attention";
+  status: "Ready" | "Working" | "Needs attention" | "Awaiting binding";
   project?: string;
   allowed: boolean;
   error?: boolean;

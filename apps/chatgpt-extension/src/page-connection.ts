@@ -8,7 +8,7 @@ const missingReceiver = (error: unknown) =>
   error instanceof Error &&
   error.message === "Could not establish connection. Receiving end does not exist.";
 
-/** Only explicit Bind/Resume preparation can attach a missing receiver. No write is retried. */
+/** Explicit Bind/Resume or recovery of an existing binding may attach a receiver. No write is retried. */
 export async function sendToPage(tabId: number, message: unknown): Promise<unknown> {
   if (!object(message) || message.type !== "prepare")
     return chrome.tabs.sendMessage(tabId, message, { frameId: 0 });

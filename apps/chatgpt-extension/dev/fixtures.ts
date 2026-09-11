@@ -69,6 +69,12 @@ export function panelFixture(name: string): PanelSnapshot {
     conversation: `https://chatgpt.com/c/${runId}`,
     tabId: 10,
     enabled: true,
+    readiness: {
+      ready: name !== "unbound",
+      reason: name === "unbound" ? "unbound" : "ready",
+      receiver: "confirmed",
+      buildId: "fixture",
+    },
     selected: {
       project: first.project,
       readiness: { ready: true, message: "Codex ready", checks: [{ id: "test" }, { id: "build" }] },

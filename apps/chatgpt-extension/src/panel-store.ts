@@ -7,6 +7,7 @@ import {
 } from "@veyraoss/protocol";
 import type { RunEvidence } from "@veyraoss/ui";
 import { object, type Binding, type ProjectView } from "./contracts.js";
+import type { BridgeReadiness } from "./controller.js";
 
 export interface PanelSnapshot {
   loading: boolean;
@@ -23,6 +24,7 @@ export interface PanelSnapshot {
   evidence: RunEvidence;
   error?: string;
   transport?: string;
+  readiness?: BridgeReadiness;
 }
 export const initialPanel: PanelSnapshot = {
   loading: true,
@@ -126,6 +128,9 @@ export class PanelStore {
           selected: object(value.selected) ? (value.selected as unknown as ProjectView) : undefined,
           projectId: binding?.projectId ?? this.state.projectId,
           transport: String(value.transport ?? "native"),
+          readiness: object(value.readiness)
+            ? (value.readiness as unknown as BridgeReadiness)
+            : undefined,
         });
         const key = binding?.runId
           ? `${binding.id}:${binding.runId}:${binding.runStatus}:${binding.stage}:${binding.phase}:${binding.review?.phase ?? ""}`

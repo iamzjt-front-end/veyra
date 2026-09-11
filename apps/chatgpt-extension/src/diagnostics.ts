@@ -3,6 +3,7 @@ import { watchPopup } from "./popup-refresh.js";
 import { translate, type Parameters as MessageParameters, LocaleStore } from "@veyraoss/ui/i18n";
 import { startExtensionUI } from "./ui-locale.js";
 import { diagnosticText, stateLabel } from "./diagnostic-copy.js";
+import { BUILD_ID } from "./build-info.js";
 let language = new LocaleStore();
 const t = (source: string, values?: MessageParameters) =>
   translate(language.snapshot().locale, source, values);
@@ -178,6 +179,29 @@ function renderStatus(data: Record<string, unknown>) {
   const readiness = selected && object(selected.readiness) ? selected.readiness : undefined;
   const last = binding && object(binding.lastResult) ? binding.lastResult : undefined;
   const connectivity = object(data.connectivity) ? data.connectivity : undefined;
+  const ready = object(data.readiness) ? data.readiness : undefined;
+  field("build", `${BUILD_ID}\n${chrome.runtime.getURL("manifest.json")}`);
+  field(
+    "receiver",
+    `${label(ready?.receiver ?? "unknown")}\n${String(ready?.pageBuildId ?? t("Not captured"))}`,
+  );
+  const checkpoints = document.querySelector("#checkpoints");
+  checkpoints?.replaceChildren();
+  const stages: Record<string, string> = {
+    detected: "Handoff detected",
+    validated: "Handoff validated",
+    accepted: "Daemon accepted",
+    completed: "Execution settled",
+    delivered: "Delivery confirmed",
+    reviewed: "Review persisted",
+  };
+  if (Array.isArray(binding?.checkpoints))
+    for (const entry of binding.checkpoints) {
+      if (!object(entry) || typeof entry.stage !== "string" || !stages[entry.stage]) continue;
+      const item = document.createElement("li");
+      item.textContent = `${t(stages[entry.stage] ?? entry.stage)} · ${date(Date.parse(String(entry.at)), true)}\n${entry.runId}\n${entry.reference ?? ""}`;
+      checkpoints?.append(item);
+    }
   const working =
     data.enabled &&
     binding &&
@@ -186,11 +210,18 @@ function renderStatus(data: Record<string, unknown>) {
     "enabled",
     working
       ? t("Working")
-      : connectivity?.status === "connected" && (!data.currentBound || data.enabled)
+      : ready?.ready === true
         ? t("Ready")
-        : t("Needs attention"),
+        : !data.currentBound && connectivity?.status === "connected"
+          ? t("Awaiting binding")
+          : t("Needs attention"),
   );
-  paused = data.currentBound === true && binding?.pausedByUser === true;
+  paused =
+    data.currentBound === true &&
+    (binding?.pausedByUser === true ||
+      (binding?.phase === "stopped" &&
+        object(binding.review) &&
+        binding.review.needsDecision === true));
   field("disable", paused ? t("Resume") : t("Pause"));
   const bindButton = document.querySelector<HTMLButtonElement>("#bind");
   if (bindButton) bindButton.hidden = data.currentBound === true;

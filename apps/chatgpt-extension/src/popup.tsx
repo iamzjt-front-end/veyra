@@ -31,11 +31,13 @@ function Launcher() {
           allowed: supportsPanel(tab?.url),
           status: working
             ? "Working"
-            : object(data.connectivity) &&
-                data.connectivity.status === "connected" &&
-                (!binding || data.enabled)
+            : object(data.readiness) && data.readiness.ready === true
               ? "Ready"
-              : "Needs attention",
+              : !data.currentBound &&
+                  object(data.connectivity) &&
+                  data.connectivity.status === "connected"
+                ? "Awaiting binding"
+                : "Needs attention",
           project: typeof binding?.projectName === "string" ? binding.projectName : undefined,
         });
       } catch {

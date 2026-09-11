@@ -2,6 +2,7 @@ import { isExtensionSurface } from "./surfaces.js";
 import {
   isDaemonRunView,
   isProjectExecutionResult,
+  isProjectHandoff,
   isProjectId,
   isProjectReview,
   serializeProjectEnvelope,
@@ -9,6 +10,8 @@ import {
 import type { NativeTransport } from "./native-client.js";
 import { exchangePairing, LocalClient } from "./client.js";
 import { PAGE_CONNECTION_CHANGED } from "./page-connection.js";
+import { BUILD_ID } from "./build-info.js";
+import { checkpoint, handoffFingerprint } from "./checkpoints.js";
 import {
   conversationUrl,
   object,
@@ -40,12 +43,25 @@ export interface ExtensionHost {
   tab(id: number): Promise<{ id?: number; url?: string }>;
   send(id: number, message: unknown): Promise<unknown>;
 }
+export interface BridgeReadiness {
+  ready: boolean;
+  reason: "ready" | "unbound" | "paused" | "connecting" | "project" | "page" | "bootstrap";
+  receiver: "unknown" | "confirmed" | "unavailable" | "different_build";
+  buildId: string;
+  pageBuildId?: string;
+}
 
 /** Session-local bridge coordination only; all execution stays in the daemon. */
 export class BridgeController {
   private connectivity?: { status: string; message: string };
   private actionEpoch = 0;
   private readiness?: { projectId: string; at: number; view: ProjectView };
+  private receiver?: {
+    bindingId: string;
+    epoch: string;
+    status: BridgeReadiness["receiver"];
+    buildId?: string;
+  };
   constructor(
     private readonly host: ExtensionHost,
     private readonly request: typeof fetch = (...args) => globalThis.fetch(...args),
@@ -158,8 +174,30 @@ export class BridgeController {
         const selected = state.bindings?.[conversationUrl(tab.url ?? "") ?? ""] ?? state.binding;
         if (!selected || selected.conversation !== conversationUrl(tab.url ?? ""))
           throw new Error("当前对话没有可恢复的绑定。");
-        if (!selected.pausedByUser)
+        const humanReview =
+          selected.phase === "stopped" &&
+          selected.review?.phase === "recorded" &&
+          selected.lastResult?.delivery === "confirmed";
+        if (!selected.pausedByUser && !humanReview)
           throw new Error("请先检查不确定发送或运行的证据，再显式 Unbind / Bind。");
+        if (humanReview && selected.review) {
+          if (!selected.runId || selected.review.runId !== selected.runId)
+            throw new Error("人工决定对应的运行身份不匹配；没有恢复或执行任务。");
+          const review = await client().call("reviews.get", {
+            projectId: selected.projectId,
+            runId: selected.runId,
+          });
+          if (
+            !isProjectReview(review) ||
+            review.id !== selected.review.id ||
+            review.projectId !== selected.projectId ||
+            review.runId !== selected.runId ||
+            review.resultId !== selected.review.resultId ||
+            !(review.verdict === "needs_input" || review.nextAction === "wait")
+          )
+            throw new Error("人工决定对应的审查证据不匹配；没有恢复或执行任务。");
+          selected.review.decisionAcknowledged = true;
+        }
         const prepared = await this.host.send(tab.id as number, {
           type: "prepare",
           conversation: selected.conversation,
@@ -303,6 +341,8 @@ export class BridgeController {
           typeof prepared.epoch !== "string"
         )
           throw new Error("请刷新 ChatGPT 页面后重试。");
+        if (prepared.buildId !== BUILD_ID)
+          throw new Error("页面与扩展构建版本不一致；请刷新当前对话。没有发送任务。");
         if (state.binding && state.binding.conversation !== targetConversation)
           await this.host.send(state.binding.tabId, { type: "disarm" }).catch(() => {});
         if (!state.pairing) await this.native?.authorize(value.projectId);
@@ -373,6 +413,12 @@ export class BridgeController {
         if (actionEpoch !== this.actionEpoch || (await this.host.read()).binding?.id !== binding.id)
           throw new Error("绑定已取消；检查当前对话，不会重发。");
         binding.bootstrapped = true;
+        this.receiver = {
+          bindingId: binding.id,
+          epoch: binding.epoch,
+          status: "confirmed",
+          buildId: BUILD_ID,
+        };
         await this.host.save(state);
         return { binding };
       }
@@ -397,6 +443,7 @@ export class BridgeController {
     if (actionEpoch !== this.actionEpoch) throw new Error("页面操作已暂停或解绑。");
     if (["paused", "stopped"].includes(binding.phase)) return { binding };
     if (value.type === "error") {
+      binding.resumePhase = binding.phase === "running" ? "running" : undefined;
       binding.phase = "paused";
       binding.message =
         typeof value.message === "string"
@@ -406,7 +453,29 @@ export class BridgeController {
       if (binding.phase !== "armed" || binding.count >= binding.maxRuns)
         throw new Error("当前绑定不能继续派发。");
       if (typeof value.source !== "string") throw new Error("缺少显式 handoff。");
-      const handoff = parseHandoff(value.source, binding.projectId, binding.nextRunId);
+      // Record a bounded receipt even when schema validation rejects the framed input.
+      checkpoint(
+        binding,
+        "detected",
+        typeof value.assistantId === "string" ? value.assistantId : undefined,
+        binding.nextRunId,
+      );
+      let handoff: ReturnType<typeof parseHandoff>;
+      try {
+        handoff = parseHandoff(value.source, binding.projectId, binding.nextRunId);
+      } catch (error) {
+        binding.phase = "paused";
+        binding.message = `交接单校验未通过，没有派发：${error instanceof Error ? error.message : "协议无效。"}`;
+        await this.host.save(state);
+        throw error;
+      }
+      binding.admission = {
+        handoffId: handoff.id,
+        fingerprint: await handoffFingerprint(handoff),
+        confirmed: false,
+      };
+      if (actionEpoch !== this.actionEpoch) throw new Error("派发已取消。");
+      checkpoint(binding, "validated", handoff.id, handoff.runId);
       binding.phase = "dispatching";
       binding.runId = handoff.runId;
       binding.runStatus = "dispatching";
@@ -420,17 +489,28 @@ export class BridgeController {
       try {
         const run = await client().call("runs.dispatch", { projectId: binding.projectId, handoff });
         this.observeRun(binding, run);
+        binding.admission.confirmed = true;
+        checkpoint(binding, "accepted", handoff.id);
         binding.phase = "running";
         binding.message = "原生执行中；可随时停止。";
       } catch (error) {
         binding.phase = "paused";
         binding.message = `派发未确认，不会重试：${error instanceof Error ? error.message : "请检查本机 run。"}`;
+        // Read-only reconciliation is safe after a lost reply; dispatch itself is never retried.
+        try {
+          await this.reconcileAdmission(binding, client());
+          if (actionEpoch !== this.actionEpoch) return { binding: undefined };
+        } catch {
+          binding.message = "本机接收尚未确认；已停止派发，请检查该 Run 的归档证据。没有重发任务。";
+        }
       }
     } else if (value.type === "poll" && binding.phase === "running" && binding.runId) {
       const locator = { projectId: binding.projectId, runId: binding.runId };
       const run = await client().call("runs.get", locator);
       this.observeRun(binding, run);
       if (!["queued", "running"].includes(binding.runStatus ?? "")) {
+        if (["completed", "failed", "cancelled"].includes(binding.runStatus ?? ""))
+          checkpoint(binding, "completed");
         if (["paused", "interrupted"].includes(binding.runStatus ?? "")) {
           binding.phase = "paused";
           binding.message = "Run 需要本地审批或恢复；扩展不能代替审批。";
@@ -483,6 +563,7 @@ export class BridgeController {
     ) {
       binding.delivery = undefined;
       if (binding.lastResult) binding.lastResult.delivery = "confirmed";
+      checkpoint(binding, "delivered", String(value.deliveryId));
       // The final allowed execution still needs its review. The dispatch guard alone
       // enforces the budget; keeping this observer armed adds no polling or execution.
       binding.phase = "armed";
@@ -547,8 +628,10 @@ export class BridgeController {
       )
         throw new Error("审查保存响应身份不匹配；请检查 Project 记录。");
       target.phase = "recorded";
+      target.needsDecision = saved.verdict === "needs_input" || saved.nextAction === "wait";
+      checkpoint(binding, "reviewed", saved.id);
       binding.message = "审查已保存到 Project。";
-      if (saved.verdict === "needs_input") {
+      if (saved.verdict === "needs_input" || saved.nextAction === "wait") {
         binding.phase = "stopped";
         binding.message = "审查需要你的决定；自动桥接已停止。";
       }
@@ -575,10 +658,35 @@ export class BridgeController {
     if (object(execution) && typeof execution.agentStatus === "string")
       binding.agentStatus = execution.agentStatus.slice(0, 128);
   }
+  private async reconcileAdmission(
+    binding: Binding,
+    client: ReturnType<BridgeController["client"]>,
+  ) {
+    const receipt = binding.admission;
+    if (!receipt || !binding.runId || binding.pausedByUser || binding.phase === "stopped")
+      throw new Error("任务接收证据不可用。");
+    const locator = { projectId: binding.projectId, runId: binding.runId };
+    const archived = await client.call("handoffs.get", locator);
+    if (
+      !isProjectHandoff(archived) ||
+      archived.projectId !== binding.projectId ||
+      archived.runId !== binding.runId ||
+      archived.id !== receipt.handoffId ||
+      (await handoffFingerprint(archived)) !== receipt.fingerprint
+    )
+      throw new Error("归档交接单与本次派发不一致；不会执行或重发。");
+    const run = await client.call("runs.get", locator);
+    // Admission is proved by both the immutable handoff and matching coordinator run.
+    this.observeRun(binding, run);
+    receipt.confirmed = true;
+    checkpoint(binding, "accepted", receipt.handoffId);
+    binding.phase = "running";
+    binding.message = "已从本机归档确认任务已接收，继续跟踪原 Run。没有重复派发。";
+  }
   private async status(state: SessionState, selectedId: unknown, inspect = true) {
     const tab = await this.host.activeTab();
     const conversation = conversationUrl(tab.url ?? "");
-    const currentBound =
+    let currentBound =
       !!state.binding &&
       tab.id === state.binding.tabId &&
       conversation === state.binding.conversation;
@@ -652,6 +760,7 @@ export class BridgeController {
         }
         if (
           inspect &&
+          currentBound &&
           state.binding?.runId &&
           !["completed", "failed", "cancelled"].includes(state.binding.runStatus ?? "")
         ) {
@@ -678,7 +787,98 @@ export class BridgeController {
         this.connectivity = connectivity;
       }
     }
+    let binding = currentBound ? state.binding : undefined;
+    if (inspect && binding && tab.id !== undefined) {
+      try {
+        let page: unknown;
+        try {
+          page = await this.host.send(tab.id, { type: "probe" });
+        } catch {
+          /* Recover a known binding below. */
+        }
+        const mayRestore =
+          binding.installationId &&
+          binding.bootstrapped &&
+          !binding.pausedByUser &&
+          binding.phase !== "stopped" &&
+          binding.phase !== "delivering" &&
+          (binding.phase !== "paused" ||
+            binding.admission?.confirmed === false ||
+            binding.resumePhase === "running" ||
+            (["pending", "submitting"].includes(binding.review?.phase ?? "") &&
+              binding.lastResult?.delivery === "confirmed"));
+        if (
+          mayRestore &&
+          selected?.readiness.ready &&
+          connectivity.status === "connected" &&
+          (!object(page) ||
+            page.bindingId !== binding.id ||
+            binding.phase === "paused" ||
+            binding.attached === false)
+        ) {
+          // Restore only an already-authorized current conversation. prepare reads identity;
+          // arm(restore) attaches observers without sending another bootstrap or dispatch.
+          const prepared = await this.host.send(tab.id, { type: "prepare", conversation });
+          const restored = await this.restore(state, prepared, { url: tab.url, tabId: tab.id });
+          if (restored.restored && "binding" in restored) {
+            await this.host.send(tab.id, { type: "arm", binding: restored.binding, restore: true });
+            binding = state.binding;
+            page = await this.host.send(tab.id, { type: "probe" });
+          }
+        }
+        if (!binding) throw new Error("绑定已取消。");
+        const matches =
+          object(page) &&
+          page.conversation === conversation &&
+          page.epoch === binding.epoch &&
+          page.bindingId === binding.id;
+        this.receiver = {
+          bindingId: binding.id,
+          epoch: binding.epoch,
+          status: !matches
+            ? "unavailable"
+            : object(page) && page.buildId === BUILD_ID
+              ? "confirmed"
+              : "different_build",
+          ...(object(page) && typeof page.buildId === "string" ? { buildId: page.buildId } : {}),
+        };
+      } catch {
+        if (binding)
+          this.receiver = { bindingId: binding.id, epoch: binding.epoch, status: "unavailable" };
+      }
+    }
+    // A slow readiness/receiver check must not label a newly selected tab as ready.
+    const latestTab = await this.host.activeTab();
+    if (latestTab.id !== tab.id || conversationUrl(latestTab.url ?? "") !== conversation) {
+      currentBound = false;
+      binding = undefined;
+    }
+    const receiver =
+      this.receiver?.bindingId === binding?.id && this.receiver?.epoch === binding?.epoch
+        ? this.receiver
+        : undefined;
+    const reason: BridgeReadiness["reason"] = !binding
+      ? "unbound"
+      : ["paused", "stopped"].includes(binding.phase)
+        ? "paused"
+        : connectivity.status !== "connected"
+          ? "connecting"
+          : !binding.bootstrapped
+            ? "bootstrap"
+            : !selected?.readiness.ready || selected.project.root !== binding.projectRoot
+              ? "project"
+              : binding.attached !== true || receiver?.status !== "confirmed"
+                ? "page"
+                : "ready";
+    const readiness: BridgeReadiness = {
+      ready: reason === "ready",
+      reason,
+      receiver: receiver?.status ?? "unknown",
+      buildId: BUILD_ID,
+      ...(receiver?.buildId ? { pageBuildId: receiver.buildId } : {}),
+    };
     return {
+      readiness,
       transport: state.pairing || state.transport === "http" ? "http" : "native",
       paired,
       expiresAt: state.pairing?.expiresAt,
@@ -720,7 +920,43 @@ export class BridgeController {
     const current = await this.host.tab(sender.tabId);
     if (conversationUrl(current.url ?? "") !== conversation) throw new Error("恢复时会话已变化。");
     if (actionEpoch !== this.actionEpoch) return { restored: false };
-    if (binding.pausedByUser || ["paused", "stopped"].includes(binding.phase)) {
+    const reconcilable =
+      !!binding.admission &&
+      !!binding.runId &&
+      (binding.phase === "dispatching" ||
+        (binding.phase === "paused" &&
+          (!binding.admission.confirmed || binding.resumePhase === "running")));
+    const reconcileReview =
+      ["pending", "submitting"].includes(binding.review?.phase ?? "") &&
+      binding.lastResult?.delivery === "confirmed";
+    // Older local receipts did not distinguish a human-decision stop from Cancel.
+    // Recover that display/control metadata from the immutable Project review only.
+    if (
+      binding.phase === "stopped" &&
+      binding.review?.phase === "recorded" &&
+      binding.review.needsDecision === undefined &&
+      binding.lastResult?.delivery === "confirmed"
+    ) {
+      const target = binding.review;
+      const saved = await this.native.call("reviews.get", {
+        projectId: binding.projectId,
+        runId: target.runId,
+      });
+      if (
+        isProjectReview(saved) &&
+        saved.id === target.id &&
+        saved.projectId === binding.projectId &&
+        saved.runId === target.runId &&
+        saved.resultId === target.resultId &&
+        saved.handoffId === target.handoffId
+      )
+        target.needsDecision = saved.verdict === "needs_input" || saved.nextAction === "wait";
+    }
+    if (
+      binding.pausedByUser ||
+      (binding.phase === "paused" && !reconcilable && !reconcileReview) ||
+      binding.phase === "stopped"
+    ) {
       binding.tabId = sender.tabId;
       binding.epoch = value.epoch;
       // A background page may reload an old paused conversation. Updating that
@@ -731,7 +967,13 @@ export class BridgeController {
       return { restored: false };
     }
     try {
-      if (!binding.bootstrapped || ["dispatching", "delivering"].includes(binding.phase))
+      if (value.buildId !== BUILD_ID)
+        throw new Error("页面与扩展构建版本不一致；请刷新当前对话。没有发送任务。");
+      if (
+        !binding.bootstrapped ||
+        binding.phase === "delivering" ||
+        (binding.phase === "dispatching" && !reconcilable)
+      )
         throw new Error("上次发送未确认；请检查当前对话和 Project 证据，不会自动重发。");
       if ((await this.native.identity()) !== binding.installationId)
         throw new Error("本机授权已变化，请显式重新绑定。");
@@ -747,6 +989,12 @@ export class BridgeController {
       )
         throw new Error("Project 身份、路径或 Codex readiness 已变化。");
       if (actionEpoch !== this.actionEpoch) return { restored: false };
+      this.readiness = {
+        projectId: binding.projectId,
+        at: Date.now(),
+        view: view as unknown as ProjectView,
+      };
+      if (reconcilable) await this.reconcileAdmission(binding, this.native);
       const legacyReview = !binding.review;
       if (
         !binding.review &&
@@ -799,12 +1047,29 @@ export class BridgeController {
             target.at = saved.provenance.at;
           }
           target.phase = "recorded";
-          if (isProjectReview(saved) && saved.verdict === "needs_input") {
+          target.needsDecision =
+            isProjectReview(saved) &&
+            (saved.verdict === "needs_input" || saved.nextAction === "wait");
+          checkpoint(binding, "reviewed", target.id);
+          if (
+            !target.decisionAcknowledged &&
+            isProjectReview(saved) &&
+            (saved.verdict === "needs_input" || saved.nextAction === "wait")
+          ) {
             binding.phase = "stopped";
             binding.message = "审查需要你的决定；自动桥接已停止。";
+          } else if (reconcileReview && binding.phase === "paused") {
+            binding.phase = "armed";
+            binding.message = "已从 Project 确认审查已保存，没有重复提交。";
           }
         } else if (target.phase !== "pending")
           throw new Error("审查提交未确认，请检查 Project 记录；不会重发。");
+        else if (reconcileReview && binding.phase === "paused") {
+          // No review write was attempted. Reattach only to future assistant turns;
+          // never collect or replay the previously rejected review from page history.
+          binding.phase = "armed";
+          binding.message = "结果已确认回传，等待新的合规审查。没有重发或执行历史内容。";
+        }
       }
       if (binding.phase === "ready_to_deliver" && !binding.delivery) binding.phase = "running";
       if (conversationUrl((await this.host.tab(sender.tabId)).url ?? "") !== conversation)
@@ -815,6 +1080,13 @@ export class BridgeController {
       binding.tabId = sender.tabId;
       binding.epoch = value.epoch;
       binding.attached = true;
+      binding.resumePhase = undefined;
+      this.receiver = {
+        bindingId: binding.id,
+        epoch: binding.epoch,
+        status: "confirmed",
+        buildId: BUILD_ID,
+      };
       state.binding = binding;
       await this.host.save(state);
       return { restored: binding.phase !== "stopped", binding };
@@ -836,7 +1108,8 @@ export class BridgeController {
     if (
       !binding.installationId ||
       !binding.bootstrapped ||
-      ["dispatching", "delivering"].includes(binding.phase)
+      binding.phase === "delivering" ||
+      (binding.phase === "dispatching" && !binding.admission)
     ) {
       binding.phase = "paused";
       binding.delivery = undefined;

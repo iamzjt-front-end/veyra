@@ -105,7 +105,15 @@ it.each(["requestedVerification", "currentTask", "decisions"] as const)(
       ),
     ).rejects.toThrow(field);
     expect(request).not.toHaveBeenCalled();
-    expect(save).not.toHaveBeenCalled();
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0]?.[0]).toMatchObject({
+      binding: {
+        phase: "paused",
+        count: 0,
+        checkpoints: [expect.objectContaining({ stage: "detected" })],
+      },
+    });
+    expect(JSON.stringify(save.mock.calls)).not.toContain(source);
     expect(frameHandoff(bad)).toBe(source);
   },
 );

@@ -49,7 +49,9 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
       : project?.project;
   const result = evidence.result;
   const outcomes = runOutcomes(evidence);
-  const paused = binding?.pausedByUser === true;
+  const paused =
+    binding?.pausedByUser === true ||
+    (binding?.phase === "stopped" && binding.review?.needsDecision === true);
   const uncertain = binding?.phase === "paused" || !!state.error;
   const pageConnectionIssue =
     state.error === PAGE_CONNECTION_CHANGED || state.error === PAGE_CONNECTION_UNAVAILABLE;
@@ -67,6 +69,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
     outcomes.verification === "incomplete" ||
     ["needs_changes", "human_decision"].includes(outcomes.review) ||
     paused ||
+    (currentBound && !working && state.readiness?.ready !== true) ||
     state.selected?.readiness.ready === false ||
     project?.status === "stale";
   const title = state.loading
@@ -75,7 +78,9 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
       ? t("Working")
       : attention
         ? t("Needs attention")
-        : t("Ready");
+        : state.readiness?.ready === true
+          ? t("Ready")
+          : t("Awaiting binding");
   const steps = runSteps(evidence, locale);
   const goal = evidence.handoff?.context.goal;
   const duration = elapsed(evidence.run?.createdAt, evidence.run?.updatedAt, locale);
@@ -205,7 +210,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 !state.projectId ||
                 !state.conversation ||
                 state.busy ||
-                state.selected?.readiness.ready === false
+                state.selected?.readiness.ready !== true
               }
               onClick={actions.bind}
             >
@@ -240,6 +245,16 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 ))}
             </div>
           </div>
+        ) : !binding?.runId && !paused && state.readiness?.ready !== true ? (
+          <ErrorState title={t("Connection checks incomplete")}>
+            {t(
+              "The current page, binding and executor must all be confirmed before work can start.",
+            )}
+            <div className="v-actions">
+              <Button onClick={actions.reconnect}>{t("Reconnect")}</Button>
+              <Button onClick={actions.diagnostics}>{t("Diagnostics")}</Button>
+            </div>
+          </ErrorState>
         ) : !binding?.runId ? (
           <div className="v-idle v-enter">
             <span className="v-idle-mark">

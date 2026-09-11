@@ -109,7 +109,7 @@ try {
   // runtime errors across reload; checking that the worker exists is insufficient.
   await writeFile(
     join(extension, "background.js"),
-    fault(300) + "void chrome.storage.local.get('locale');\n" + background,
+    `${fault(300)}void chrome.storage.local.get('locale');\n${background}`,
   );
   await reload();
   let historicalErrors = await recordedErrors();

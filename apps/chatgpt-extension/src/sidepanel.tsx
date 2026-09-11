@@ -32,7 +32,12 @@ function Panel() {
           void store.act("bind");
         },
         pause: () => {
-          void store.act(state.binding?.pausedByUser ? "resume" : "disable");
+          void store.act(
+            state.binding?.pausedByUser ||
+              (state.binding?.phase === "stopped" && state.binding.review?.needsDecision === true)
+              ? "resume"
+              : "disable",
+          );
         },
         unbind: () => {
           void store.act("unbind");

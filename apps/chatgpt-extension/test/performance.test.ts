@@ -9,6 +9,31 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
+it("does not read historical turns mounted after restoration until a fresh send boundary", async () => {
+  const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const candidate = vi.fn(),
+    error = vi.fn();
+  const stop = watchConversation(document, candidate, vi.fn(), error, () => true, true);
+  const source = 'VEYRA_REVIEW_BEGIN\n{"verdict":"FAIL","nextAction":"human"}\nVEYRA_REVIEW_END';
+  const old = sectionTurn(document, "late-history", source);
+  document.querySelector("main")?.append(old);
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(candidate).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+  stop.expectReply(); // A trusted user submit or Veyra's own upcoming result send.
+  old.setAttribute("class", "late-layout-update");
+  document.querySelector("main")?.append(sectionTurn(document, "fresh-review", source));
+  await vi.advanceTimersByTimeAsync(500);
+  expect(candidate).toHaveBeenCalledExactlyOnceWith({
+    id: "fresh-review",
+    source: "",
+    review: source,
+  });
+  expect(error).not.toHaveBeenCalled();
+  stop();
+});
 it.each(["HANDOFF", "REVIEW"])(
   "keeps a new completed turn eligible when its %s block renders after initial prose",
   async (kind) => {

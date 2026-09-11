@@ -55,8 +55,13 @@ function fixture() {
       return { id, url };
     },
     send: vi.fn(async (_id, msg) =>
-      (msg as { type: string }).type === "prepare"
-        ? { epoch: "epoch", conversation: url }
+      ["prepare", "probe"].includes((msg as { type: string }).type)
+        ? {
+            epoch: "epoch",
+            conversation: url,
+            buildId: "development",
+            bindingId: state.binding?.id,
+          }
         : { ok: true },
     ),
   };
@@ -69,7 +74,11 @@ function fixture() {
     url: () => url,
     projectId,
     bind: () => controller.handle({ type: "bind", projectId, maxRuns: 3 }, popup),
-    hello: () => controller.handle({ type: "hello", epoch: "new-epoch" }, { url, tabId }),
+    hello: () =>
+      controller.handle(
+        { type: "hello", epoch: "new-epoch", buildId: "development" },
+        { url, tabId },
+      ),
     mutate: (change: (b: Binding) => void) => {
       assert.ok(state.binding);
       change(state.binding);
@@ -147,7 +156,8 @@ it("recovers a cold worker snapshot without manual reconnect, rebinding or perio
   for (let i = 0; i < 100; i++) await f.controller().handle({ type: "snapshot" }, popup);
   expect(f.native.call).not.toHaveBeenCalled();
   expect(f.state()).toEqual(original);
-  expect(f.host.send).toHaveBeenCalledTimes(sends);
+  expect(f.host.send).toHaveBeenCalledTimes(sends + 1);
+  expect(vi.mocked(f.host.send).mock.calls.at(-1)?.[1]).toEqual({ type: "probe" });
   expect(f.native.authorize).toHaveBeenCalledTimes(1);
 });
 it.each(["rotate", "move", "revoke"] as const)(
@@ -232,7 +242,10 @@ it.each(["paused", "stopped"] as const)(
     expect(
       await f
         .controller()
-        .handle({ type: "hello", epoch: "paused-page-reloaded" }, { tabId: 1, url: pausedUrl }),
+        .handle(
+          { type: "hello", epoch: "paused-page-reloaded", buildId: "development" },
+          { tabId: 1, url: pausedUrl },
+        ),
     ).toEqual({ restored: false });
     expect(f.state().binding).toEqual(active);
     expect(f.state().bindings?.[pausedUrl]?.phase).toBe(phase);
