@@ -542,7 +542,9 @@ Before calling the browser-bridge onboarding stable, demonstrate on a clean user
 
 ### Existing Codex conversation selection
 
-The Side Panel offers **选择 Codex 已有对话 / Choose an existing Codex task** alongside the local Project selector. Discovery is explicit and paginated: title search reads native metadata only, with no idle refresh. Show the selected task title and its real folder before Bind, and keep the bound title visible afterward. Clicking Bind authorizes registration of that exact folder and that native task ID. It must not silently select a different task, clone one, or fall back to a fresh execution session. Existing Project-only bindings remain supported.
+The default Side Panel flow is **选择 Codex 已有对话 / Choose an existing Codex task → Bind**. The task determines its Project folder automatically; show that folder read-only, without a second Project selection. Discovery is explicit and paginated: title search reads native metadata only, with no idle refresh. Show the selected task title and its real folder before Bind, and keep the bound title visible afterward. Clicking Bind authorizes registration of that exact folder and that native task ID. It must not silently select a different task, clone one, or fall back to a fresh execution session.
+
+Keep direct Project selection and recent Projects under **高级：直接绑定本地项目 / Advanced: bind a local Project**. This separate path uses a Veyra-managed Codex session and remains available for existing Project-only bindings and the HTTP diagnostic fallback. Switching between the two paths clears the previous selection; a remembered or hidden Project must never enable Bind in the default task-selection path. A native task can be selected even when no Veyra Project has been registered yet. Project `.veyra/` remains the durable shared-state boundary in both paths.
 
 Bind checks the page, Project, native login and native writer availability before sending its bootstrap message. An occupied Codex task is a known unavailable state, not an uncertain delivery or a login failure. Explain that no task was dispatched; current desktop versions may retain ownership even while idle. User work and writer locks must never be forcibly interrupted to make the UI appear Ready. The persistent grant names the Project root and explicitly selected native IDs; the conversation binding pins the chosen ID across new Veyra runs. See [support limits](CODEX-CONVERSATION-BINDING.md).
 
@@ -563,7 +565,7 @@ Current execution order:
 3. Re-test real P0.12 in ChatGPT Pro using explicit binding and existing native Codex login.
 4. Only after that real gate passes, continue P0.13–P0.15: closed loop, bounded automatic repair and repeatable demo.
 
-Normal users use `ve setup` once and `ve init` once per Project, then bind in the Side Panel and talk. `ve open` provides deeper local run evidence. `pnpm ui:dev` and fixed fixtures are development/visual-review tools, not onboarding requirements. GUI sessions are local, scoped and revocable; no unauthenticated localhost control API is exposed.
+Normal users use `ve setup` once, choose an existing Codex task and bind in the Side Panel, then talk. That explicit Bind registers its Project automatically. The advanced direct-Project path retains `ve init` once per Project. `ve open` provides deeper local run evidence. `pnpm ui:dev` and fixed fixtures are development/visual-review tools, not onboarding requirements. GUI sessions are local, scoped and revocable; no unauthenticated localhost control API is exposed.
 
 TUI is explicitly **not** on the critical path.
 

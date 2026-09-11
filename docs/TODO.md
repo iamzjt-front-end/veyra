@@ -14,6 +14,7 @@ The pre-pivot API-first plan remains available in Git history and is referenced 
 
 ## User-selected task — Bind an existing Codex conversation
 
+- [x] Simplify the default binding flow to Codex task → Bind. Show its automatically associated Project folder read-only; move direct Project selection behind Advanced and clear targets when switching paths. Verified Chinese/English UI, unregistered Projects, HTTP fallback and hidden-target refusal; 199 extension tests, panel/existing-task browser smoke and all five repository checks passed (2,214 tests). The browser fixture retained one native task across two Runs and measured zero DOM queries over 60 seconds with 3,000 old turns. This is a selector UX change, not new real-account acceptance; see [verification](CODEX-CONVERSATION-BINDING.md#task-first-selector-follow-up).
 - [x] Add explicit, metadata-only native Codex conversation discovery and selection to the Side Panel.
 - [x] Pin the selected native conversation ID to the current ChatGPT binding across refreshes; append to that exact native conversation, never create/fork on failure.
 - [x] Validate native writer ownership and Project root; retain human approval, local grants, cancellation and evidence boundaries.

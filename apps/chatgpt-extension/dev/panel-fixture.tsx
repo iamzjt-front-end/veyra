@@ -29,7 +29,16 @@ export function PanelFixture({ name }: { name: string }) {
           setState({ ...state, codexChoices: [conversation], codexCursor: null }),
         chooseConversation: (nativeConversation) =>
           setState({ ...state, nativeConversation, projectId: "", selected: undefined }),
-        select: (projectId) => setState({ ...state, projectId }),
+        select: (projectId) => {
+          const project = state.projects.find((entry) => entry.project.id === projectId);
+          const initial = panelFixture("unbound").selected;
+          setState({
+            ...state,
+            projectId,
+            nativeConversation: undefined,
+            selected: project && initial ? { ...initial, project: project.project } : undefined,
+          });
+        },
         bind: () => setState(panelFixture("idle")),
         pause: () => setState(panelFixture(state.binding?.pausedByUser ? "running" : "paused")),
         unbind: () => setState(panelFixture("unbound")),

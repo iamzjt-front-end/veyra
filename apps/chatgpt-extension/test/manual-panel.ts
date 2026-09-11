@@ -29,6 +29,14 @@ try {
   page.on("pageerror", (error) => errors.push(error.message));
   for (const language of ["zh-CN", "en"]) {
     await page.goto(`http://127.0.0.1:${address.port}/side-panel/unbound?lang=${language}`);
+    const bind = page.getByRole("button", {
+      name: language === "en" ? "Bind conversation" : "绑定当前对话",
+      exact: true,
+    });
+    await bind.waitFor();
+    assert.equal(await page.locator("#project").count(), 0);
+    assert.equal(await page.locator(".v-recent").count(), 0);
+    assert.equal(await bind.isDisabled(), true, "A remembered Project cannot bind while hidden");
     await page
       .getByRole("button", {
         name: language === "en" ? "Choose an existing Codex task" : "选择 Codex 已有对话",
@@ -48,6 +56,10 @@ try {
     await page.getByRole("button", { name: /确认旧代码已删除/ }).click();
     assert.match(await page.locator(".v-native-target").innerText(), /确认旧代码已删除/);
     assert.match(await page.locator(".v-native-target").innerText(), /etf-quant-monitor/);
+    assert.match(
+      await page.locator(".v-native-target").innerText(),
+      language === "en" ? /Project folder \(automatic\)/ : /项目目录（自动关联）/,
+    );
     assert.equal(
       await page
         .getByRole("button", {
@@ -61,6 +73,27 @@ try {
       path: resolve(directory, `codex-task-selected-${language}.png`),
       fullPage: true,
     });
+    await page
+      .getByRole("button", {
+        name: language === "en" ? "Advanced: bind a local Project" : "高级：直接绑定本地项目",
+      })
+      .click();
+    assert.equal(await page.locator(".v-native-target").count(), 0);
+    assert.equal(await page.locator("#project").inputValue(), "");
+    assert.equal(await bind.isDisabled(), true, "Switching modes clears the Codex target");
+    await page.locator("#project").selectOption({ label: "veyra-pro-proof" });
+    assert.equal(await bind.isEnabled(), true, "Explicit direct Project binding remains available");
+    await page.screenshot({
+      path: resolve(directory, `project-advanced-${language}.png`),
+      fullPage: true,
+    });
+    const back = page.getByRole("button", {
+      name: language === "en" ? "Back to Codex tasks" : "返回 Codex 对话选择",
+    });
+    await back.focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await page.locator("#project").count(), 0);
+    assert.equal(await bind.isDisabled(), true, "A hidden direct Project is no longer eligible");
     for (const width of [320, 400, 460]) {
       await page.setViewportSize({ width, height: 820 });
       assert.equal(
@@ -70,6 +103,19 @@ try {
     }
     await page.setViewportSize({ width: 400, height: 820 });
   }
+  await page.goto(`http://127.0.0.1:${address.port}/side-panel/no-projects?lang=en`);
+  await page.getByRole("button", { name: "Choose an existing Codex task" }).click();
+  await page.getByRole("button", { name: /确认旧代码已删除/ }).click();
+  assert.equal(await page.getByRole("button", { name: "Bind conversation" }).isEnabled(), true);
+  assert.equal(await page.getByText("Your first Project", { exact: true }).count(), 0);
+  await page.goto(`http://127.0.0.1:${address.port}/side-panel/http-unbound?lang=en`);
+  await page.locator("#project").waitFor();
+  assert.equal(
+    await page.getByRole("button", { name: "Choose an existing Codex task" }).count(),
+    0,
+  );
+  await page.locator("#project").selectOption({ label: "veyra-pro-proof" });
+  assert.equal(await page.getByRole("button", { name: "Bind conversation" }).isEnabled(), true);
   for (const state of [
     "unbound",
     "idle",

@@ -2,6 +2,14 @@
 export const chinese: Readonly<Record<string, string>> = {
   "Choose an existing Codex task": "选择 Codex 已有对话",
   "Selected Codex task": "已选择 Codex 对话",
+  "Project folder (automatic)": "项目目录（自动关联）",
+  "The Project follows your Codex task automatically.": "项目将根据 Codex 对话自动关联，无需另选。",
+  "Choose a Codex task, then bind this conversation.":
+    "选择 Codex 对话，然后绑定当前 ChatGPT 对话。",
+  "Advanced: bind a local Project": "高级：直接绑定本地项目",
+  "Back to Codex tasks": "返回 Codex 对话选择",
+  "Direct Project binding uses a Veyra-managed Codex session.":
+    "直接绑定项目使用 Veyra 管理的 Codex 会话。",
   "Bound Codex task": "绑定的 Codex 对话",
   "Codex task is occupied": "这条 Codex 对话正被占用",
   "Search Codex task titles": "搜索 Codex 对话标题",

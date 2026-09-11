@@ -18,7 +18,7 @@ export function ConversationPicker({
   return (
     <section className="v-codex-picker">
       <Button
-        disabled={state.busy}
+        disabled={state.loading || state.busy}
         onClick={() => {
           if (!open && !state.codexChoices) discover();
           setOpen(!open);
@@ -30,8 +30,12 @@ export function ConversationPicker({
         <div className="v-native-target">
           <span className="v-eyebrow">{t("Selected Codex task")}</span>
           <strong>{state.nativeConversation.title}</strong>
+          <span className="v-eyebrow">{t("Project folder (automatic)")}</span>
           <PathText path={state.nativeConversation.root} />
         </div>
+      )}
+      {!state.nativeConversation && (
+        <p className="v-caption">{t("The Project follows your Codex task automatically.")}</p>
       )}
       {open && (
         <>

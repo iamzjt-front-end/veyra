@@ -12,6 +12,7 @@ const provenance = {
   contentTrust: "untrusted",
 } as const;
 export function panelFixture(name: string): PanelSnapshot {
+  if (name === "http-unbound") return { ...panelFixture("unbound"), transport: "http" };
   if (["review-approved", "review-changes", "review-human"].includes(name)) {
     const state = panelFixture(name === "review-changes" ? "completed" : "failed");
     const result = state.evidence.result;

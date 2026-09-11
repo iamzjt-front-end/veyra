@@ -15,20 +15,27 @@ The visual experience is part of the product value: users should understand what
 
 ## Side Panel information architecture
 
-### Idle / ready
+### Before binding
 
 ```text
-Veyra                                  ● Ready
+Veyra                       ● Awaiting binding
 
-Project
-veyra                                      ▾
+Selected Codex task
+Implement project registry
+[ Choose an existing Codex task ]
+
+Project folder (automatic, read-only)
 ~/Projects/veyra
 
 ChatGPT ↔ Codex
-Ready to work
+Choose a task, then bind
 
 [ Bind this conversation ]
+
+Advanced: bind a local Project
 ```
+
+The default flow has one target selection: the existing Codex task. Its folder determines the Project. Direct Project selection and recent Projects appear only in the advanced path; the HTTP fallback retains them. Switching paths clears the previous target. After binding, keep the Project folder and bound Codex task visible as read-only routing information, and show Ready only after the connection checks pass.
 
 ### Active run
 

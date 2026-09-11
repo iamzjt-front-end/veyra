@@ -45,8 +45,15 @@ export interface PanelActions {
 export function PanelView({ state, actions }: { state: PanelSnapshot; actions: PanelActions }) {
   const { t, locale } = useI18n();
   const [details, setDetails] = useState(false);
+  const [advanced, setAdvanced] = useState(false);
   const { binding, evidence, currentBound } = state;
-  const project = state.projects.find((entry) => entry.project.id === state.projectId);
+  const nativePicker =
+    state.transport !== "http" && !!actions.discoverConversations && !!actions.chooseConversation;
+  const projectOnly = !nativePicker || advanced;
+  const showProjectChecks = currentBound || projectOnly;
+  const project = showProjectChecks
+    ? state.projects.find((entry) => entry.project.id === state.projectId)
+    : undefined;
   const selected =
     currentBound && binding
       ? { name: binding.projectName, root: binding.projectRoot }
@@ -75,7 +82,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
     ["needs_changes", "human_decision"].includes(outcomes.review) ||
     paused ||
     (currentBound && !working && state.readiness?.ready !== true) ||
-    state.selected?.readiness.ready === false ||
+    (showProjectChecks && state.selected?.readiness.ready === false) ||
     project?.status === "stale";
   const title = state.loading
     ? t("Connecting")
@@ -83,7 +90,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
       ? t("Working")
       : attention
         ? t("Needs attention")
-        : state.readiness?.ready === true
+        : currentBound && state.readiness?.ready === true
           ? t("Ready")
           : t("Awaiting binding");
   const steps = runSteps(evidence, locale);
@@ -131,33 +138,76 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             </>
           ) : (
             <>
-              <Select
-                id="project"
-                label={t("Project")}
-                value={state.projectId}
-                disabled={state.loading || state.busy}
-                onChange={(event) => actions.select(event.target.value)}
-                options={[
-                  { value: "", label: t("Choose a Project") },
-                  ...state.projects.map((entry) => ({
-                    value: entry.project.id,
-                    label:
-                      entry.project.name +
-                      (entry.status === "stale" ? ` · ${t("Location unavailable")}` : ""),
-                    disabled: entry.status !== "available",
-                  })),
-                ]}
-              />
-              {selected && <PathText path={selected.root} />}
-              {state.transport !== "http" &&
-                actions.discoverConversations &&
-                actions.chooseConversation && (
-                  <ConversationPicker
-                    state={state}
-                    discover={actions.discoverConversations}
-                    select={actions.chooseConversation}
+              {!projectOnly && actions.discoverConversations && actions.chooseConversation && (
+                <ConversationPicker
+                  state={state}
+                  discover={actions.discoverConversations}
+                  select={actions.chooseConversation}
+                />
+              )}
+              {nativePicker && (
+                <Button
+                  variant="ghost"
+                  className="v-project-mode"
+                  disabled={state.loading || state.busy}
+                  aria-expanded={advanced}
+                  aria-controls="direct-project-picker"
+                  onClick={() => {
+                    // A target from the other mode must never remain eligible while hidden.
+                    actions.select("");
+                    setAdvanced(!advanced);
+                  }}
+                >
+                  {advanced ? t("Back to Codex tasks") : t("Advanced: bind a local Project")}
+                </Button>
+              )}
+              {projectOnly && (
+                <div id="direct-project-picker" className="v-direct-project-picker">
+                  {nativePicker && (
+                    <p className="v-caption">
+                      {t("Direct Project binding uses a Veyra-managed Codex session.")}
+                    </p>
+                  )}
+                  <Select
+                    id="project"
+                    label={t("Project")}
+                    value={state.projectId}
+                    disabled={state.loading || state.busy}
+                    onChange={(event) => actions.select(event.target.value)}
+                    options={[
+                      { value: "", label: t("Choose a Project") },
+                      ...state.projects.map((entry) => ({
+                        value: entry.project.id,
+                        label:
+                          entry.project.name +
+                          (entry.status === "stale" ? ` · ${t("Location unavailable")}` : ""),
+                        disabled: entry.status !== "available",
+                      })),
+                    ]}
                   />
-                )}
+                  {selected && <PathText path={selected.root} />}
+                  <div className="v-recent">
+                    <h3>{t("Projects")}</h3>
+                    {state.projects
+                      .filter((entry) => entry.status === "available")
+                      .slice(0, 5)
+                      .map((entry) => (
+                        <button
+                          type="button"
+                          key={entry.project.id}
+                          disabled={state.loading || state.busy}
+                          onClick={() => actions.select(entry.project.id)}
+                        >
+                          <span className="v-project-glyph">
+                            <Icon name="folder" />
+                          </span>
+                          <span>{entry.project.name}</span>
+                          <Icon name="chevron" />
+                        </button>
+                      ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </section>
@@ -177,7 +227,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             {t("Your local bridge is disconnected. Your Project and its work are safe.")}
             <p className="v-setup-hint">{t("First time here? Run ve setup once.")}</p>
           </EmptyState>
-        ) : !state.projects.length && !state.nativeConversation ? (
+        ) : !currentBound && projectOnly && !state.projects.length ? (
           <EmptyState
             title={t("Your first Project")}
             action={
@@ -195,7 +245,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
               "Restore the local folder, or choose another Project. Saved evidence stays with the Project.",
             )}
           </ErrorState>
-        ) : state.selected?.readiness.ready === false && !working ? (
+        ) : showProjectChecks && state.selected?.readiness.ready === false && !working ? (
           <ErrorState title={t("Codex needs your attention")}>
             {t("Open Codex and sign in with your existing account.")}
             <div className="v-actions">
@@ -221,16 +271,19 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             <p className="v-secondary">
               {t("ChatGPT plans. Codex builds.")}
               <br />
-              {t("Bind this conversation to your local Project.")}
+              {projectOnly
+                ? t("Bind this conversation to your local Project.")
+                : t("Choose a Codex task, then bind this conversation.")}
             </p>
             <Button
               variant="primary"
               className="v-full"
               disabled={
-                (!state.projectId && !state.nativeConversation) ||
                 !state.conversation ||
                 state.busy ||
-                (!state.nativeConversation && state.selected?.readiness.ready !== true)
+                (projectOnly
+                  ? !state.projectId || state.selected?.readiness.ready !== true
+                  : !state.nativeConversation)
               }
               onClick={actions.bind}
             >
@@ -240,30 +293,11 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             {!state.conversation && (
               <p className="v-caption">{t("Open a saved ChatGPT conversation to bind.")}</p>
             )}
-            {state.selected?.readiness.ready === false && (
+            {showProjectChecks && state.selected?.readiness.ready === false && (
               <ErrorState title={t("Codex needs your attention")}>
                 {t("Open Codex and sign in with your existing account. Then reconnect.")}
               </ErrorState>
             )}
-            <div className="v-recent">
-              <h3>{t("Projects")}</h3>
-              {state.projects
-                .filter((entry) => entry.status === "available")
-                .slice(0, 5)
-                .map((entry) => (
-                  <button
-                    type="button"
-                    key={entry.project.id}
-                    onClick={() => actions.select(entry.project.id)}
-                  >
-                    <span className="v-project-glyph">
-                      <Icon name="folder" />
-                    </span>
-                    <span>{entry.project.name}</span>
-                    <Icon name="chevron" />
-                  </button>
-                ))}
-            </div>
           </div>
         ) : !binding?.runId && !paused && state.readiness?.ready !== true ? (
           <ErrorState title={t("Connection checks incomplete")}>

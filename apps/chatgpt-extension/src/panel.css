@@ -21,8 +21,14 @@
   padding: 26px 22px 20px;
   flex: 1;
 }
-.v-project-picker > .v-path {
+.v-direct-project-picker > .v-path {
   padding: 7px 12px 0;
+}
+.v-project-mode {
+  margin: 12px 0;
+}
+.v-direct-project-picker > .v-caption {
+  margin-bottom: 12px;
 }
 .v-project-bound {
   display: flex;
@@ -114,7 +120,7 @@
   border-color: transparent;
 }
 .v-recent {
-  margin-top: 42px;
+  margin-top: 20px;
   border-top: 1px solid var(--border-subtle);
   padding-top: 20px;
 }
@@ -318,7 +324,6 @@
 .v-codex-picker {
   display: grid;
   gap: 12px;
-  margin-top: 16px;
 }
 .v-codex-picker form {
   display: grid;

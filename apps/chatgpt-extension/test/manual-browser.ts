@@ -399,6 +399,14 @@ try {
   if (native) await page.evaluate(() => sessionStorage.setItem("pauseFixture", "yes"));
   // The extension's own popup controls are exercised while the conversation remains active.
   if (existingConversation) {
+    const bind = panel.getByRole("button", { name: "Bind conversation", exact: true });
+    await bind.waitFor();
+    assert.equal(await panel.locator("#project").count(), 0);
+    assert.equal(
+      await bind.isDisabled(),
+      true,
+      "A previously selected Project cannot bind implicitly",
+    );
     await panel
       .getByRole("button", { name: "Choose an existing Codex task" })
       .evaluate((node) => (node as HTMLButtonElement).click());

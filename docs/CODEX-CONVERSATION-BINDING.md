@@ -1,6 +1,8 @@
 # Existing Codex conversation binding
 
-The Side Panel now distinguishes a local Project from a specific existing native Codex task. Choose **选择 Codex 已有对话**, search the task's title, check its directory, then **绑定当前对话**. A confirmed binding displays both the local Project and the Codex task title. A Project need not already be registered: explicit Bind initializes/registers the native task's exact folder, preserving existing user configuration. Nested folders inside another Veyra Project require an explicit matching root, rather than registering an unintended ancestor.
+The Side Panel defaults to **选择 Codex 已有对话 → 绑定当前对话**. Search the task's title and check its directory. The Project folder follows that task automatically and is read-only; there is no second Project selection. A confirmed binding displays both the local Project and the Codex task title. A Project need not already be registered: explicit Bind initializes/registers the native task's exact folder, preserving existing user configuration. Nested folders inside another Veyra Project require an explicit matching root, rather than registering an unintended ancestor.
+
+**高级：直接绑定本地项目** retains the separate Project-only flow using a Veyra-managed Codex session. Its Project selector and recent list are hidden by default. Entering or leaving this path clears the previous choice, so a hidden Project or native task cannot be bound by mistake. The loopback HTTP diagnostic fallback keeps direct Project selection; existing bindings and their `.veyra/` evidence are unchanged.
 
 ## Support boundary
 
@@ -51,3 +53,17 @@ node --import tsx apps/cli/test/manual-conversation-dispatch.ts /path/printed/by
 ```
 
 These proofs create only isolated fixture work, not tasks in the user's selected project. The generic P0.12 reliability evidence remains separate. P0.13–P0.15 are still frozen.
+
+## Task-first selector follow-up
+
+The default selector now requires an existing Codex task, even if an earlier Project is remembered. Advanced direct-Project selection clears the native target, and returning to task selection clears the Project target. Both paths retain their existing authorization and execution contracts; no polling or engine changes were introduced.
+
+Verification for this follow-up:
+
+- `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (2,214 tests) and `pnpm build` passed; extension tests passed (199).
+- `smoke:panel` passed in Chinese and English: read-only task-derived folder, no default Project dropdown/recent list, hidden-target refusal, explicit Advanced switching, keyboard return, no registered Project prerequisite, HTTP fallback and 320–460 px layouts. Screenshots remain in `output/playwright/gui/`.
+- `smoke:conversation-browser` passed against the built extension in isolated Chromium: exactly two executions and two confirmed returns, one selected native task, persisted pass/fail reviews, extension reload, page refresh and coordinator idle recovery. The simulated ChatGPT/executor fixture does not prove a real-account loop or desktop writer takeover.
+- With 3,000 old turns, 60 seconds idle produced zero DOM queries and 0.0472 seconds of page task time; a mutation burst caused one inspection. Fourteen normalization/safety cases passed.
+- Current build identity: `456eed251dc4dd9f313cc56e469b0506853b078f4d43bd9750cb6efe265eb828`. The installed `apps/chatgpt-extension/dist` and CLI-packaged extension match, including all eleven artifact hashes. Reload the extension to activate the updated selector.
+
+Logs: `output/playwright/acceptance/task-first-binding-2026-09-12/`. Native writer ownership limits and the outstanding real ChatGPT acceptance gate are unchanged.

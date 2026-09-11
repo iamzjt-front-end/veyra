@@ -61,6 +61,36 @@ describe("Side Panel security and evidence", () => {
     ])
       expect(isExtensionSurface(url)).toBe(false);
   });
+  it("clears the previous target when switching between native tasks and direct Projects", async () => {
+    const call = vi.fn(async (_type: string, _params?: Record<string, unknown>) => ({
+      conversation: "https://chatgpt.com/c/example",
+      tabId: 1,
+      connectivity: { status: "connected" },
+    }));
+    const store = new PanelStore(call);
+    const native = { id: randomUUID(), title: "Selected task", root: "/workspace/real" };
+    store.chooseConversation(native);
+    await store.select("");
+    expect(store.snapshot().nativeConversation).toBeUndefined();
+    expect(store.snapshot().projectId).toBe("");
+    await store.select("direct-project");
+    await store.act("bind");
+    expect(call.mock.calls.find(([type]) => type === "bind")?.[1]).toEqual({
+      projectId: "direct-project",
+      maxRuns: 3,
+      expectedConversation: "https://chatgpt.com/c/example",
+      expectedTabId: 1,
+    });
+    await store.select("");
+    store.chooseConversation(native);
+    call.mockClear();
+    await store.act("bind");
+    expect(call).toHaveBeenCalledWith(
+      "bind",
+      expect.objectContaining({ projectId: "", nativeConversation: native }),
+    );
+    store.close();
+  });
   it("keeps successful execution separate from an unrecorded ChatGPT review", () => {
     const steps = runSteps(panelFixture("completed").evidence);
     expect(steps.find((step) => step.id === "verify")?.state).toBe("passed");
