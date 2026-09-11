@@ -723,7 +723,10 @@ export class BridgeController {
     if (binding.pausedByUser || ["paused", "stopped"].includes(binding.phase)) {
       binding.tabId = sender.tabId;
       binding.epoch = value.epoch;
-      state.binding = binding;
+      // A background page may reload an old paused conversation. Updating that
+      // routing record must not evict the binding currently executing in another tab.
+      state.bindings = { ...state.bindings, [conversation]: binding };
+      if (!state.binding || state.binding.id === binding.id) state.binding = binding;
       await this.host.save(state);
       return { restored: false };
     }

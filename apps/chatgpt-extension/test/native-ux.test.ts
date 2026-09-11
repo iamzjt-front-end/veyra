@@ -209,6 +209,50 @@ it("keeps separate explicit conversation bindings and restores only the selected
   f.restart();
   expect(await f.hello()).toMatchObject({ restored: true, binding: { id } });
 });
+it.each(["paused", "stopped"] as const)(
+  "a %s conversation refreshing in another tab cannot take over the active binding",
+  async (phase) => {
+    const f = fixture();
+    await f.bind();
+    const pausedUrl = f.url();
+    await f.controller().handle({ type: "disable" }, popup);
+    f.mutate((b) => {
+      b.phase = phase;
+      b.pausedByUser = phase === "stopped";
+    });
+    f.navigate();
+    f.newTab();
+    await f.bind();
+    const active = structuredClone(f.state().binding);
+    assert.ok(active);
+    const tab = f.host.tab;
+    f.host.tab = async (id) => (id === 1 ? { id, url: pausedUrl } : tab(id));
+    const sends = vi.mocked(f.host.send).mock.calls.length;
+
+    expect(
+      await f
+        .controller()
+        .handle({ type: "hello", epoch: "paused-page-reloaded" }, { tabId: 1, url: pausedUrl }),
+    ).toEqual({ restored: false });
+    expect(f.state().binding).toEqual(active);
+    expect(f.state().bindings?.[pausedUrl]?.phase).toBe(phase);
+    expect(f.host.send).toHaveBeenCalledTimes(sends);
+    await expect(
+      f.controller().handle(
+        {
+          type: "dispatch",
+          epoch: active.epoch,
+          bindingId: active.id,
+          source: frameHandoff(handoffTemplate(active)),
+        },
+        { tabId: 2, url: f.url() },
+      ),
+    ).resolves.toMatchObject({ binding: { id: active.id, phase: "running" } });
+    expect(
+      vi.mocked(f.native.call).mock.calls.filter(([method]) => method === "runs.dispatch"),
+    ).toHaveLength(1);
+  },
+);
 it.each(["dispatching", "delivering"] as const)(
   "does not replay %s across a restart",
   async (phase) => {
