@@ -19,6 +19,7 @@ export function durableBindings(state: SessionState): Record<string, Binding> {
           projectId: b.projectId,
           projectName: b.projectName,
           projectRoot: b.projectRoot,
+          nativeConversation: b.nativeConversation,
           maxRuns: b.maxRuns,
           count: b.count,
           nextRunId: b.nextRunId,

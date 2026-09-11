@@ -25,6 +25,8 @@ import {
   runSteps,
 } from "@veyraoss/ui";
 import type { PanelSnapshot } from "./panel-store.js";
+import type { NativeConversation } from "@veyraoss/protocol";
+import { ConversationPicker } from "./conversation-picker.js";
 import { PAGE_CONNECTION_CHANGED, PAGE_CONNECTION_UNAVAILABLE } from "./page-connection.js";
 
 export interface PanelActions {
@@ -37,6 +39,8 @@ export interface PanelActions {
   diagnostics: () => void;
   theme: () => void;
   openControl?: () => void;
+  discoverConversations?: (search?: string, more?: boolean) => void;
+  chooseConversation?: (conversation: NativeConversation) => void;
 }
 export function PanelView({ state, actions }: { state: PanelSnapshot; actions: PanelActions }) {
   const { t, locale } = useI18n();
@@ -55,6 +59,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
   const uncertain = binding?.phase === "paused" || !!state.error;
   const pageConnectionIssue =
     state.error === PAGE_CONNECTION_CHANGED || state.error === PAGE_CONNECTION_UNAVAILABLE;
+  const nativeTaskOccupied = state.error?.includes("already has an active writer") === true;
   const failed = ["failed", "timed_out", "interrupted"].includes(outcomes.execution);
   const cancelled = outcomes.execution === "cancelled";
   const queued = evidence.run?.status === "queued";
@@ -117,6 +122,12 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 <span className="v-dot v-tone-success" />
                 {t("Bound to this conversation")}
               </p>
+              {binding?.nativeConversation && (
+                <div className="v-native-target">
+                  <span className="v-eyebrow">{t("Bound Codex task")}</span>
+                  <strong>{binding.nativeConversation.title}</strong>
+                </div>
+              )}
             </>
           ) : (
             <>
@@ -138,6 +149,15 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
                 ]}
               />
               {selected && <PathText path={selected.root} />}
+              {state.transport !== "http" &&
+                actions.discoverConversations &&
+                actions.chooseConversation && (
+                  <ConversationPicker
+                    state={state}
+                    discover={actions.discoverConversations}
+                    select={actions.chooseConversation}
+                  />
+                )}
             </>
           )}
         </section>
@@ -157,7 +177,7 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             {t("Your local bridge is disconnected. Your Project and its work are safe.")}
             <p className="v-setup-hint">{t("First time here? Run ve setup once.")}</p>
           </EmptyState>
-        ) : !state.projects.length ? (
+        ) : !state.projects.length && !state.nativeConversation ? (
           <EmptyState
             title={t("Your first Project")}
             action={
@@ -207,10 +227,10 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
               variant="primary"
               className="v-full"
               disabled={
-                !state.projectId ||
+                (!state.projectId && !state.nativeConversation) ||
                 !state.conversation ||
                 state.busy ||
-                state.selected?.readiness.ready !== true
+                (!state.nativeConversation && state.selected?.readiness.ready !== true)
               }
               onClick={actions.bind}
             >
@@ -335,15 +355,25 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
         {uncertain && state.connected && (
           <ErrorState
             title={t(
-              pageConnectionIssue
-                ? "Connect to this conversation"
-                : "Check this conversation before continuing",
+              nativeTaskOccupied
+                ? "Codex task is occupied"
+                : pageConnectionIssue
+                  ? "Connect to this conversation"
+                  : "Check this conversation before continuing",
             )}
           >
-            {t(
-              pageConnectionIssue
-                ? (state.error ?? "")
-                : "An action could not be confirmed. Nothing will be resent automatically. Your work remains in the Project.",
+            {nativeTaskOccupied ? (
+              <p>
+                {t(
+                  "Codex is holding this task. Veyra has not started or duplicated it. Release the task in Codex before binding; the desktop app may need to close.",
+                )}
+              </p>
+            ) : (
+              t(
+                pageConnectionIssue
+                  ? (state.error ?? "")
+                  : "An action could not be confirmed. Nothing will be resent automatically. Your work remains in the Project.",
+              )
             )}
             {state.error && !pageConnectionIssue && (
               <Collapsible title={t("Original error")}>

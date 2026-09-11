@@ -4,8 +4,46 @@ import { isExtensionSurface, supportsPanel } from "../src/surfaces.js";
 import { EXTENSION_ORIGIN } from "../src/contracts.js";
 import { runSteps } from "@veyraoss/ui";
 import { panelFixture } from "../dev/fixtures.js";
+import { randomUUID } from "node:crypto";
 
 describe("Side Panel security and evidence", () => {
+  it("discovers existing Codex tasks only on demand and passes explicit selection to Bind", async () => {
+    vi.useFakeTimers();
+    try {
+      const conversation = { id: randomUUID(), title: "真实标题", root: "/workspace/real" };
+      const call = vi.fn(async (type: string) =>
+        type === "codexConversations"
+          ? { conversations: [conversation], cursor: null }
+          : type === "projects"
+            ? []
+            : {
+                conversation: "https://chatgpt.com/c/example",
+                tabId: 1,
+                connectivity: { status: "connected" },
+              },
+      );
+      const store = new PanelStore(call);
+      await store.connect();
+      expect(call.mock.calls.some(([type]) => type === "codexConversations")).toBe(false);
+      await store.discoverConversations("真实");
+      expect(store.snapshot().codexChoices).toEqual([conversation]);
+      store.chooseConversation(conversation);
+      call.mockClear();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(call).not.toHaveBeenCalled();
+      await store.act("bind");
+      expect(call).toHaveBeenCalledWith(
+        "bind",
+        expect.objectContaining({ nativeConversation: conversation, expectedTabId: 1 }),
+      );
+      store.close();
+      call.mockClear();
+      await store.discoverConversations();
+      expect(call).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
   it("enables only exact chatgpt.com and grants UI authority only to owned surfaces", () => {
     expect(supportsPanel("https://chatgpt.com/c/example")).toBe(true);
     for (const url of [

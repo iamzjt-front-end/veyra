@@ -1,4 +1,10 @@
-import type { DaemonMethod, DaemonOperations } from "@veyraoss/protocol";
+import {
+  isNativeConversation,
+  isProjectDescriptor,
+  type NativeConversation,
+  type DaemonMethod,
+  type DaemonOperations,
+} from "@veyraoss/protocol";
 import { object } from "./contracts.js";
 import { validateReply } from "./client.js";
 export const NATIVE_HOST = "com.veyraoss.bridge";
@@ -18,6 +24,9 @@ export interface NativeTransport {
   authorize(projectId: string): Promise<void>;
   revoke(projectId?: string): Promise<void>;
   openControl?(projectId: string, runId?: string): Promise<unknown>;
+  listConversations?(query: { cursor?: string; search?: string }): Promise<unknown>;
+  selectConversation?(selected: NativeConversation): Promise<unknown>;
+  checkConversation?(selected: NativeConversation, projectId: string): Promise<void>;
 }
 /** A short-lived native port; no idle keepalive and no replay of uncertain writes. */
 export class NativeClient implements NativeTransport {
@@ -34,6 +43,47 @@ export class NativeClient implements NativeTransport {
     }
   >();
   constructor(private readonly connect = () => chrome.runtime.connectNative(NATIVE_HOST)) {}
+  async listConversations(query: { cursor?: string; search?: string }) {
+    await this.identity();
+    const result = await this.request("codex.conversations.list", query);
+    if (
+      !object(result) ||
+      !Array.isArray(result.conversations) ||
+      result.conversations.length > 30 ||
+      !result.conversations.every(isNativeConversation) ||
+      (result.cursor !== null && (typeof result.cursor !== "string" || result.cursor.length > 4096))
+    )
+      throw new Error("Invalid Codex task listing.");
+    return result;
+  }
+  async selectConversation(selected: NativeConversation) {
+    await this.identity();
+    const result = await this.request("codex.conversations.select", selected);
+    if (
+      !object(result) ||
+      !isProjectDescriptor(result.project) ||
+      !isNativeConversation(result.conversation) ||
+      result.conversation.id !== selected.id ||
+      result.conversation.root !== result.project.root
+    )
+      throw new Error("Codex task selection was not confirmed.");
+    return result;
+  }
+  async checkConversation(selected: NativeConversation, projectId: string) {
+    await this.identity();
+    const result = await this.request("codex.conversations.check", {
+      conversation: selected,
+      projectId,
+    });
+    if (
+      !object(result) ||
+      result.ready !== true ||
+      !isNativeConversation(result.conversation) ||
+      result.conversation.id !== selected.id ||
+      result.conversation.root !== selected.root
+    )
+      throw new Error("Codex task readiness was not confirmed.");
+  }
   identity(): Promise<string> {
     if (this.port && this.installationId) return Promise.resolve(this.installationId);
     this.connecting ??= this.openWithRecovery().finally(() => {

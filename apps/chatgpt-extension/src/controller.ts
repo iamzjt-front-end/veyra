@@ -5,6 +5,7 @@ import {
   isProjectHandoff,
   isProjectId,
   isProjectReview,
+  isNativeConversation,
   serializeProjectEnvelope,
 } from "@veyraoss/protocol";
 import type { NativeTransport } from "./native-client.js";
@@ -251,6 +252,21 @@ export class BridgeController {
         return { unbound: true };
       }
       if (value.type === "projects") return client().call("projects.list", undefined);
+      if (value.type === "codexConversations") {
+        if (state.pairing || state.transport === "http" || !this.native?.listConversations)
+          throw new Error("Existing Codex tasks require the Native Bridge.");
+        if (
+          (value.search !== undefined &&
+            (typeof value.search !== "string" || value.search.length > 128)) ||
+          (value.cursor !== undefined &&
+            (typeof value.cursor !== "string" || value.cursor.length > 4096))
+        )
+          throw new Error("Invalid Codex task search.");
+        return this.native.listConversations({
+          search: value.search as string | undefined,
+          cursor: value.cursor as string | undefined,
+        });
+      }
       if (["stop", "disable", "unpair"].includes(value.type)) {
         const binding = state.binding;
         if (binding && value.type !== "unpair") {
@@ -322,6 +338,37 @@ export class BridgeController {
               "之前的 Run 尚未结束；请先 Cancel Run 或在本地完成审批/恢复，再更换绑定。",
             );
         }
+        if (value.nativeConversation !== undefined) {
+          if (
+            !isNativeConversation(value.nativeConversation) ||
+            state.pairing ||
+            state.transport === "http" ||
+            !this.native?.selectConversation ||
+            !this.native.checkConversation ||
+            !targetConversation
+          )
+            throw new Error("Select a valid existing Codex task using the Native Bridge.");
+          const selection = await this.native.selectConversation(value.nativeConversation);
+          if (
+            !object(selection) ||
+            !isNativeConversation(selection.conversation) ||
+            !object(selection.project) ||
+            selection.conversation.id !== value.nativeConversation.id ||
+            !isProjectId(selection.project.id) ||
+            selection.project.root !== selection.conversation.root
+          )
+            throw new Error("Codex task selection was not confirmed.");
+          value.projectId = selection.project.id;
+          value.nativeConversation = selection.conversation;
+          await this.native.checkConversation(selection.conversation, selection.project.id);
+          const current = await this.host.activeTab();
+          if (
+            actionEpoch !== this.actionEpoch ||
+            current.id !== targetTab.id ||
+            conversationUrl(current.url ?? "") !== targetConversation
+          )
+            throw new Error(PAGE_CONNECTION_CHANGED);
+        }
         if (
           !isProjectId(value.projectId) ||
           !Number.isInteger(value.maxRuns) ||
@@ -360,7 +407,9 @@ export class BridgeController {
           view.project.id !== value.projectId ||
           typeof view.project.name !== "string" ||
           typeof view.project.root !== "string" ||
-          !view.project.root.startsWith("/")
+          !view.project.root.startsWith("/") ||
+          (isNativeConversation(value.nativeConversation) &&
+            value.nativeConversation.root !== view.project.root)
         )
           throw new Error("Project 返回身份或路径无效。");
         this.readiness = { projectId: value.projectId, at: Date.now(), view };
@@ -376,6 +425,9 @@ export class BridgeController {
           projectId: value.projectId,
           projectName: view.project.name,
           projectRoot: view.project.root,
+          ...(isNativeConversation(value.nativeConversation)
+            ? { nativeConversation: value.nativeConversation }
+            : {}),
           nextRunId: crypto.randomUUID(),
           count: 0,
           maxRuns: Number(value.maxRuns),
@@ -487,7 +539,13 @@ export class BridgeController {
       await this.host.save(state);
       if (actionEpoch !== this.actionEpoch) throw new Error("派发已取消。");
       try {
-        const run = await client().call("runs.dispatch", { projectId: binding.projectId, handoff });
+        const run = await client().call("runs.dispatch", {
+          projectId: binding.projectId,
+          handoff,
+          ...(binding.nativeConversation
+            ? { nativeConversationId: binding.nativeConversation.id }
+            : {}),
+        });
         this.observeRun(binding, run);
         binding.admission.confirmed = true;
         checkpoint(binding, "accepted", handoff.id);
@@ -977,6 +1035,12 @@ export class BridgeController {
         throw new Error("上次发送未确认；请检查当前对话和 Project 证据，不会自动重发。");
       if ((await this.native.identity()) !== binding.installationId)
         throw new Error("本机授权已变化，请显式重新绑定。");
+      if (
+        binding.nativeConversation &&
+        (!isNativeConversation(binding.nativeConversation) ||
+          binding.nativeConversation.root !== binding.projectRoot)
+      )
+        throw new Error("保存的 Codex 对话与项目不匹配，请重新绑定。");
       const view = await this.native.call("projects.get", { projectId: binding.projectId });
       if (
         !object(view) ||

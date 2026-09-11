@@ -27,6 +27,49 @@ try {
   });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  for (const language of ["zh-CN", "en"]) {
+    await page.goto(`http://127.0.0.1:${address.port}/side-panel/unbound?lang=${language}`);
+    await page
+      .getByRole("button", {
+        name: language === "en" ? "Choose an existing Codex task" : "选择 Codex 已有对话",
+      })
+      .click();
+    await page
+      .getByLabel(language === "en" ? "Search Codex task titles" : "搜索 Codex 对话标题")
+      .fill("确认旧代码已删除");
+    await page
+      .getByRole("button", { name: language === "en" ? "Search" : "搜索", exact: true })
+      .click();
+    await page.getByRole("button", { name: /确认旧代码已删除/ }).waitFor();
+    await page.screenshot({
+      path: resolve(directory, `codex-task-picker-${language}.png`),
+      fullPage: true,
+    });
+    await page.getByRole("button", { name: /确认旧代码已删除/ }).click();
+    assert.match(await page.locator(".v-native-target").innerText(), /确认旧代码已删除/);
+    assert.match(await page.locator(".v-native-target").innerText(), /etf-quant-monitor/);
+    assert.equal(
+      await page
+        .getByRole("button", {
+          name: language === "en" ? "Bind conversation" : "绑定当前对话",
+          exact: true,
+        })
+        .isEnabled(),
+      true,
+    );
+    await page.screenshot({
+      path: resolve(directory, `codex-task-selected-${language}.png`),
+      fullPage: true,
+    });
+    for (const width of [320, 400, 460]) {
+      await page.setViewportSize({ width, height: 820 });
+      assert.equal(
+        await page.locator("body").evaluate((body) => body.scrollWidth <= innerWidth),
+        true,
+      );
+    }
+    await page.setViewportSize({ width: 400, height: 820 });
+  }
   for (const state of [
     "unbound",
     "idle",

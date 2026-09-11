@@ -540,6 +540,12 @@ Before calling the browser-bridge onboarding stable, demonstrate on a clean user
 
 ## 18. Implementation priority
 
+### Existing Codex conversation selection
+
+The Side Panel offers **选择 Codex 已有对话 / Choose an existing Codex task** alongside the local Project selector. Discovery is explicit and paginated: title search reads native metadata only, with no idle refresh. Show the selected task title and its real folder before Bind, and keep the bound title visible afterward. Clicking Bind authorizes registration of that exact folder and that native task ID. It must not silently select a different task, clone one, or fall back to a fresh execution session. Existing Project-only bindings remain supported.
+
+Bind checks the page, Project, native login and native writer availability before sending its bootstrap message. An occupied Codex task is a known unavailable state, not an uncertain delivery or a login failure. Explain that no task was dispatched; current desktop versions may retain ownership even while idle. User work and writer locks must never be forcibly interrupted to make the UI appear Ready. The persistent grant names the Project root and explicitly selected native IDs; the conversation binding pins the chosen ID across new Veyra runs. See [support limits](CODEX-CONVERSATION-BINDING.md).
+
 ### Interface language
 
 The GUI defaults to Simplified Chinese and supports explicit English selection through the **语言 / Language** control. Side Panel, popup, Diagnostics and current-conversation machine status labels share the extension's trusted local preference. The Local Control Center stores its own UI preference in the machine registry, surviving a server restart or port change. Both surfaces restore the last selected language; no polling is used for language changes.

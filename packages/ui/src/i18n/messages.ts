@@ -1,5 +1,18 @@
 /** Product-owned interface copy. Project content and protocol values are never translated. */
 export const chinese: Readonly<Record<string, string>> = {
+  "Choose an existing Codex task": "选择 Codex 已有对话",
+  "Selected Codex task": "已选择 Codex 对话",
+  "Bound Codex task": "绑定的 Codex 对话",
+  "Codex task is occupied": "这条 Codex 对话正被占用",
+  "Search Codex task titles": "搜索 Codex 对话标题",
+  Search: "搜索",
+  "Loading Codex tasks": "正在读取 Codex 对话列表…",
+  "No matching named Codex tasks": "没有找到匹配的已命名 Codex 对话",
+  "More Codex tasks": "更多 Codex 对话",
+  "Only titles and folders are listed. Binding registers the selected folder as a Veyra Project; chat history stays in Codex.":
+    "这里只读取标题和文件夹。绑定时会将该文件夹注册为 Veyra 项目；聊天历史保留在 Codex 中。",
+  "Codex is holding this task. Veyra has not started or duplicated it. Release the task in Codex before binding; the desktop app may need to close.":
+    "这条对话正被 Codex 客户端占用，Veyra 没有执行或新建对话。释放占用后再绑定；当前桌面版本可能需要关闭客户端才能释放。",
   "Awaiting binding": "等待绑定",
   "Connection checks incomplete": "连接检查尚未完成",
   "The current page, binding and executor must all be confirmed before work can start.":

@@ -350,6 +350,10 @@ ChatGPT Side Panel/bridge, Local Control Center and CLI render Project state and
 
 ## Authentication model
 
+Existing Codex conversation continuation is a separate, explicit routing choice. Native Messaging discovers only bounded title/ID/cwd metadata from the local app-server. The trusted host revalidates the selected ID/root, initializes the exact Project when needed and grants that native ID within the Project's existing local authorization. Extension storage retains the selected routing metadata. `runs.dispatch` accepts optional host routing metadata `nativeConversationId` outside the unchanged planner handoff. The coordinator resolves its current root and composes `CodexConversationAdapter`; Core remains provider-neutral. The loopback fallback does not expose this extra authority.
+
+The adapter uses Runtime-owned duplex stdio, `thread/read` without turns, `thread/resume` with `excludeTurns`, then a single `turn/start`. Only the current turn's structured result is consumed; native history stays in Codex. The selected task cannot be recreated or forked on failure. The native writer lock is authoritative; metadata `notLoaded` is not a global availability signal. Native approval/tool-input requests pause instead of being auto-approved. See [implementation evidence and desktop limitations](CODEX-CONVERSATION-BINDING.md).
+
 Veyra distinguishes:
 
 - Veyra local caller/daemon trust;

@@ -12,6 +12,16 @@ The pre-pivot API-first plan remains available in Git history and is referenced 
 
 # 0. Product priority
 
+## User-selected task — Bind an existing Codex conversation
+
+- [x] Add explicit, metadata-only native Codex conversation discovery and selection to the Side Panel.
+- [x] Pin the selected native conversation ID to the current ChatGPT binding across refreshes; append to that exact native conversation, never create/fork on failure.
+- [x] Validate native writer ownership and Project root; retain human approval, local grants, cancellation and evidence boundaries.
+- [x] Verify existing-session continuation, occupied/moved targets, UI persistence and baseline/extension checks. Repository baseline passed (2,213 tests), extension tests passed (198), plus browser/Native Messaging/existing-task/startup/panel smoke checks. Record actual desktop constraints; metadata discovery is not execution proof.
+- [!] Actual user task binding: the selected task **确认旧代码已删除** is discoverable at the expected `etf-quant-monitor` root, but the installed Codex desktop retains its exclusive writer. A metadata-only exact-ID `thread/resume` probe returned `already has an active writer`; no turn was submitted and no user source was changed. Release the desktop's ownership before explicit Bind (the current desktop may need to close), or wait for a supported shared attachment API. No takeover, fork, private desktop IPC or replacement task. Independent native continuation and browser tests continue; see [evidence and support boundary](CODEX-CONVERSATION-BINDING.md).
+
+P0.13–P0.15 remain frozen. On this installed Codex desktop version, an idle visible task can still hold an exclusive native writer lock. A separate app-server cannot take over that task while the lock remains held; never bypass it or silently create a substitute.
+
 Veyra's first product proof is no longer "OpenAI API planner + Codex executor".
 
 The P0 goal is:

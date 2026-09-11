@@ -4,6 +4,8 @@ import {
   isProjectExecutionResult,
   isProjectReviewForResult,
   type RegisteredProject,
+  type NativeConversation,
+  isNativeConversation,
 } from "@veyraoss/protocol";
 import type { RunEvidence } from "@veyraoss/ui";
 import { object, type Binding, type ProjectView } from "./contracts.js";
@@ -25,6 +27,10 @@ export interface PanelSnapshot {
   error?: string;
   transport?: string;
   readiness?: BridgeReadiness;
+  nativeConversation?: NativeConversation;
+  codexChoices?: NativeConversation[];
+  codexCursor?: string | null;
+  discovering?: boolean;
 }
 export const initialPanel: PanelSnapshot = {
   loading: true,
@@ -191,8 +197,44 @@ export class PanelStore {
   }
   async select(projectId: string) {
     this.evidenceKey = "";
-    this.set({ projectId, error: undefined });
+    this.set({ projectId, nativeConversation: undefined, error: undefined });
     await this.refresh(true);
+  }
+  chooseConversation(selected: NativeConversation) {
+    if (!isNativeConversation(selected) || this.state.currentBound || this.state.busy) return;
+    this.set({
+      nativeConversation: selected,
+      projectId: "",
+      selected: undefined,
+      error: undefined,
+    });
+  }
+  async discoverConversations(search = "", more = false) {
+    if (this.state.discovering || this.closed) return;
+    this.set({ discovering: true, error: undefined });
+    try {
+      const result = await this.call("codexConversations", {
+        search,
+        ...(more && this.state.codexCursor ? { cursor: this.state.codexCursor } : {}),
+      });
+      if (
+        !object(result) ||
+        !Array.isArray(result.conversations) ||
+        !result.conversations.every(isNativeConversation)
+      )
+        throw new Error("Invalid Codex task listing.");
+      const choices = [...(more ? (this.state.codexChoices ?? []) : []), ...result.conversations];
+      this.set({
+        codexChoices: [...new Map(choices.map((choice) => [choice.id, choice])).values()].slice(
+          -300,
+        ),
+        codexCursor: typeof result.cursor === "string" ? result.cursor : null,
+      });
+    } catch (error) {
+      this.set({ error: error instanceof Error ? error.message : "Codex task discovery failed." });
+    } finally {
+      this.set({ discovering: false });
+    }
   }
   async act(type: "bind" | "disable" | "resume" | "unbind" | "stop") {
     if (this.state.busy && !["disable", "unbind", "stop"].includes(type)) return;
@@ -202,6 +244,9 @@ export class PanelStore {
       await this.call(type, {
         projectId,
         maxRuns: 3,
+        ...(type === "bind" && this.state.nativeConversation
+          ? { nativeConversation: this.state.nativeConversation }
+          : {}),
         expectedConversation: conversation,
         expectedTabId: tabId,
       });

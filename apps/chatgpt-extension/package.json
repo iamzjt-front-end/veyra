@@ -10,6 +10,7 @@
     "test": "vitest run --maxWorkers=2",
     "smoke:browser": "tsx test/manual-browser.ts",
     "smoke:native-browser": "tsx test/manual-browser.ts --native",
+    "smoke:conversation-browser": "tsx test/manual-browser.ts --existing-conversation",
     "smoke:startup": "tsx test/manual-startup.ts",
     "prepare:live": "tsx test/manual-live.ts prepare",
     "inspect:live": "tsx test/manual-live.ts inspect",

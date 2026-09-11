@@ -25,6 +25,10 @@ function Panel() {
     <PanelView
       state={state}
       actions={{
+        discoverConversations: (search, more) => {
+          void store.discoverConversations(search, more);
+        },
+        chooseConversation: (conversation) => store.chooseConversation(conversation),
         select: (id) => {
           void store.select(id);
         },

@@ -315,3 +315,46 @@
 .v-panel-footer {
   flex-shrink: 0;
 }
+.v-codex-picker {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+.v-codex-picker form {
+  display: grid;
+  gap: 8px;
+}
+.v-codex-picker input {
+  font: inherit;
+  padding: 10px;
+  color: inherit;
+  background: var(--v-surface, transparent);
+  border: 1px solid currentColor;
+  border-radius: 8px;
+}
+.v-codex-choices {
+  display: grid;
+  gap: 8px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.v-codex-picker .v-codex-choices button {
+  display: grid;
+  gap: 4px;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  padding: 12px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.v-codex-picker .v-codex-choices button[aria-pressed="true"] {
+  outline: 2px solid currentColor;
+}
+.v-native-target {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}

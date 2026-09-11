@@ -20,9 +20,13 @@ import { parseConfig } from "@veyraoss/config";
 import { EXTENSION_ORIGIN, parsePairing } from "../src/contracts.js";
 import type { SessionState } from "../src/controller.js";
 import { sectionTurnMarkup } from "./fixtures/chatgpt-turn.js";
+import { nativeConversationExecutable } from "./fixtures/native-conversation.js";
+import { randomUUID } from "node:crypto";
 
 // This is an offline fixture, not a ChatGPT account/native-auth acceptance claim.
-const native = process.argv.includes("--native");
+const existingConversation = process.argv.includes("--existing-conversation");
+const native = process.argv.includes("--native") || existingConversation;
+const nativeConversationId = randomUUID();
 const fixtureHtml = `<!doctype html><html><head><meta charset="utf-8"></head><body><main></main><div id="prompt-textarea" contenteditable="true"></div><button data-testid="send-button">Send</button><script>
 let turns=0;
 const main=document.querySelector('main'), editor=document.querySelector('#prompt-textarea');
@@ -34,7 +38,7 @@ document.querySelector('button').onclick=()=>{
  if(sessionStorage.getItem('pauseFixture')==='yes')return;
  const returned=/VEYRA_RESULT_BEGIN\\n([\\s\\S]*?)\\nVEYRA_RESULT_END/.exec(text);
  if(!match && !returned && text!=='Implement the fixture feature')return;
- const source=match?match[1]:returned?null:sessionStorage.getItem('fixture-plan');
+ const source=match?(${existingConversation} && returned && turns>=2?null:match[1]):returned?null:sessionStorage.getItem('fixture-plan');
  const result=returned?JSON.parse(returned[1]):null;
  const review=result?{version:1,projectId:result.projectId,runId:result.runId,resultId:result.id,handoffId:result.handoffId,verdict:result.status==='failed'?'PASS':'FAIL',summary:result.status==='failed'?'Read-only evidence collected despite the deliberate failure.':'Checks pass; the reviewer still requests changes.',findings:[{severity:'warning',description:'Review and verification are independent.'}],nextAction:result.status==='failed'?'complete':'repair'}:null;
  let handoff;if(source){try{handoff=JSON.parse(source);}catch{throw new Error('Invalid fixture plan: '+JSON.stringify(source.slice(0,180)));}handoff.context.goal=turns++===0?'First fixture implementation':'Repair after failed verifier';if(handoff.context.plan){handoff.context.plan.summary=handoff.context.goal;handoff.context.plan.tasks[0].description=handoff.context.goal;}handoff.requestedVerification=[{id:'verify',kind:'test'},{id:'build',kind:'build'},{id:'diff',kind:'shell'}];}
@@ -82,7 +86,9 @@ if (native) {
   const executable = join(root, "codex");
   await writeFile(
     executable,
-    `#!/usr/bin/env node
+    existingConversation
+      ? nativeConversationExecutable(project.root, nativeConversationId)
+      : `#!/usr/bin/env node
 const fs=require('node:fs');const {randomUUID}=require('node:crypto');
 if(process.env.OPENAI_API_KEY)process.exit(2);
 if(process.argv[2]==='--version')console.log('codex-cli 1.2.3');
@@ -392,12 +398,29 @@ try {
   await page.bringToFront();
   if (native) await page.evaluate(() => sessionStorage.setItem("pauseFixture", "yes"));
   // The extension's own popup controls are exercised while the conversation remains active.
-  await popup.waitForFunction(() => {
-    const bind = document.querySelector<HTMLButtonElement>("#bind");
-    if (!bind || bind.disabled) return false;
-    bind.click();
-    return true;
-  });
+  if (existingConversation) {
+    await panel
+      .getByRole("button", { name: "Choose an existing Codex task" })
+      .evaluate((node) => (node as HTMLButtonElement).click());
+    await panel.getByRole("button", { name: /Existing Codex browser fixture/ }).waitFor();
+    await panel
+      .getByRole("button", { name: /Existing Codex browser fixture/ })
+      .evaluate((node) => (node as HTMLButtonElement).click());
+    assert.match(
+      await panel.locator(".v-native-target").innerText(),
+      /Existing Codex browser fixture/,
+    );
+    await page.bringToFront();
+    await panel
+      .getByRole("button", { name: "Bind conversation", exact: true })
+      .evaluate((node) => (node as HTMLButtonElement).click());
+  } else
+    await popup.waitForFunction(() => {
+      const bind = document.querySelector<HTMLButtonElement>("#bind");
+      if (!bind || bind.disabled) return false;
+      bind.click();
+      return true;
+    });
   if (native) {
     await popup.waitForFunction(() =>
       document.querySelector("#conversation")?.textContent?.includes("explicitly bound"),
@@ -630,6 +653,8 @@ try {
     assert.ok(match?.[1]);
     const result = JSON.parse(match[1]);
     const archive = new ProjectHandoffStore({ project });
+    if (existingConversation)
+      assert.equal((await archive.getSession(result.runId))?.id, nativeConversationId);
     const review = await archive.getReview(result.runId);
     assert.equal(review?.resultId, result.id, "Review links to this exact handback");
     assert.equal(review?.verdict, index === 0 ? "pass" : "fail");
@@ -655,6 +680,26 @@ try {
     }
   }
   assert.equal((await new ProjectStateStore({ project }).read())?.review?.verdict, "fail");
+  if (existingConversation) {
+    const calls = (await readFile(join(root, "native-methods.jsonl"), "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    assert.equal(calls.filter((call) => call.method === "turn/start").length, 2);
+    assert.equal(
+      calls.some((call) => ["thread/start", "thread/fork"].includes(call.method)),
+      false,
+    );
+    assert.ok(
+      calls
+        .filter((call) => call.method === "turn/start")
+        .every((call) => call.threadId === nativeConversationId),
+    );
+    assert.match(
+      await panel.locator(".v-native-target").innerText(),
+      /Existing Codex browser fixture/,
+    );
+  }
   const pairing = native
     ? undefined
     : parsePairing(
@@ -804,6 +849,7 @@ try {
       sameConversationReturns: 2,
       persistedReviews: ["pass", "fail"],
       reviewRestoredAfterRefresh: native,
+      existingConversationSelected: existingConversation,
       streamingControlReused: true,
       assistantLayout: native ? "observed section with nested sibling toolbar" : "legacy article",
       ...(native

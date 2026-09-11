@@ -106,6 +106,87 @@ function fixture() {
     },
   };
 }
+it("pins an explicitly selected existing Codex task across refresh and dispatch", async () => {
+  const f = fixture();
+  const conversation = { id: randomUUID(), title: "确认旧代码已删除", root: "/project" };
+  f.native.selectConversation = vi.fn(async () => ({
+    conversation,
+    project: { id: f.projectId, root: "/project" },
+  }));
+  f.native.checkConversation = vi.fn(async () => {});
+  await f
+    .controller()
+    .handle({ type: "bind", maxRuns: 3, nativeConversation: conversation }, popup);
+  expect(f.state().binding?.nativeConversation).toEqual(conversation);
+  expect(f.native.checkConversation).toHaveBeenCalledWith(conversation, f.projectId);
+  f.restart();
+  await f.hello();
+  const binding = f.state().binding;
+  assert.ok(binding);
+  expect(binding.nativeConversation).toEqual(conversation);
+  await f.controller().handle(
+    {
+      type: "dispatch",
+      epoch: binding.epoch,
+      bindingId: binding.id,
+      source: frameHandoff(handoffTemplate(binding)),
+      nativeConversationId: randomUUID(),
+    },
+    { url: f.url(), tabId: 1 },
+  );
+  const call = vi.mocked(f.native.call).mock.calls.find(([method]) => method === "runs.dispatch");
+  expect(call?.[1]).toMatchObject({
+    nativeConversationId: conversation.id,
+    projectId: f.projectId,
+  });
+});
+it("refuses occupied task binding before bootstrap or dispatch and does not substitute a new session", async () => {
+  const f = fixture();
+  const conversation = { id: randomUUID(), title: "已有对话", root: "/project" };
+  f.native.selectConversation = vi.fn(async () => ({
+    conversation,
+    project: { id: f.projectId, root: "/project" },
+  }));
+  f.native.checkConversation = vi.fn(async () => {
+    throw new Error("already has an active writer");
+  });
+  await expect(
+    f.controller().handle({ type: "bind", maxRuns: 3, nativeConversation: conversation }, popup),
+  ).rejects.toThrow("active writer");
+  expect(f.state().binding).toBeUndefined();
+  expect(f.host.send).not.toHaveBeenCalled();
+  expect(f.native.call).not.toHaveBeenCalled();
+});
+it("denies page scripts native conversation discovery and binding authority", async () => {
+  const f = fixture();
+  f.native.listConversations = vi.fn();
+  f.native.selectConversation = vi.fn();
+  for (const type of ["codexConversations", "bind"])
+    await expect(
+      f
+        .controller()
+        .handle(
+          { type, nativeConversation: { id: randomUUID(), title: "forged", root: "/project" } },
+          { url: f.url(), tabId: 1 },
+        ),
+    ).rejects.toThrow();
+  expect(f.native.listConversations).not.toHaveBeenCalled();
+  expect(f.native.selectConversation).not.toHaveBeenCalled();
+});
+it("does not bind a selected native task after the ChatGPT page changes during selection", async () => {
+  const f = fixture();
+  const conversation = { id: randomUUID(), title: "已有对话", root: "/project" };
+  f.native.selectConversation = vi.fn(async () => {
+    f.navigate();
+    return { conversation, project: { id: f.projectId, root: "/project" } };
+  });
+  f.native.checkConversation = vi.fn(async () => {});
+  await expect(
+    f.controller().handle({ type: "bind", maxRuns: 3, nativeConversation: conversation }, popup),
+  ).rejects.toThrow("conversation changed");
+  expect(f.state().binding).toBeUndefined();
+  expect(f.host.send).not.toHaveBeenCalled();
+});
 it("keeps an explicitly paused binding paused when page preparation fails", async () => {
   const f = fixture();
   await f.bind();
