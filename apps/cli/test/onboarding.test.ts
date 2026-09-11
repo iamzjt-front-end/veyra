@@ -37,6 +37,81 @@ async function install(root: string) {
   });
 }
 describe("one-time local onboarding", () => {
+  it("requires native installation identity for task discovery and grants only the explicitly selected Project", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const installed = await install(path);
+      const registryRoot = join(path, "registry");
+      const { project } = await initializeNativeProject(path, { registryRoot, env: { PATH: "" } });
+      const conversation = { id: randomUUID(), title: "已有 Codex 对话", root: project.root };
+      const discovery = {
+        list: vi.fn(async () => ({ conversations: [conversation], cursor: null })),
+        select: vi.fn(async () => ({ project, conversation })),
+        check: vi.fn(async () => ({ ready: true, conversation })),
+      };
+      const connect = vi.fn();
+      const service = new NativeService(
+        installed.statePath,
+        BROWSER_ORIGIN,
+        connect,
+        undefined,
+        discovery,
+      );
+      const call = (method: string, params?: unknown) =>
+        service.handle({
+          version: 1,
+          id: randomUUID(),
+          installationId: installed.installationId,
+          method,
+          ...(params === undefined ? {} : { params }),
+        });
+      expect(await call("codex.conversations.list", {})).toMatchObject({ ok: false });
+      expect(discovery.list).not.toHaveBeenCalled();
+      await call("hello");
+      expect(await call("codex.conversations.list", { search: "已有" })).toMatchObject({
+        ok: true,
+        data: { conversations: [conversation] },
+      });
+      expect(await call("codex.conversations.list", { history: true })).toMatchObject({
+        ok: false,
+      });
+      expect(
+        await call("codex.conversations.select", { ...conversation, command: "evil" }),
+      ).toMatchObject({ ok: false });
+      expect(discovery.select).not.toHaveBeenCalled();
+      expect(
+        await call("codex.conversations.check", { projectId: project.id, conversation }),
+      ).toMatchObject({ ok: false });
+      expect(await call("codex.conversations.select", conversation)).toMatchObject({ ok: true });
+      expect((await readInstallation(installed.statePath)).grants).toEqual({
+        [project.id]: {
+          root: project.root,
+          expiresAt: expect.any(Number),
+          nativeConversationIds: [conversation.id],
+        },
+      });
+      expect(
+        await call("codex.conversations.check", { projectId: project.id, conversation }),
+      ).toMatchObject({ ok: true });
+      expect(
+        await call("codex.conversations.check", { projectId: randomUUID(), conversation }),
+      ).toMatchObject({ ok: false });
+      expect(
+        await call("codex.conversations.check", {
+          projectId: project.id,
+          conversation: { ...conversation, root: "/other" },
+        }),
+      ).toMatchObject({ ok: false });
+      expect(discovery.check).toHaveBeenCalledTimes(1);
+      expect(
+        await call("codex.conversations.check", {
+          projectId: project.id,
+          conversation: { ...conversation, id: randomUUID() },
+        }),
+      ).toMatchObject({ ok: false });
+      expect(discovery.check).toHaveBeenCalledTimes(1);
+      expect(connect).not.toHaveBeenCalled();
+    });
+  });
   it("initializes/registers/binds native Codex idempotently and discovers trusted verification names", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       await writeFile(

@@ -56,7 +56,7 @@ export interface DaemonOperations {
   "projects.get": { input: { projectId: ProjectId }; output: RegisteredProject };
   "projects.register": { input: { path: string }; output: RegisteredProject };
   "runs.dispatch": {
-    input: { projectId: ProjectId; handoff: ProjectHandoff };
+    input: { projectId: ProjectId; handoff: ProjectHandoff; nativeConversationId?: string };
     output: DaemonRunView;
   };
   "runs.list": {
@@ -165,7 +165,8 @@ export function isDaemonRequest(value: unknown): value is DaemonRequest {
     );
   if (value.method === "runs.dispatch")
     return (
-      keys(params, ["projectId", "handoff"]) &&
+      keys(params, ["projectId", "handoff", "nativeConversationId"]) &&
+      (params.nativeConversationId === undefined || uuid(params.nativeConversationId)) &&
       isProjectHandoff(params.handoff) &&
       params.handoff.projectId === params.projectId &&
       uuid(params.handoff.runId)

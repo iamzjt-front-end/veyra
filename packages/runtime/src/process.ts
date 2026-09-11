@@ -10,6 +10,8 @@ export interface ProcessRequest {
   args?: readonly string[];
   /** Optional UTF-8 input, capped at 1 MiB, followed by EOF. */
   stdin?: string;
+  /** Interactive protocols only; mutually exclusive with stdin. Runtime still owns cleanup. */
+  onStdin?: (input: { write: (chunk: string) => void; end: () => void }) => void;
   cwd?: string;
   /** Inherit the current environment; undefined removes an inherited variable. */
   env?: Record<string, string | undefined>;
@@ -250,7 +252,27 @@ export const runProcess: ProcessRunner = async (request) => {
     if (request.timeoutMs !== undefined)
       timeout = setTimeout(() => stop("timeout"), request.timeoutMs);
     if (request.signal?.aborted) abort();
-    child.stdin.end(request.stdin ?? "");
+    if (request.onStdin) {
+      try {
+        request.onStdin({
+          write(chunk) {
+            if (
+              closed ||
+              stopping ||
+              child.stdin.writableEnded ||
+              typeof chunk !== "string" ||
+              Buffer.byteLength(chunk) + child.stdin.writableLength > 1024 * 1024
+            )
+              throw new Error("Interactive process input unavailable or exceeds 1 MiB.");
+            child.stdin.write(chunk);
+          },
+          end: () => child.stdin.end(),
+        });
+      } catch {
+        failure = new ProcessExecutionError("stdin_failed", "Interactive process input failed.");
+        stop();
+      }
+    } else child.stdin.end(request.stdin ?? "");
   });
 };
 
@@ -288,6 +310,11 @@ function codeOf(error: unknown): string | undefined {
 }
 
 function validateRequest(request: ProcessRequest) {
+  if (
+    request.onStdin !== undefined &&
+    (typeof request.onStdin !== "function" || request.stdin !== undefined)
+  )
+    throw new ProcessExecutionError("invalid_request", "Choose stdin or onStdin, not both.");
   if (
     request.stdin !== undefined &&
     (typeof request.stdin !== "string" || Buffer.byteLength(request.stdin) > 1024 * 1024)

@@ -6,6 +6,28 @@ import {
   type ProjectId,
 } from "./project.js";
 
+/** Explicit routing metadata only. Native conversation history stays with the native client. */
+export interface NativeConversation {
+  id: string;
+  title: string;
+  root: string;
+}
+export function isNativeConversation(value: unknown): value is NativeConversation {
+  if (!isJsonValue(value) || !value || typeof value !== "object" || Array.isArray(value))
+    return false;
+  return (
+    Object.keys(value).length === 3 &&
+    isSessionId(value.id) &&
+    typeof value.title === "string" &&
+    value.title.trim().length > 0 &&
+    value.title.length <= 512 &&
+    typeof value.root === "string" &&
+    value.root.startsWith("/") &&
+    value.root.length <= 4096 &&
+    ![...value.root].some((character) => character.charCodeAt(0) < 32)
+  );
+}
+
 /** An optional native locator, not a credential or a copy of native conversation state. */
 export interface NativeSessionReference {
   version: 1;

@@ -433,3 +433,9 @@ function processEvidence(result: ProcessResult, redactor: SecretRedactor): JsonO
 }
 
 export { ADAPTER_VERSION } from "./version.js";
+export {
+  listCodexConversations,
+  readCodexConversation,
+  checkCodexConversation,
+} from "./conversations.js";
+export { CodexConversationAdapter } from "./conversation-adapter.js";

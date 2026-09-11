@@ -15,7 +15,7 @@ export interface Installation {
   id: string;
   registryRoot: string;
   executable?: string;
-  grants: Record<string, { root: string; expiresAt: number }>;
+  grants: Record<string, { root: string; expiresAt: number; nativeConversationIds?: string[] }>;
   extensionSeenAt?: number;
 }
 export async function privateRead(path: string): Promise<string | undefined> {
@@ -88,7 +88,13 @@ export async function readInstallation(path: string): Promise<Installation> {
         !/^[a-f0-9-]{36}$/.test(id) ||
         !grant ||
         !isAbsolute(grant.root) ||
-        !Number.isFinite(grant.expiresAt),
+        !Number.isFinite(grant.expiresAt) ||
+        (grant.nativeConversationIds !== undefined &&
+          (!Array.isArray(grant.nativeConversationIds) ||
+            grant.nativeConversationIds.length > 20 ||
+            grant.nativeConversationIds.some(
+              (id) => typeof id !== "string" || !/^[a-f0-9-]{36}$/.test(id),
+            ))),
     )
   )
     throw new Error("Invalid Veyra installation; run ve setup after inspecting its diagnostics.");

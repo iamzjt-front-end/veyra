@@ -453,6 +453,8 @@ export {
   isNativeSessionRequest,
   type NativeSessionReference,
   type NativeSessionRequest,
+  type NativeConversation,
+  isNativeConversation,
 } from "./session.js";
 export {
   MAX_DAEMON_REQUEST_BYTES,

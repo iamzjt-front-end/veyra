@@ -54,6 +54,7 @@ export type ExecutionSetup = Pick<RunRequest, "config" | "workflow" | "agents" |
 export type ExecutionResolver = (
   project: ProjectDescriptor,
   handoff: ProjectHandoff,
+  nativeConversationId?: string,
 ) => ExecutionSetup | Promise<ExecutionSetup>;
 interface ActiveRun {
   view: DaemonRunView;
@@ -106,7 +107,11 @@ export class RunCoordinator {
       run: new LocalRunStore({ stateDir: projectPaths(project).directory, redactValues }),
     };
   }
-  async dispatch(projectId: ProjectId, requested: ProjectHandoff): Promise<DaemonRunView> {
+  async dispatch(
+    projectId: ProjectId,
+    requested: ProjectHandoff,
+    nativeConversationId?: string,
+  ): Promise<DaemonRunView> {
     if (this.#stopping || this.#admitted.size >= 4 || this.#admitted.has(projectId))
       throw new DaemonError(
         "run_busy",
@@ -121,7 +126,7 @@ export class RunCoordinator {
     this.options.onActivity?.();
     try {
       const project = await this.available(projectId);
-      const setup = await this.options.resolveExecution(project, requested);
+      const setup = await this.options.resolveExecution(project, requested, nativeConversationId);
       // A bridge requests named checks; only the trusted host supplies their shell commands.
       for (const check of requested.requestedVerification ?? []) {
         const step = setup.workflow.steps[check.id];

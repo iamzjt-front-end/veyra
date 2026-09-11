@@ -211,7 +211,11 @@ export async function startDaemon(options: DaemonOptions = {}): Promise<DaemonHa
               result = await registry.register(request.params.path);
               break;
             case "runs.dispatch":
-              result = await coordinator.dispatch(request.params.projectId, request.params.handoff);
+              result = await coordinator.dispatch(
+                request.params.projectId,
+                request.params.handoff,
+                request.params.nativeConversationId,
+              );
               break;
             case "runs.list":
               result = await coordinator.list(request.params.projectId, request.params.limit);

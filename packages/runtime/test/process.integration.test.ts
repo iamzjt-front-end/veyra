@@ -17,6 +17,34 @@ function node(script: string, options: Omit<ProcessRequest, "executable" | "args
 afterEach(() => vi.unstubAllEnvs());
 
 describe("local process runner", () => {
+  it("supports bounded interactive stdin and closes after the protocol response", async () => {
+    let input: Parameters<NonNullable<ProcessRequest["onStdin"]>>[0];
+    const result = await node(
+      "process.stdin.setEncoding('utf8'); process.stdin.on('data', chunk => process.stdout.write(chunk));",
+      {
+        timeoutMs: 2000,
+        onStdin(value) {
+          input = value;
+          value.write("hello 中文\n");
+        },
+        onStdout(chunk) {
+          if (chunk.includes("hello")) input.end();
+        },
+      },
+    );
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toBe("hello 中文\n");
+    await expect(node("", { stdin: "", onStdin() {} })).rejects.toMatchObject({
+      code: "invalid_request",
+    });
+    await expect(
+      node("setInterval(()=>{},100)", {
+        onStdin(value) {
+          value.write("x".repeat(1024 * 1024 + 1));
+        },
+      }),
+    ).rejects.toMatchObject({ code: "stdin_failed" });
+  });
   it("writes UTF-8 stdin literally and closes it", async () => {
     const stdin = "A large prompt: $(not a command) 你好\n".repeat(1000);
     const result = await node(

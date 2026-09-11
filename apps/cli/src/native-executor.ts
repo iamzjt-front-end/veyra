@@ -1,7 +1,12 @@
-import { CodexAdapter } from "@veyraoss/codex";
+import { CodexAdapter, CodexConversationAdapter } from "@veyraoss/codex";
 import { parseConfig, type VeyraConfig } from "@veyraoss/config";
 import { loadProjectBindings, openProject, ProjectError } from "@veyraoss/project";
-import type { ProjectDescriptor, ProjectHandoff, ProjectRoleBinding } from "@veyraoss/protocol";
+import type {
+  ProjectDescriptor,
+  ProjectHandoff,
+  ProjectRoleBinding,
+  NativeConversation,
+} from "@veyraoss/protocol";
 import type { ProcessRunner } from "@veyraoss/runtime";
 import { DaemonError, type ExecutionSetup } from "@veyraoss/daemon";
 import type { WorkflowDefinition } from "@veyraoss/workflow";
@@ -44,6 +49,7 @@ export function nativeExecution(
   handoff: ProjectHandoff,
   dependencies: { runProcess?: ProcessRunner; env: NodeJS.ProcessEnv },
   verification?: { config: VeyraConfig; workflow: WorkflowDefinition },
+  conversation?: NativeConversation,
 ): ExecutionSetup {
   try {
     requireNativeCodex(binding);
@@ -71,17 +77,24 @@ export function nativeExecution(
       },
     },
     agents: {
-      executor: new CodexAdapter(
-        {
-          executable: binding.executable,
-          model: binding.model,
-          session: {
+      executor: conversation
+        ? new CodexConversationAdapter(
+            conversation,
             project,
-            ...(binding.session?.runId === handoff.runId ? { resume: binding.session } : {}),
-          },
-        },
-        dependencies,
-      ),
+            binding.executable ?? "codex",
+            dependencies,
+          )
+        : new CodexAdapter(
+            {
+              executable: binding.executable,
+              model: binding.model,
+              session: {
+                project,
+                ...(binding.session?.runId === handoff.runId ? { resume: binding.session } : {}),
+              },
+            },
+            dependencies,
+          ),
     },
   };
   const checks: { id: string; commands: string[] }[] = [];

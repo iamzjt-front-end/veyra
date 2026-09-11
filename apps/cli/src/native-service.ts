@@ -4,6 +4,7 @@ import { DaemonClient, daemonStatus, projectTool, type LocalToolClient } from "@
 import {
   isDaemonRequest,
   isProjectId,
+  isNativeConversation,
   type ProjectDescriptor,
   type JsonValue,
 } from "@veyraoss/protocol";
@@ -16,6 +17,7 @@ import {
   type Installation,
 } from "./native-installation.js";
 import { nativeProjectReadiness } from "./native-project-readiness.js";
+import { nativeConversations } from "./native-conversations.js";
 
 export async function ensureCoordinator(statePath: string): Promise<LocalToolClient> {
   const state = await readInstallation(statePath);
@@ -63,6 +65,7 @@ export class NativeService {
     private readonly connect = ensureCoordinator,
     private readonly inspect = (project: ProjectDescriptor) =>
       nativeProjectReadiness(project, process.env),
+    private readonly conversations = nativeConversations,
   ) {
     if (origin !== BROWSER_ORIGIN && origin !== `${BROWSER_ORIGIN}/`)
       throw new Error("Unapproved native messaging origin.");
@@ -117,6 +120,81 @@ export class NativeService {
       }
       if (this.identity !== state.id || value.installationId !== state.id)
         throw new Error("Local authorization changed. Reconnect and explicitly bind again.");
+      if (value.method === "codex.conversations.list") {
+        if (
+          !object(value.params) ||
+          Object.keys(value.params).some((key) => !["cursor", "search"].includes(key)) ||
+          (value.params.cursor !== undefined &&
+            (typeof value.params.cursor !== "string" || value.params.cursor.length > 4096)) ||
+          (value.params.search !== undefined &&
+            (typeof value.params.search !== "string" || value.params.search.length > 128))
+        )
+          throw new Error("Invalid Codex discovery request.");
+        const data = await this.conversations.list(
+          value.params as { cursor?: string; search?: string },
+        );
+        if ((await readInstallation(this.path)).id !== this.identity)
+          throw new Error("Installation revoked.");
+        return this.reply(id, data);
+      }
+      if (value.method === "codex.conversations.select") {
+        if (!isNativeConversation(value.params)) throw new Error("Invalid Codex task selection.");
+        const data = await this.conversations.select(value.params, state.registryRoot);
+        await this.update((current) => {
+          if (!current.grants[data.project.id] && Object.keys(current.grants).length >= 100)
+            throw new Error("Too many local Project grants.");
+          const ids = [
+            ...new Set([
+              ...(current.grants[data.project.id]?.root === data.project.root
+                ? (current.grants[data.project.id]?.nativeConversationIds ?? [])
+                : []),
+              data.conversation.id,
+            ]),
+          ];
+          if (ids.length > 20)
+            throw new Error(
+              "Too many authorized Codex tasks for this Project. Revoke unused authorization first.",
+            );
+          current.grants[data.project.id] = {
+            root: data.project.root,
+            expiresAt: Date.now() + 365 * 86400_000,
+            nativeConversationIds: ids,
+          };
+        });
+        return this.reply(id, data);
+      }
+      if (value.method === "codex.conversations.check") {
+        if (
+          !object(value.params) ||
+          Object.keys(value.params).length !== 2 ||
+          !isProjectId(value.params.projectId) ||
+          !isNativeConversation(value.params.conversation)
+        )
+          throw new Error("Invalid Codex task readiness request.");
+        const projectId = value.params.projectId;
+        const grant = state.grants[projectId];
+        if (
+          !grant ||
+          grant.root !== value.params.conversation.root ||
+          grant.expiresAt <= Date.now() ||
+          !grant.nativeConversationIds?.includes(value.params.conversation.id)
+        )
+          throw new Error("Selected task is outside the Project grant.");
+        const data = await this.conversations.check(
+          value.params.conversation,
+          projectId,
+          state.registryRoot,
+        );
+        const current = await readInstallation(this.path);
+        if (
+          current.id !== this.identity ||
+          current.grants[projectId]?.root !== grant.root ||
+          current.grants[projectId].expiresAt <= Date.now() ||
+          !current.grants[projectId]?.nativeConversationIds?.includes(value.params.conversation.id)
+        )
+          throw new Error("Project grant changed.");
+        return this.reply(id, data);
+      }
       if (value.method === "control.open") {
         if (
           !object(value.params) ||
@@ -166,6 +244,10 @@ export class NativeService {
             current.grants[projectId] = {
               root: entry.project.root,
               expiresAt: Date.now() + 365 * 24 * 60 * 60 * 1000,
+              ...(current.grants[projectId]?.root === entry.project.root &&
+              current.grants[projectId]?.nativeConversationIds
+                ? { nativeConversationIds: current.grants[projectId].nativeConversationIds }
+                : {}),
             };
           });
         }
@@ -203,9 +285,16 @@ export class NativeService {
             throw new Error(
               "Project authorization expired or location changed. Bind explicitly again.",
             );
+          if (
+            request.method === "runs.dispatch" &&
+            request.params.nativeConversationId &&
+            !grant.nativeConversationIds?.includes(request.params.nativeConversationId)
+          )
+            throw new Error("This Codex task was not explicitly authorized for the Project.");
         }
       };
       const data = await projectTool(request, {
+        allowNativeConversations: true,
         client,
         allowed: (id) => !!state.grants[id],
         authorize,

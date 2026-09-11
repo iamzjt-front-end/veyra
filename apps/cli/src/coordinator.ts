@@ -1,4 +1,6 @@
 import { resolve } from "node:path";
+import { realpath } from "node:fs/promises";
+import { readCodexConversation } from "@veyraoss/codex";
 import { loadConfig } from "@veyraoss/config";
 import { loadProjectBindings } from "@veyraoss/project";
 import { startDaemon, type DaemonOptions } from "@veyraoss/daemon";
@@ -27,9 +29,22 @@ export function startCoordinator(
           },
         }
       : {}),
-    resolveExecution: async (project, handoff) => {
+    resolveExecution: async (project, handoff, nativeConversationId) => {
       const binding = (await loadProjectBindings(project))?.roles.executor;
       if (binding) {
+        const conversation = nativeConversationId
+          ? await readCodexConversation(
+              {
+                executable: binding.executable ?? "codex",
+                cwd: project.root,
+                env,
+                runner: options.runProcess,
+              },
+              nativeConversationId,
+            )
+          : undefined;
+        if (conversation && (await realpath(conversation.root)) !== (await realpath(project.root)))
+          throw new Error("The selected Codex task belongs to another Project.");
         const config = handoff.requestedVerification?.length
           ? await loadConfig(resolve(project.root, "veyra.yaml"))
           : undefined;
@@ -41,8 +56,11 @@ export function startCoordinator(
           config
             ? { config, workflow: await loadWorkflow(config.workflow.use, project.root) }
             : undefined,
+          conversation,
         );
       }
+      if (nativeConversationId)
+        throw new Error("Selected Codex task requires a native Project executor binding.");
       const config = await loadConfig(resolve(project.root, "veyra.yaml"));
       const workflow = await loadWorkflow(config.workflow.use, project.root);
       const agents = options.createAgent

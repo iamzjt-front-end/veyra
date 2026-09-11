@@ -26,6 +26,7 @@ export async function projectTool(
     authorize: (project?: ProjectDescriptor) => void | Promise<void>;
     inspectProject?: LoopbackOptions["inspectProject"];
     env?: Readonly<Record<string, string | undefined>>;
+    allowNativeConversations?: boolean;
   },
 ): Promise<unknown> {
   const { client, allowed, inspectProject } = options;
@@ -67,6 +68,11 @@ export async function projectTool(
       sharedState: (await new ProjectStateStore({ project: selected, env }).read()) ?? null,
     };
   } else if (body.method === "runs.dispatch") {
+    if (body.params.nativeConversationId && !options.allowNativeConversations)
+      throw new DaemonError(
+        "conversation_forbidden",
+        "Existing native conversations require explicit Native Bridge authorization.",
+      );
     const readiness = await inspectProject?.(selected);
     if (!readiness?.ready)
       throw new DaemonError(

@@ -399,6 +399,15 @@ describe("opt-in authenticated daemon loopback", () => {
             requestedVerification: [{ id: "verify", kind: "test" }],
           };
           const locator = { projectId: project.id, runId: handoff.runId };
+          expect(
+            (
+              await rpc("runs.dispatch", {
+                projectId: project.id,
+                handoff,
+                nativeConversationId: randomUUID(),
+              })
+            ).error.code,
+          ).toBe("conversation_forbidden");
           expect((await rpc("runs.dispatch", { projectId: project.id, handoff })).ok).toBe(true);
           await rpc("runs.wait", { ...locator, waitMs: 10000 });
           const run = await rpc("runs.get", locator);
