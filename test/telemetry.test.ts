@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, it } from "vitest";
@@ -7,6 +7,7 @@ import { withFixtureWorkspace } from "./helpers/workspace.js";
 
 it("runs cold local CLI commands and inspects saved verification without outbound Node calls", async () => {
   await withFixtureWorkspace(async ({ path }) => {
+    const registryRoot = join(path, "registry");
     const marker = join(path, "network-attempt");
     const guard = join(path, "deny-network.mjs");
     await writeFile(
@@ -24,7 +25,14 @@ net.Socket.prototype.connect=deny;syncBuiltinESMExports();`,
     const ve = async (...args: string[]) => {
       const result = await runProcess({
         executable: process.execPath,
-        args: ["--import", guard, cli, ...args, "--json"],
+        args: [
+          "--import",
+          guard,
+          cli,
+          ...args,
+          ...(args[0] === "init" ? ["--registry", registryRoot] : []),
+          "--json",
+        ],
         cwd: path,
         env: { NODE_OPTIONS: undefined },
         timeoutMs: 15_000,
@@ -39,6 +47,10 @@ net.Socket.prototype.connect=deny;syncBuiltinESMExports();`,
     expect((await ve("workflow", "list"))[0].workflows).toHaveLength(4);
     await ve("workflow", "validate", "dev");
     await ve("init");
+    expect(JSON.parse(await readFile(join(registryRoot, "projects.json"), "utf8"))).toMatchObject({
+      version: 1,
+      projects: [{ root: await realpath(path) }],
+    });
     await writeFile(
       join(path, "veyra.yaml"),
       JSON.stringify({ version: 1, workflow: { use: "./workflow.yaml" }, agents: {} }),

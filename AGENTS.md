@@ -129,6 +129,7 @@ No manual copy/paste between ChatGPT and Codex. No OpenAI API key required for t
 - TypeScript, strict mode.
 - Prefer small explicit interfaces over framework-heavy abstractions.
 - No hidden global state.
+- Tests must inject an isolated Project Registry root, including `--registry` for fixture `ve init` calls. An empty injected environment does not isolate `os.homedir()`; never register automated fixtures in the user's default `~/.veyra` registry. The fixture must own and clean up its registry.
 - Keep local/project state transparent and versioned.
 - Preserve structured events so every surface can subscribe without coupling to engine internals.
 - Prefer argv execution to shell-string construction where shell semantics are unnecessary.

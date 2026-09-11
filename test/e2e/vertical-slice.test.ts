@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { access, readFile, writeFile } from "node:fs/promises";
+import { access, readFile, realpath, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { AgentInput, JsonObject, VeyraEvent } from "@veyraoss/protocol";
@@ -15,10 +15,19 @@ type Call = { pid: number; input: AgentInput; cwd: string };
 
 async function fixture(path: string, scenario: string) {
   await writeFile(join(path, "scenario.txt"), scenario);
+  // Native init registers Projects; the fixture owns and removes this registry too.
+  const registryRoot = join(path, "registry");
   const ve = async (...args: string[]) => {
     const result = await runProcess({
       executable: process.execPath,
-      args: ["--import", tsx, harness, ...args, "--json"],
+      args: [
+        "--import",
+        tsx,
+        harness,
+        ...args,
+        ...(args[0] === "init" ? ["--registry", registryRoot] : []),
+        "--json",
+      ],
       cwd: path,
       env: {
         OPENAI_API_KEY: undefined,
@@ -41,6 +50,10 @@ async function fixture(path: string, scenario: string) {
     return { ...result, records, last: records.at(-1) as JsonObject };
   };
   expect((await ve("init")).exitCode).toBe(0);
+  expect(JSON.parse(await readFile(join(registryRoot, "projects.json"), "utf8"))).toMatchObject({
+    version: 1,
+    projects: [{ root: await realpath(path) }],
+  });
   const config = {
     version: 1,
     agents: {
