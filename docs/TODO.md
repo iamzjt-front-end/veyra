@@ -950,6 +950,14 @@ All five repository commands passed (**2,182 tests**, including 178 extension te
 
 The development agent also reloaded the user's actual installed Chrome extension. Its fresh worker initially had zero console messages; a read-only probe confirmed both storage areas, the registered message listener and the new startup guard. The served worker SHA-256 matches the rebuilt file. The previous Chrome error record was retained rather than cleared. No uncertain ChatGPT task or delivery was replayed, and this startup check does not establish full real-account workflow acceptance or unlock P0.13–P0.15.
 
+### Error-console upgrade acceptance — user report, 2026-09-11
+
+**Status:** [!] Upgrade regression verified; actual Chrome error-counter and Side Panel checks are blocked by the unavailable browser-control transport. P0.12 remains [!].
+
+The user still sees Chrome's storage `TypeError` entry after Reload. The startup smoke now starts with the reported unsafe `chrome.storage.local` access in a temporary copied bundle, waits for Chrome to record the real exception, then restores the production bundle. Ten actual reloads open working popup/Side Panel entry points, preserve local preferences and keep the historical error's ID and occurrence count unchanged. Subsequent delayed/unavailable API cases must add no new errors or repetitions. This explicitly covers an upgrade with an existing red error badge, not only installation into a clean profile. No error record is silently cleared by the product.
+
+`smoke:startup` and all five repository commands passed (2,182 tests). Production code and assets are unchanged in this follow-up. The user's installed path and on-disk worker hash still match the verified production build. That alone does not establish whether the reported personal-browser entry is historical or recurring. Both browser-control interfaces currently return `Transport closed` before execution; an explicit request to use a scoped macOS automation fallback is pending. Unlock by restoring browser control or authorizing that fallback, then archive the actual error ID/count, check for new occurrences after reload and verify the installed Side Panel. Preserve the personal error record and Project/run evidence until then. Do not request another workflow test or mark real P0.12 complete from the isolated upgrade regression.
+
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]

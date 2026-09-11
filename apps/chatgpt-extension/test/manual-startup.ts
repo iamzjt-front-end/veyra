@@ -78,6 +78,15 @@ try {
   };
   const snapshot = (page: Page) =>
     page.evaluate(() => chrome.runtime.sendMessage({ type: "snapshot" }));
+  const recordedErrors = () =>
+    manager.evaluate(async (id) => {
+      const api = (chrome as unknown as { developerPrivate: DeveloperPrivate }).developerPrivate;
+      return (await api.getExtensionInfo(id)).runtimeErrors.map((error) => ({
+        id: error.id,
+        message: error.message,
+        occurrences: error.occurrences,
+      }));
+    }, id);
   const open = async (name = "popup", delay = 0) => {
     assert.ok(context);
     // Inject at the copied bundle boundary: Chrome can install its extension APIs
@@ -96,6 +105,22 @@ try {
       { startupProof: "retained", bindings: {} },
     );
   };
+  // Exercise an actual upgrade from the reported crash. Chrome retains historical
+  // runtime errors across reload; checking that the worker exists is insufficient.
+  await writeFile(
+    join(extension, "background.js"),
+    fault(300) + "void chrome.storage.local.get('locale');\n" + background,
+  );
+  await reload();
+  let historicalErrors = await recordedErrors();
+  for (let attempt = 0; historicalErrors.length === 0 && attempt < 50; attempt++) {
+    await new Promise<void>((resolve) => setTimeout(resolve, 50));
+    historicalErrors = await recordedErrors();
+  }
+  assert.equal(historicalErrors.length, 1);
+  assert.match(historicalErrors[0]?.message ?? "", /undefined.*local/);
+  const priorFailures = failures.length;
+  await writeFile(join(extension, "background.js"), background);
   for (let n = 0; n < 10; n++) {
     worker = await reload();
     const page = await open(n % 2 ? "sidepanel" : "popup");
@@ -104,8 +129,11 @@ try {
     assert.equal(await page.locator("html").getAttribute("data-theme"), "dark");
     await page.close();
     await preserved(worker);
+    assert.deepEqual(await recordedErrors(), historicalErrors);
   }
-  console.log("MV3: 10 real extension reloads; popup/panel startup and saved state preserved.");
+  console.log(
+    "MV3: upgraded from the real storage crash; 10 reloads preserve popup/panel startup and saved state. The old error remains with unchanged ID/count; no new errors.",
+  );
   for (const name of ["popup", "sidepanel", "diagnostics"]) {
     const page = await open(name, 300);
     await page.waitForFunction(() => document.documentElement.lang === "en");
@@ -142,14 +170,10 @@ try {
   const restored = await open();
   assert.equal((await snapshot(restored)).ok, true);
   await restored.close();
-  const info = await manager.evaluate(async (id) => {
-    const api = (chrome as unknown as { developerPrivate: DeveloperPrivate }).developerPrivate;
-    return api.getExtensionInfo(id);
-  }, id);
-  assert.deepEqual(info.runtimeErrors, []);
-  assert.deepEqual(failures, []);
+  assert.deepEqual(await recordedErrors(), historicalErrors);
+  assert.deepEqual(failures.slice(priorFailures), []);
   console.log(
-    "Worker: delayed API recovered, permanent absence failed closed twice, fresh reload recovered; zero Chrome runtime errors.",
+    "Worker: delayed API recovered, permanent absence failed closed twice, fresh reload recovered; no new Chrome runtime errors or repeated historical errors.",
   );
   await cdp.detach();
 } finally {
@@ -160,5 +184,7 @@ try {
 interface DeveloperPrivate {
   updateProfileConfiguration(value: { inDeveloperMode: boolean }): Promise<void>;
   reload(id: string): Promise<void>;
-  getExtensionInfo(id: string): Promise<{ runtimeErrors: unknown[] }>;
+  getExtensionInfo(id: string): Promise<{
+    runtimeErrors: { id: number; message: string; occurrences: number }[];
+  }>;
 }
