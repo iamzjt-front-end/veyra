@@ -1,6 +1,6 @@
 import { access, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { expect, it } from "vitest";
+import { expect, it, vi } from "vitest";
 import { withFixtureWorkspace } from "../../../test/helpers/workspace.js";
 import { nativeDispatchFixture } from "./native-dispatch-fixture.js";
 
@@ -31,16 +31,18 @@ else {
       );
       await writeFile(join(path, "same-instructions.txt"), "symlink instructions");
       const controller = new AbortController();
-      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
         const result = nativeDispatchFixture(executable, {
           signal: controller.signal,
           ...(mode === "inspect-failure" || mode === "inspect-success" ? { mode } : {}),
-          progress: (stage) => {
-            if (mode === "cancel" && stage === "native_running")
-              timer = setTimeout(() => controller.abort(), 500);
-          },
         });
+        // Run creation precedes process startup. Cancel only after this test's child
+        // confirms its working directory, so slow startup cannot bypass the cleanup proof.
+        void result.catch(() => {});
+        if (mode === "cancel") {
+          await vi.waitFor(() => access(observer), { timeout: 5000, interval: 25 });
+          controller.abort();
+        }
         if (mode === "pass" || mode.startsWith("inspect"))
           expect(await result).toMatchObject({
             status: "passed",
@@ -65,7 +67,7 @@ else {
         const fixtureRoot = await readFile(observer, "utf8");
         await expect(access(fixtureRoot)).rejects.toMatchObject({ code: "ENOENT" });
       } finally {
-        clearTimeout(timer);
+        controller.abort();
       }
     });
   },

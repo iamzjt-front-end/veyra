@@ -509,6 +509,10 @@ try {
       try {
         const running = versionAt("running");
         await cdp.send("ServiceWorker.enable");
+        // The preceding real idle wait may already have evicted the worker. Establish
+        // a running context without touching the native coordinator before this test
+        // explicitly stops it and verifies the actual UI/handoff wake-up below.
+        await cdp.send("ServiceWorker.startWorker", { scopeURL: `${EXTENSION_ORIGIN}/` });
         const version = await running;
         await worker.evaluate(() => Object.assign(globalThis, { veyraColdWorkerProbe: true }));
         const stopped = versionAt("stopped");
@@ -602,7 +606,15 @@ try {
       })),
     }),
   );
-  assert.equal(state.binding?.count, 2);
+  assert.equal(
+    state.binding?.count,
+    2,
+    JSON.stringify({
+      binding: state.binding,
+      replies: await page.locator('[data-message-author-role="assistant"]').allTextContents(),
+      pageErrors,
+    }),
+  );
   assert.equal(state.binding?.review?.phase, "recorded");
   if (native) executed = Number(await readFile(join(root, "executions.txt"), "utf8"));
   assert.equal(executed, 2);
