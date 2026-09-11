@@ -622,7 +622,7 @@ Initial P0.11 verification selected official ChatGPT web Developer mode + authen
 
 ## P0.12 — Experimental ChatGPT Web Bridge for Pro product proof
 
-**Status:** [!] The user has demonstrated the real ChatGPT Pro → native Codex → independent Verifier → same-conversation result → ChatGPT review Happy Path. The deliberate test failure now has real persisted evidence alongside build/diff success. This task fixes the remaining review persistence and UI synchronization gap; real-account re-testing of that new behavior remains required. Earlier failure records below are historical. Full MCP remains the preferred future official production path; no tunnel, public server or API key is selected.
+**Status:** [x] Real installed-Chrome acceptance passed on 2026-09-11: three consecutive real ChatGPT Pro → native Codex → independent Verifier → same-conversation result → persisted PASS review rounds, plus failure/cancellation evidence and reload/refresh/idle recovery without duplicate execution. See [reliability acceptance](RELIABILITY-ACCEPTANCE.md). Earlier failure records below are historical. P0.13–P0.15 remain frozen by the current user instruction; do not continue into them. Full MCP remains the future official path; no tunnel or API-key route was introduced.
 
 **Depends on:** P0.11
 
@@ -922,7 +922,7 @@ All five repository commands passed (**2,169 tests**, including 165 extension te
 
 ### Binding isolation and historical review — live repair, 2026-09-11
 
-**Status:** [!] Two binding regressions repaired and local acceptance passed. Full real-account re-acceptance remains unconfirmed; do not ask the user to repeat an unverified test or start P0.13–P0.15.
+**Status:** [x] Binding repair and real-account re-acceptance are verified by the 2026-09-11 [reliability acceptance](RELIABILITY-ACCEPTANCE.md). P0.13–P0.15 remain frozen. The following describes the earlier local-only evidence.
 
 The selected real conversation received a fresh binding containing the Project's prior completed result. ChatGPT immediately reviewed that historical result, although the new binding had no dispatched run or confirmed result delivery. The controller correctly refused to persist an unassociated review, but the content script treated that refusal as a fatal bridge error and paused the otherwise idle binding. The binding notification now explicitly labels the snapshot as historical reference and asks the planner to wait for a new task. An unsolicited review before this binding's first dispatch is ignored without storing a verdict, folding it as accepted, dispatching a mixed handoff, or disabling the binding. Current-result, Project, conversation, schema and approval checks remain intact. The regression failed before the repair.
 
@@ -952,11 +952,19 @@ The development agent also reloaded the user's actual installed Chrome extension
 
 ### Error-console upgrade acceptance — user report, 2026-09-11
 
-**Status:** [!] Upgrade regression verified; actual Chrome error-counter and Side Panel checks are blocked by the unavailable browser-control transport. P0.12 remains [!].
+**Status:** [x] The authorized scoped macOS fallback completed actual Chrome error-counter checks; historical/probe errors and the verified installed build are recorded in [reliability acceptance](RELIABILITY-ACCEPTANCE.md). The following describes the earlier transport blocker.
 
 The user still sees Chrome's storage `TypeError` entry after Reload. The startup smoke now starts with the reported unsafe `chrome.storage.local` access in a temporary copied bundle, waits for Chrome to record the real exception, then restores the production bundle. Ten actual reloads open working popup/Side Panel entry points, preserve local preferences and keep the historical error's ID and occurrence count unchanged. Subsequent delayed/unavailable API cases must add no new errors or repetitions. This explicitly covers an upgrade with an existing red error badge, not only installation into a clean profile. No error record is silently cleared by the product.
 
 `smoke:startup` and all five repository commands passed (2,182 tests). Production code and assets are unchanged in this follow-up. The user's installed path and on-disk worker hash still match the verified production build. That alone does not establish whether the reported personal-browser entry is historical or recurring. Both browser-control interfaces currently return `Transport closed` before execution; an explicit request to use a scoped macOS automation fallback is pending. Unlock by restoring browser control or authorizing that fallback, then archive the actual error ID/count, check for new occurrences after reload and verify the installed Side Panel. Preserve the personal error record and Project/run evidence until then. Do not request another workflow test or mark real P0.12 complete from the isolated upgrade regression.
+
+### Reliability convergence — user-approved plan, 2026-09-11
+
+**Status:** [x] Implementation, 193 extension tests, startup/native/HTTP browser regressions, all five baseline checks (2,197 tests), and the actual installed-account acceptance passed. Three consecutive successful rounds, failure/cancellation and recovery evidence are recorded in [reliability acceptance](RELIABILITY-ACCEPTANCE.md). P0.13–P0.15 stay frozen; stop after focused commits and push.
+
+Keep the existing Project, native Codex, Verifier, Daemon and public envelopes. Pin the installed extension/build identity; record bounded bridge checkpoints for detection, validation, daemon acceptance, execution completion, confirmed same-conversation delivery and persisted review. Reconcile uncertain dispatches using read-only run/handoff evidence without replaying writes. Require current page, explicit binding, available Project and native readiness before showing Ready. Preserve all composer, conversation, grant, approval and uncertain-delivery boundaries.
+
+Acceptance requires extension regressions/startup/native/HTTP browser checks, all five baseline commands, and the actual installed Chrome + real ChatGPT Pro + native Codex loop in an independent durable test Project: three consecutive traceable rounds, refresh/reload/idle recovery without duplicate execution, failure/cancellation evidence, and idle/performance checks. Separate archived Chrome errors from new occurrences and diagnostic-probe errors. Do not clear an error badge as proof, replay old tasks, ask the user to test an unverified build, or mark this item complete without real evidence.
 
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
