@@ -50,7 +50,9 @@ it.each(["article", "section"])(
     let release: (() => void) | undefined;
     let claims = 0;
     const call = vi.fn(async (message: { type: string }) => {
-      if (message.type === "dispatch") binding = { ...binding, phase: "running" };
+      if (message.type === "review" && binding.count === 0)
+        return { ok: true, data: { binding, reviewIgnored: true } };
+      if (message.type === "dispatch") binding = { ...binding, phase: "running", count: 1 };
       if (message.type === "poll") binding = { ...binding, phase: "ready_to_deliver" };
       if (message.type === "claim") {
         claims++;
@@ -118,6 +120,23 @@ it.each(["article", "section"])(
     await vi.advanceTimersByTimeAsync(60000);
     expect(call).not.toHaveBeenCalled();
     const source = frameHandoff(handoffTemplate(binding));
+    // A planner can review a historical result included in the initial Project snapshot.
+    // No current result was delivered: ignore the whole reply, including a mixed handoff.
+    const historicalReview = sectionTurn(
+      document,
+      "historical-review",
+      'VEYRA_REVIEW_BEGIN\n{"verdict":"PASS","summary":"Old result","findings":[],"nextAction":"complete"}\nVEYRA_REVIEW_END\n' +
+        source,
+    );
+    document.querySelector("main")?.append(historicalReview);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(call.mock.calls.map(([message]) => message.type)).toEqual(["review"]);
+    expect(historicalReview.textContent).toContain("VEYRA_REVIEW_BEGIN");
+    expect(historicalReview.querySelector('[data-veyra-folded="true"]')).toBeNull();
+    call.mockClear();
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(call).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
     const turn =
       layout === "section"
         ? sectionTurn(document, "fresh", source)

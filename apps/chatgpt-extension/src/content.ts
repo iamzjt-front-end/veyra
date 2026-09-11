@@ -165,7 +165,11 @@ installContentOnce((restoreOnLoad) => {
         const next = candidate;
         candidate = undefined;
         if (next.review) {
-          if (!accept(await send("review", { source: next.review }), current.id)) return;
+          const response = await send("review", { source: next.review });
+          if (!accept(response, current.id)) return;
+          // An unsolicited historical review is neither recorded nor an instruction
+          // to dispatch any handoff in that same reply. Wait for a fresh task.
+          if (object(response) && response.reviewIgnored === true) return;
           try {
             presentation.review(document, next.id, next.review);
           } catch {

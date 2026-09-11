@@ -18,6 +18,7 @@ import {
 } from "@veyraoss/project";
 import { parseConfig } from "@veyraoss/config";
 import { EXTENSION_ORIGIN, parsePairing } from "../src/contracts.js";
+import type { SessionState } from "../src/controller.js";
 import { sectionTurnMarkup } from "./fixtures/chatgpt-turn.js";
 
 // This is an offline fixture, not a ChatGPT account/native-auth acceptance claim.
@@ -411,6 +412,33 @@ try {
       await new Promise((resolve) => setTimeout(resolve, 50));
     }
     assert.equal(armed.binding?.bootstrapped, true);
+    // Real re-binding can make ChatGPT review a historical Project snapshot. It must
+    // not pause the new binding or pretend that an unassociated verdict was saved.
+    await page.evaluate(() => {
+      const turn = document.createElement("article");
+      const message = document.createElement("div");
+      message.dataset.messageAuthorRole = "assistant";
+      message.dataset.messageId = "unsolicited-historical-review";
+      message.textContent =
+        'VEYRA_REVIEW_BEGIN\n{"verdict":"PASS","summary":"Historical result","findings":[],"nextAction":"complete"}\nVEYRA_REVIEW_END';
+      const copy = document.createElement("button");
+      copy.dataset.testid = "copy-turn-action-button";
+      turn.append(message, copy);
+      document.querySelector("main")?.append(turn);
+    });
+    await delay(1200);
+    const afterHistoricalReview = (await worker.evaluate(
+      async () => (await chrome.storage.session.get("state")).state,
+    )) as SessionState;
+    assert.ok(afterHistoricalReview.binding);
+    assert.equal(afterHistoricalReview.binding.phase, "armed");
+    assert.equal(afterHistoricalReview.binding.count, 0);
+    assert.equal(afterHistoricalReview.binding.review, undefined);
+    assert.match(
+      await page.locator('[data-message-id="unsolicited-historical-review"]').innerText(),
+      /VEYRA_REVIEW_BEGIN/,
+      "An ignored review must not be folded as recorded",
+    );
     const epoch = armed.binding?.epoch;
     await page.reload();
     let recovered = false;

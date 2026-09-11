@@ -11,13 +11,13 @@ import { exchangePairing, LocalClient } from "./client.js";
 import { PAGE_CONNECTION_CHANGED } from "./page-connection.js";
 import {
   conversationUrl,
-  instruction,
   object,
   parseHandoff,
   parseReview,
   parsePairing,
   parseInvitation,
   resultMessage,
+  bindingMessage,
   type Binding,
   type Pairing,
   type ProjectView,
@@ -354,7 +354,7 @@ export class BridgeController {
           const response = await this.host.send(tab.id, {
             type: "arm",
             binding,
-            text: `Veyra binding ${binding.id}. Experimental Bridge 已绑定当前会话到 Project。只使用以下项目工程状态，不需要复制其他对话或配置 API Key。\n${JSON.stringify(view)}\n${instruction(binding)}`,
+            text: bindingMessage(binding, view),
           });
           if (!object(response) || response.ok !== true)
             throw new Error(
@@ -492,6 +492,12 @@ export class BridgeController {
           : "已回传，等待 GPT Review 或新的 repair handoff。";
     } else if (value.type === "review") {
       const target = binding.review;
+      if (binding.phase === "armed" && binding.count === 0 && !binding.runId && !target) {
+        // The initial Project snapshot can contain historical results. A planner's
+        // unsolicited review is not authority to associate them with this binding.
+        // Ignore it without saving a verdict, disabling an idle binding or doing I/O.
+        return { binding: { ...binding, delivery: undefined }, reviewIgnored: true };
+      }
       if (
         binding.phase !== "armed" ||
         !target ||

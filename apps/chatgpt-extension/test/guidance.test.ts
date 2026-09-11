@@ -5,6 +5,7 @@ import {
   extractHandoffBlock,
   frameHandoff,
   instruction,
+  bindingMessage,
   parseHandoff,
   type Binding,
 } from "../src/contracts.js";
@@ -44,6 +45,22 @@ it("gives the planner a complete valid canonical example with explicit field loc
 });
 it("does not offer another handoff when the execution budget is exhausted", () => {
   expect(extractHandoffBlock(instruction({ ...binding, count: 3 }))).toBeUndefined();
+});
+it("labels historical Project state as reference only when binding, with no current review target", () => {
+  const view = {
+    project: { id: binding.projectId, name: "fixture", root: "/fixture" },
+    readiness: { ready: true, message: "ready", checks: [] },
+    sharedState: { result: { runId: "historical-run", summary: "Old result" } },
+  };
+  const text = bindingMessage(binding, view);
+  expect(text).toContain(JSON.stringify(view));
+  expect(text).toContain("本条消息只确认就绪，等待用户新的明确任务");
+  expect(text).toContain("历史工程参考");
+  expect(text).not.toContain("VEYRA_REVIEW_BEGIN");
+  expect(text.split(binding.id)).toHaveLength(2);
+  expect(
+    parseHandoff(extractHandoffBlock(text) as string, binding.projectId, binding.nextRunId),
+  ).toMatchObject({ runId: binding.nextRunId });
 });
 it.each(["requestedVerification", "currentTask", "decisions"] as const)(
   "rejects the observed %s mistake with a translated explanation and no dispatch or rewrite",

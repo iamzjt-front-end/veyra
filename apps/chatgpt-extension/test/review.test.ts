@@ -206,6 +206,23 @@ function fixture() {
 }
 
 describe("bound review receipt and no-replay persistence", () => {
+  it("ignores an unsolicited historical review after a fresh Bind without saving it or pausing", async () => {
+    const f = fixture();
+    await f.controller().handle({ type: "bind", projectId, maxRuns: 1 }, popup);
+    const before = structuredClone(f.state());
+    vi.mocked(f.native.call).mockClear();
+    expect(await f.message("review", { source: frame() })).toMatchObject({
+      reviewIgnored: true,
+      binding: { phase: "armed", count: 0 },
+    });
+    expect(f.state()).toEqual(before);
+    expect(f.native.call).not.toHaveBeenCalled();
+    expect(f.saved()).toBeNull();
+    const binding = f.state().binding;
+    if (!binding) throw new Error("Missing binding");
+    await f.message("dispatch", { source: frameHandoff(handoffTemplate(binding)) });
+    expect(f.state().binding).toMatchObject({ phase: "running", count: 1 });
+  });
   it("persists one review, not its body in browser storage, and restores through read-only reconciliation", async () => {
     const f = fixture();
     await f.delivered();
