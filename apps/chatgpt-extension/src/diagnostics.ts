@@ -1,7 +1,7 @@
 import { object, parseInvitation, type PairingInvitation } from "./contracts.js";
 import { watchPopup } from "./popup-refresh.js";
 import { translate, type Parameters as MessageParameters, LocaleStore } from "@veyraoss/ui/i18n";
-import { extensionLocale } from "./ui-locale.js";
+import { startExtensionUI } from "./ui-locale.js";
 import { diagnosticText, stateLabel } from "./diagnostic-copy.js";
 let language = new LocaleStore();
 const t = (source: string, values?: MessageParameters) =>
@@ -273,7 +273,7 @@ function renderStatus(data: Record<string, unknown>) {
         ? t("Choose a Project → Bind → Just talk.")
         : t("Run ve setup first, then ve init inside the Project.");
 }
-void extensionLocale().then((store) => {
+startExtensionUI((store) => {
   language = store;
   const picker = document.querySelector<HTMLSelectElement>("#locale") as HTMLSelectElement;
   const renderLanguage = () => {

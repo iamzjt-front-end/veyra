@@ -54,9 +54,10 @@ it("persists and synchronizes trusted extension UI preferences without binding c
     for (const listener of listeners) listener({ locale: { newValue: saved } }, "local");
   });
   vi.stubGlobal("chrome", {
-    runtime: { sendMessage },
+    runtime: { id: "meibodpmcjcjdpfaaejdpiclijnpcclh", sendMessage },
     storage: {
-      local: { get: async () => ({ locale: saved }), set },
+      local: { get: async () => ({ locale: saved }), set, setAccessLevel: vi.fn() },
+      session: { get: vi.fn(), set: vi.fn(), setAccessLevel: vi.fn() },
       onChanged: {
         addListener: (fn: typeof listeners extends Set<infer T> ? T : never) => listeners.add(fn),
         removeListener: (fn: typeof listeners extends Set<infer T> ? T : never) =>

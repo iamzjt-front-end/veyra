@@ -936,6 +936,20 @@ Real account evidence: the development agent personally bound the existing durab
 
 Technical blocker: repeated inspection of the selected real ChatGPT page returned AppleEvent timeout `-1712`; the alternate native computer-use surface could not obtain a screenshot or reliably select the target window. Temporary tracing was removed and the installed extension reloaded with the production build. The exact binding/run IDs and unchanged source/config hashes are recorded in a private local verification report. To unlock acceptance, first regain reliable observation of this dedicated conversation and check the Project archive for the pending run; do not replay an uncertain task, dispatch, result or historical review. P0.12 remains [!].
 
+### Extension storage startup — live regression, 2026-09-11
+
+**Status:** [x] Focused startup repair and local/browser verification passed. Real P0.12 remains [!].
+
+The user reported an uncaught `Cannot read properties of undefined (reading 'local')` in `background.js` after reloading the installed extension. Its actual unpacked path points to the repository's current build and Chrome has granted `storage`; a later read-only worker probe found both storage areas available. The historical API timing was not captured, so this does not establish a unique Chrome-internal cause. Four regression tests failed before the repair: three reproduced the worker's direct startup access, and one showed that a second queued request could bypass a rejected initialization gate.
+
+Background, popup, Side Panel and Diagnostics now wait at most 2.5 seconds for the required storage APIs. Message listeners register synchronously; every operation still requires successful trusted-context access restrictions and initialization. Missing storage never becomes empty binding state. Only API presence is retried: no storage write, task, dispatch or result delivery is replayed. Invalidated contexts stop waiting; UI bootstrap failure displays a localized recovery action. No recurring idle timer is introduced.
+
+The new `smoke:startup` uses real MV3 extension reloads in an isolated Chromium profile and injects delayed/unavailable APIs only into a temporary copy of the built assets. It passed ten reloads, preference preservation, all three UI entry points, repeated denial after worker initialization failure, subsequent reload recovery and zero Chrome-recorded runtime errors. Its native host cannot connect to the user's coordinator or registry. The first attempt exposed ineffective document-init fault injection: Chrome installs its extension APIs afterward. Instrumentation now runs at the copied bundle boundary and verifies both the recovery and visible-failure branches.
+
+All five repository commands passed (**2,182 tests**, including 178 extension tests). Both native and HTTP browser smokes passed with two executions, two same-conversation returns, persisted pass/fail reviews, 14 composer safety cases and mutation-burst deduplication. Native extension/worker/coordinator recovery and review restoration passed. Each 3,000-turn/60-second idle measurement recorded zero DOM queries (TaskDuration **0.0495s HTTP / 0.0452s native**). Source and CLI-packaged extension assets match, and the user's real registry hash is unchanged.
+
+The development agent also reloaded the user's actual installed Chrome extension. Its fresh worker initially had zero console messages; a read-only probe confirmed both storage areas, the registered message listener and the new startup guard. The served worker SHA-256 matches the rebuilt file. The previous Chrome error record was retained rather than cleared. No uncertain ChatGPT task or delivery was replayed, and this startup check does not establish full real-account workflow acceptance or unlock P0.13–P0.15.
+
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]

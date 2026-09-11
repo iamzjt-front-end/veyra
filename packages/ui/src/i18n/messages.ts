@@ -323,6 +323,11 @@ export const chinese: Readonly<Record<string, string>> = {
   "Evidence: Project/.veyra/runs. Coordinator logs: ~/.veyra/daemon/daemon.jsonl. Revoke native grants with ve setup --revoke.":
     "执行证据：项目/.veyra/runs。协调器日志：~/.veyra/daemon/daemon.jsonl。可用 ve setup --revoke 撤销原生授权。",
   "Extension background is unavailable.": "扩展后台不可用。",
+  "Extension storage is unavailable. Reopen Veyra; no task was sent or replayed.":
+    "扩展本地存储暂时不可用。请重新打开 Veyra；未发送或重放任何任务。",
+  "This extension context was replaced. Reopen Veyra; no task was sent or replayed.":
+    "扩展已重新加载，当前页面已失效。请重新打开 Veyra；未发送或重放任何任务。",
+  "Reopen Veyra": "重新打开 Veyra",
   "Invalid Project list.": "项目列表无效。",
   " (location unavailable)": "（路径失效）",
   "Choose an explicit local Project": "明确选择一个本地项目",

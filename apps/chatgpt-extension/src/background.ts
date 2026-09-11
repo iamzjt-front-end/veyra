@@ -5,23 +5,26 @@ import { NativeClient } from "./native-client.js";
 import { durableBindings } from "./persistence.js";
 import { BridgeController, type SessionState } from "./controller.js";
 import { sendToPage } from "./page-connection.js";
+import { extensionStorage } from "./storage.js";
 
 let locale: Locale = DEFAULT_LOCALE;
 let saving: Promise<void> = Promise.resolve();
 const host = {
   read: async (): Promise<SessionState> => {
+    const storage = await ready;
     await saving;
-    const session = ((await chrome.storage.session.get("state")).state as SessionState) ?? {};
+    const session = ((await storage.session.get("state")).state as SessionState) ?? {};
     const bindings =
-      ((await chrome.storage.local.get("bindings")).bindings as SessionState["bindings"]) ?? {};
+      ((await storage.local.get("bindings")).bindings as SessionState["bindings"]) ?? {};
     return { ...session, bindings };
   },
   save: (state: SessionState) => {
     const captured = structuredClone(state);
     const write = saving.then(async () => {
+      const storage = await ready;
       // Durable intent goes first: a crash after dispatch/claim cannot replay a write.
-      await chrome.storage.local.set({ bindings: durableBindings(captured) });
-      await chrome.storage.session.set({ state: captured });
+      await storage.local.set({ bindings: durableBindings(captured) });
+      await storage.session.set({ state: captured });
     });
     saving = write.catch(() => {});
     return write;
@@ -34,16 +37,25 @@ const host = {
 };
 const controller = new BridgeController(host, undefined, new NativeClient());
 // Default session storage is not exposed to content scripts. Make that boundary explicit.
-const ready = Promise.all([
-  chrome.storage.local.get("locale").then((data) => {
-    if (isLocale(data.locale)) locale = data.locale;
-  }),
-  chrome.storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
-  chrome.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
-]);
-let serial: Promise<unknown> = ready;
+const ready = extensionStorage().then(async (storage) => {
+  await Promise.all([
+    storage.session.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
+    storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" }),
+  ]);
+  const data = await storage.local.get("locale");
+  if (isLocale(data.locale)) locale = data.locale;
+  return storage;
+});
+// Register wake-up listeners synchronously. A startup failure is returned to callers,
+// not an uncaught exception that leaves the worker without a receiving end.
+void ready.catch(() => {});
+let serial: Promise<unknown> = Promise.resolve();
 const enqueue = <T>(action: () => Promise<T>): Promise<T> => {
-  const result = serial.then(action);
+  const result = serial.then(async () => {
+    // A previous rejected request must not remove the initialization gate.
+    await ready;
+    return action();
+  });
   serial = result.catch(() => {});
   return result;
 };
@@ -67,16 +79,17 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   return true;
 });
 chrome.tabs.onRemoved.addListener((id) => {
-  void enqueue(() => controller.detached(id));
+  void enqueue(() => controller.detached(id)).catch(() => {});
 });
 chrome.tabs.onUpdated.addListener((id, change) => {
-  if (change.status === "loading" || change.url) void enqueue(() => controller.detached(id));
+  if (change.status === "loading" || change.url)
+    void enqueue(() => controller.detached(id)).catch(() => {});
   if (change.status === "complete")
-    void enqueue(() => host.send(id, { type: "restore" }).catch(() => {}));
+    void enqueue(() => host.send(id, { type: "restore" })).catch(() => {});
 });
 
 // Default is disabled; enable only tabs on the supported ChatGPT origin.
-void chrome.sidePanel.setOptions({ enabled: false });
+void chrome.sidePanel.setOptions({ enabled: false }).catch(() => {});
 const updatePanel = (id: number, url?: string) =>
   chrome.sidePanel
     .setOptions({ tabId: id, path: "sidepanel.html", enabled: supportsPanel(url) })
@@ -96,7 +109,7 @@ chrome.tabs.onActivated.addListener(({ tabId }) => {
     .catch(() => {});
 });
 
-chrome.storage.onChanged.addListener((changes, area) => {
+function onStorageChanged(changes: Record<string, chrome.storage.StorageChange>, area: string) {
   if (area !== "local" || !isLocale(changes.locale?.newValue)) return;
   locale = changes.locale.newValue;
   // A cosmetic event for the current supported tab only; no history reads or controller actions.
@@ -107,4 +120,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
         return host.send(tab.id, { type: "locale" });
     })
     .catch(() => {});
-});
+}
+// Normally register synchronously for cold-worker events; late API availability
+// defers only this cosmetic locale listener, never the message/safety listeners.
+if (globalThis.chrome?.storage?.onChanged) chrome.storage.onChanged.addListener(onStorageChanged);
+else void ready.then((storage) => storage.onChanged.addListener(onStorageChanged)).catch(() => {});

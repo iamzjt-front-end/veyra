@@ -1,5 +1,5 @@
 import { I18nProvider } from "@veyraoss/ui";
-import { extensionLocale } from "./ui-locale.js";
+import { startExtensionUI } from "./ui-locale.js";
 import { useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { object } from "./contracts.js";
@@ -68,10 +68,7 @@ function Launcher() {
     />
   );
 }
-void chrome.storage.local.get("theme").then(({ theme }) => {
-  if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
-});
-void extensionLocale().then((locale) => {
+startExtensionUI((locale) => {
   createRoot(document.getElementById("root") as HTMLElement).render(
     <I18nProvider store={locale}>
       <Launcher />
