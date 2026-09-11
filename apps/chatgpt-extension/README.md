@@ -56,7 +56,7 @@ GUI-1–GUI-6 已实现 Side Panel 和 Local Control Center。遇到接收端错
 
 1. 在原绑定对话中检查是否有 active run。有则先 Cancel 并核对终态；保留 Project 证据。更新后如仍显示旧 HTTP 绑定，先 Unbind 再切换传输，避免把旧运行路由到新的 registry。
 2. 在本仓库执行 `pnpm ve -- setup`。它注册本机 Native Host，自动检查 Codex 登录和 coordinator；不需要手动 daemon、localhost、pairing JSON 或 API Key。此步骤是一次性机器接入，不是每天的操作。
-3. 在**原 disposable `veyra-pro-proof` 项目根目录**执行 `node /absolute/path/to/veyra/apps/cli/dist/index.js init`，把它注册到默认本机 registry。保留原文件和原验证配置；不要对正在运行的生产项目做 proof。
+3. 在**原 disposable `veyra-pro-proof` 项目根目录**执行 `node /absolute/path/to/veyra/apps/cli/dist/index.js init`，把它注册到默认本机 registry。保留原文件和原验证配置；不要对正在运行的生产项目做 proof。如果原来的临时目录已丢失，先按下文 `prepare:live` 准备新项目，再执行 `ve project add <project.root>` 注册它，避免改变夹具的受保护文件。新项目必须重新明确绑定；不要沿用旧身份、补造旧证据或重放旧任务。
 4. Chrome `chrome://extensions` → Veyra → **Reload**，然后刷新原目标 ChatGPT 对话。继续使用已加载的 `apps/chatgpt-extension/dist/` 即可；不必改为另一个目录或重复安装。首次加载可使用 setup 输出的 `apps/cli/dist/browser-extension/`，两者包含同样构建产物。
 5. 打开 Veyra → **Open Veyra** 进入 Side Panel。若 Diagnostics 中仍为 HTTP，先 Unbind 旧绑定，再点 **使用 Native Messaging**；项目列表自动刷新。明确选择 `veyra-pro-proof`，核对路径，保持 composer 为空、无附件、GPT 未生成，点击 **Bind**。
 6. 先确认 binding 消息仅发送一次、ChatGPT 正常回复，界面仍为 Ready 且当前 Project 正确。刷新该对话，确认绑定恢复、binding 消息未重发，然后自然提出验收任务。可直接使用下面的测试提示词；这是用户任务，不是复制 GPT/Codex 的输出。
@@ -121,7 +121,7 @@ Popup / Side Panel 仅在打开、用户操作和 storage/tab/focus 事件时更
 
 2. **安装到 Chrome。** 打开 `chrome://extensions`，开启 Developer Mode，选择 Load unpacked，加载上述目录，按 Chrome 提示授权。固定扩展 ID 应为 `meibodpmcjcjdpfaaejdpiclijnpcclh`。public manifest key 只是稳定标识，不是密钥。将 Veyra 固定到工具栏便于观察。更新构建后，在此页点击 Reload，再刷新目标 ChatGPT 页面并重新绑定。
 
-3. **准备专用 disposable Project。** 从仓库根目录执行下面命令。它只新建随机临时目录，不接受已有项目作为目标，不安装依赖，不启动 Codex 模型，不改真实项目。复用已有 greeting fixture，创建本地 Git baseline，注册独立 registry，绑定 native Codex，配置可信的 test/build/diff 检查，并生成启动/停止脚本。把返回的 `directory` 赋给本终端变量 `PROOF_DIR`（例如 `PROOF_DIR='/返回的完整目录'`）；`project.root` 是应该选择的项目目录，名称为 `veyra-pro-proof`。
+3. **准备专用 disposable Project。** 从仓库根目录执行下面命令。它只在 `~/Projects/veyra-proofs/` 下新建独立目录，供跨天实机验收保留证据；不再存放于系统临时目录。它不接受已有项目作为覆盖目标，不安装依赖，不启动 Codex 模型，不改真实项目。复用已有 greeting fixture，创建本地 Git baseline，注册独立 registry，绑定 native Codex，配置可信的 test/build/diff 检查，并生成启动/停止脚本。把返回的 `directory` 赋给本终端变量 `PROOF_DIR`（例如 `PROOF_DIR='/返回的完整目录'`）；`project.root` 是应该选择的项目目录，名称为 `veyra-pro-proof`。这里只是开发者的 HTTP fallback 诊断；普通 Native Messaging 使用流程不需要这些脚本或变量。
 
    ```sh
    pnpm --filter @veyraoss/chatgpt-extension prepare:live /absolute/path/to/codex

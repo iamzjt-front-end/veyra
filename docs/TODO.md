@@ -896,6 +896,18 @@ All five baseline commands pass: `pnpm lint`, `pnpm format:check`, `pnpm check`,
 
 The original proof Project still returns `BROKEN`; its pre-existing `.gitignore` change and all old run/result evidence are preserved. No real ChatGPT message or review was sent/imported by this implementation task. Only a fresh user-requested review in the same already-bound conversation remains to prove the new capture/persistence/UI behavior with the real account. No automatic repair engine or later TODO was started. Focused commits and remote CI results are reported with the delivery.
 
+### Project registry test isolation and durable proof — user report, 2026-09-11
+
+**Status:** [x] Implementation and local repair verified. P0.12 real re-acceptance remains open.
+
+The root vertical-slice and telemetry suites called native `ve init` without `--registry`. Initialization registered each temporary `veyra-test-*` folder in the user's real `~/.veyra/projects.json`; fixture cleanup removed the folder but left the global record. Both subprocess helpers now inject a fixture-owned registry for initialization and assert the actual registered Project root. Existing recursive fixture cleanup removes that registry too. Contributor instructions now explicitly prohibit default-home registration from tests, including tests with an empty injected environment.
+
+The actual local registry was backed up to a private file under `~/.veyra/backups/` before removing **250** records. Each removal required the known temporary-parent path, exact fixture name, matching descriptor and a fresh missing-path check; the existing locked registry API preserved other entries. The old real `veyra-pro-proof` descriptor remains unchanged. Its former system-temporary folder is now missing, so its unavailable-path warning is truthful; the registry cannot reconstruct its missing files or run evidence. This updates the previous day's file-preservation observation without replacing its historical acceptance record.
+
+Manual `prepare:live` now creates unique proof folders under `~/Projects/veyra-proofs/`. Automated preparation tests explicitly supply their own temporary parent. A regression verifies that preparing a second proof preserves the first Project identity, descriptor and saved evidence, with independent registries. A new durable local proof was prepared and registered as available; native Codex reported installed/authenticated/ready with `OPENAI_API_KEY` unset. Local preparation checks confirm the deliberate `BROKEN` test fails while syntax/build/diff checks pass and tracked files stay unchanged. No native model task, prior handoff or delivery was replayed, and the old conversation binding was not silently redirected to the new identity.
+
+Targeted regressions pass (**13 tests**). All five repository commands pass: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**2,166 tests**, including 162 extension tests), and `pnpm build`. The real user registry's SHA-256 is identical before and after the full suite, with **zero automated test Projects** remaining. No production extension code changed, so an extension Reload is not required for this repair; reopen its project picker, explicitly unbind the missing old Project and bind the new available Project for fresh real acceptance. P0.12 remains [!] and P0.13–P0.15 remain unstarted.
+
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]

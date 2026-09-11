@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { cp, mkdtemp, mkdir, writeFile, readFile, lstat, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -13,9 +12,10 @@ const repository = fileURLToPath(new URL("../../../", import.meta.url));
 const cli = join(repository, "apps/cli/dist/index.js");
 const quote = (text: string) => `'${text.replace(/'/g, "'\\''")}'`;
 
-/** Only creates a new disposable folder. Does not install a browser or invoke the native model. */
-export async function prepareLiveProject(executable = "codex") {
-  const directory = await mkdtemp(join(tmpdir(), "veyra-pro-proof-"));
+/** Creates a new proof without overwriting earlier evidence. Tests must supply an isolated parent. */
+export async function prepareLiveProject(parentDirectory: string, executable = "codex") {
+  await mkdir(parentDirectory, { recursive: true, mode: 0o700 });
+  const directory = await mkdtemp(join(parentDirectory, "veyra-pro-proof-"));
   try {
     const root = join(directory, "project");
     await cp(join(repository, "test/fixtures/minimal-project"), root, { recursive: true });
