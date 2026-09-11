@@ -42,9 +42,11 @@ document.querySelector('button').onclick=()=>{
  const turn=document.createElement(sectionLayout?'section':'article');
  if(sectionLayout){turn.dataset.testid='conversation-turn-'+turns;turn.dataset.turn='assistant';turn.innerHTML=${JSON.stringify(sectionTurnMarkup)};}
  const assistant=sectionLayout?turn.querySelector('[data-message-author-role="assistant"]'):document.createElement('div');assistant.dataset.messageAuthorRole='assistant';assistant.dataset.messageId=crypto.randomUUID();
- const body=document.createElement(sectionLayout?'p':'code');body.textContent='{';if(sectionLayout)assistant.append(body);else{const pre=document.createElement('pre');body.className='language-veyra-handoff';pre.append(body);assistant.append(pre);turn.append(assistant);}main.append(turn);
+ const body=document.createElement(sectionLayout?'p':'code');body.textContent='Preparing the structured response…';if(sectionLayout)assistant.append(body);else{const pre=document.createElement('pre');body.className='language-veyra-handoff';pre.append(body);assistant.append(pre);turn.append(assistant);}main.append(turn);
  const actions=sectionLayout?turn.querySelector('[role="group"]'):turn;
- setTimeout(()=>{body.textContent=handoff?'VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END':'';if(review){const pre=document.createElement('pre');pre.textContent='VEYRA_REVIEW_BEGIN\\n'+JSON.stringify(review)+'\\nVEYRA_REVIEW_END';assistant.prepend(pre);if(sectionLayout && handoff){const task=document.createElement('pre');task.textContent=body.textContent;body.replaceWith(task);}}const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';actions.append(copy);setTimeout(()=>{stop.dataset.testid='fixture-finished-control';},100);},100);
+ const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';actions.append(copy);
+ // Complete-looking prose must not consume this identity before the final body commit.
+ setTimeout(()=>{stop.dataset.testid='fixture-finished-control';setTimeout(()=>{body.textContent=handoff?'VEYRA_HANDOFF_BEGIN\\n'+JSON.stringify(handoff)+'\\nVEYRA_HANDOFF_END':'';if(review){const pre=document.createElement('pre');pre.textContent='VEYRA_REVIEW_BEGIN\\n'+JSON.stringify(review)+'\\nVEYRA_REVIEW_END';assistant.prepend(pre);if(sectionLayout && handoff){const task=document.createElement('pre');task.textContent=body.textContent;body.replaceWith(task);}}},800);},100);
 };
 </script></body></html>`;
 

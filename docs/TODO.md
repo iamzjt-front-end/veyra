@@ -908,6 +908,18 @@ Manual `prepare:live` now creates unique proof folders under `~/Projects/veyra-p
 
 Targeted regressions pass (**13 tests**). All five repository commands pass: `pnpm lint`, `pnpm format:check`, `pnpm check`, `pnpm test` (**2,166 tests**, including 162 extension tests), and `pnpm build`. The real user registry's SHA-256 is identical before and after the full suite, with **zero automated test Projects** remaining. No production extension code changed, so an extension Reload is not required for this repair; reopen its project picker, explicitly unbind the missing old Project and bind the new available Project for fresh real acceptance. P0.12 remains [!] and P0.13–P0.15 remain unstarted.
 
+### Assistant turn completion race — user report, 2026-09-11
+
+**Status:** [x] Implementation and deterministic acceptance verified. Real Pro re-acceptance remains open.
+
+Read-only inspection of the selected real conversation found an armed, attached binding, a live page receiver with the matching epoch, a valid handoff with the expected Project/run IDs, and no dispatched run. The page had not reloaded after this handoff. Only the user-reported turn and routing metadata were inspected; no task or delivery was replayed. The historical DOM event sequence was not captured, so it cannot establish a unique cause for the earlier missed turn.
+
+A deterministic regression reproduces a silent-drop defect: the observer permanently consumed a new assistant identity after seeing completed-looking plain text, even if React later committed the framed handoff/review into that same reply. Both handoff and review regressions failed before the change. The observer now keeps only the newest unconsumed reply eligible for later mutations, with no idle timer. A newer reply retires the previous one; consumed or pre-binding identities stay ignored. Schema checks, exact binding/run identity, streaming/completion checks and uncertain-send protections remain unchanged.
+
+The native and HTTP Chromium fixtures now deliberately commit structured bodies after the first plain-text completion check. Acceptance includes both full transport smokes, staged handoff/review detection, superseded-turn exclusion, refresh/deduplication safety, mutation bursts, 3,000-turn/60-second idle measurements, and all five repository commands. P0.12 real re-acceptance remains open; P0.13–P0.15 remain unstarted.
+
+All five repository commands passed (**2,169 tests**, including 165 extension tests). Both browser smokes passed using the documented `CHROMIUM_EXECUTABLE` for Chromium **149.0.7827.55**; the default Playwright cache lacked its requested browser, so the existing pinned executable was selected. Each transport executed twice, returned both results to the same fixture conversation and persisted independent pass/fail reviews. Native reload, cold worker/coordinator recovery, Unbind and review restoration passed. Idle measurements recorded **zero DOM queries in 60 seconds** with 3,000 historical turns: TaskDuration **0.0559s HTTP / 0.0497s native**. Fourteen composer-normalization/safety cases and mutation-burst deduplication passed. The real user registry hash is unchanged, and source/CLI-packaged content bundles match. The extension is rebuilt; real re-acceptance requires Chrome Reload and refreshing the bound conversation before a fresh user-requested task. Existing unconfirmed handoffs are not replayed.
+
 ## P0.13 — Real ChatGPT → Codex → ChatGPT closed loop
 
 **Status:** [ ]

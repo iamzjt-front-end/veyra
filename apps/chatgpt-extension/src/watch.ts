@@ -41,8 +41,13 @@ export function watchConversation(
       !newest?.isConnected ||
       element === newest ||
       (newest.compareDocumentPosition(element) & 4) !== 0
-    )
+    ) {
+      // Retain only the newest unconsumed turn. If it is superseded, later edits or
+      // DOM reattachment of that older reply must never turn into a fresh task.
+      const previousId = newest && assistantId(newest);
+      if (previousId && previousId !== id) ignored.add(previousId);
       newest = element;
+    }
   };
   const schedule = () => {
     clearTimeout(timer);
@@ -63,10 +68,12 @@ export function watchConversation(
         const text = turnText(current);
         const source = extractHandoffBlock(text);
         const review = extractMachineBlock(text, "REVIEW");
+        // The toolbar and body can commit separately. Plain text is not a consumed
+        // task: keep this new turn eligible for a later mutation, with no idle timer.
+        if (source === undefined && review === undefined) return;
         ignored.add(id);
         newest = undefined;
-        if (source !== undefined || review !== undefined)
-          onHandoff({ id, source: source ?? "", ...(review ? { review } : {}) });
+        onHandoff({ id, source: source ?? "", ...(review ? { review } : {}) });
       } catch (error) {
         onError(error);
       }

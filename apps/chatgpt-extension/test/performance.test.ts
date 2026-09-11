@@ -9,6 +9,74 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
+it.each(["HANDOFF", "REVIEW"])(
+  "keeps a new completed turn eligible when its %s block renders after initial prose",
+  async (kind) => {
+    const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+    vi.stubGlobal("MutationObserver", window.MutationObserver);
+    const document = doc as unknown as Document;
+    const source = `VEYRA_${kind}_BEGIN\n{"summary":"中文 English"}\nVEYRA_${kind}_END`;
+    const candidate = vi.fn();
+    const error = vi.fn();
+    const stop = watchConversation(document, candidate, vi.fn(), error);
+    const turn = sectionTurn(document, "staged", "Preparing the structured response…");
+    document.querySelector("main")?.append(turn);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(candidate).not.toHaveBeenCalled();
+    // A completed-looking toolbar can precede React's final body commit. The same
+    // message identity must not be permanently consumed just for having plain text.
+    const reads = vi.spyOn(document, "querySelectorAll");
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(reads).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    const message = turn.querySelector('[data-message-author-role="assistant"]');
+    if (!message) throw new Error("Missing fixture assistant");
+    message.textContent = source;
+    for (let n = 0; n < 1000; n++) message.setAttribute("class", `render-${n}`);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(candidate).toHaveBeenCalledExactlyOnceWith({
+      id: "staged",
+      source: kind === "HANDOFF" ? source : "",
+      ...(kind === "REVIEW" ? { review: source } : {}),
+    });
+    message.textContent = `${source}\nLater presentation update`;
+    await vi.advanceTimersByTimeAsync(60000);
+    expect(candidate).toHaveBeenCalledTimes(1);
+    expect(reads).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+    stop();
+  },
+);
+it("retires a plain completed turn when a newer assistant starts and never replays it", async () => {
+  const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const source = 'VEYRA_HANDOFF_BEGIN\n{"goal":"task"}\nVEYRA_HANDOFF_END';
+  const candidate = vi.fn();
+  const error = vi.fn();
+  let stop = watchConversation(document, candidate, vi.fn(), error);
+  const previous = sectionTurn(document, "previous", "Ordinary response");
+  document.querySelector("main")?.append(previous);
+  await vi.advanceTimersByTimeAsync(500);
+  const newest = sectionTurn(document, "newest", "Ordinary response");
+  document.querySelector("main")?.append(newest);
+  await vi.advanceTimersByTimeAsync(500);
+  newest.remove();
+  const message = previous.querySelector('[data-message-author-role="assistant"]');
+  if (!message) throw new Error("Missing fixture assistant");
+  message.textContent = source;
+  await vi.advanceTimersByTimeAsync(500);
+  expect(candidate).not.toHaveBeenCalled();
+  stop();
+  stop = watchConversation(document, candidate, vi.fn(), error);
+  message.textContent = `${source}\n`;
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(candidate).not.toHaveBeenCalled();
+  expect(error).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+  stop();
+});
 it("waits for the current section toolbar, then dispatches once without scanning old turns", async () => {
   const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
   vi.stubGlobal("MutationObserver", window.MutationObserver);
