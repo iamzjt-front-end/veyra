@@ -14,6 +14,7 @@ import {
   builtEntry,
   privateWrite,
   readInstallation,
+  nativeCodexEnvironment,
   type Installation,
 } from "./native-installation.js";
 import { nativeProjectReadiness } from "./native-project-readiness.js";
@@ -132,15 +133,23 @@ export class NativeService {
           throw new Error("Invalid Codex discovery request.");
         const data = await this.conversations.list(
           value.params as { cursor?: string; search?: string },
+          nativeCodexEnvironment(state, process.env),
         );
-        if ((await readInstallation(this.path)).id !== this.identity)
-          throw new Error("Installation revoked.");
+        const current = await readInstallation(this.path);
+        if (current.id !== this.identity || current.codexSocket !== state.codexSocket)
+          throw new Error("Installation or native transport changed. Reconnect before continuing.");
         return this.reply(id, data);
       }
       if (value.method === "codex.conversations.select") {
         if (!isNativeConversation(value.params)) throw new Error("Invalid Codex task selection.");
-        const data = await this.conversations.select(value.params, state.registryRoot);
+        const data = await this.conversations.select(
+          value.params,
+          state.registryRoot,
+          nativeCodexEnvironment(state, process.env),
+        );
         await this.update((current) => {
+          if (current.codexSocket !== state.codexSocket)
+            throw new Error("Native transport changed. Select the task again.");
           if (!current.grants[data.project.id] && Object.keys(current.grants).length >= 100)
             throw new Error("Too many local Project grants.");
           const ids = [
@@ -184,10 +193,12 @@ export class NativeService {
           value.params.conversation,
           projectId,
           state.registryRoot,
+          nativeCodexEnvironment(state, process.env),
         );
         const current = await readInstallation(this.path);
         if (
           current.id !== this.identity ||
+          current.codexSocket !== state.codexSocket ||
           current.grants[projectId]?.root !== grant.root ||
           current.grants[projectId].expiresAt <= Date.now() ||
           !current.grants[projectId]?.nativeConversationIds?.includes(value.params.conversation.id)

@@ -68,10 +68,22 @@ export async function checkCodexConversation(
   return withAppServer(options, async (rpc) => {
     const metadata = await rpc.call("thread/read", { threadId: selected.id, includeTurns: false });
     await requireConversationRoot(record(metadata) ? metadata.thread : undefined, selected);
+    if (rpc.shared) requireIdleConversation(record(metadata) ? metadata.thread : undefined, true);
     const response = await rpc.call("thread/resume", { threadId: selected.id, excludeTurns: true });
     await requireConversationRoot(record(response) ? response.thread : undefined, selected);
+    if (rpc.shared) requireIdleConversation(record(response) ? response.thread : undefined);
     return { ready: true as const };
   });
+}
+/** An idle shared server is different from an unloaded task in a separate stdio process. */
+export function requireIdleConversation(value: unknown, allowUnloaded = false) {
+  const status = record(value) && record(value.status) ? value.status.type : undefined;
+  if (status === "idle" || (allowUnloaded && status === "notLoaded")) return;
+  throw new Error(
+    status === "active"
+      ? "The selected Codex task is running. Wait for it to finish; Veyra did not send another task."
+      : "The selected Codex task has no confirmed idle status. Veyra did not dispatch.",
+  );
 }
 export async function requireConversationRoot(value: unknown, selected: NativeConversation) {
   const actual = conversationMetadata(value);

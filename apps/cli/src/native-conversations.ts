@@ -9,17 +9,17 @@ import type { NativeConversation, ProjectId } from "@veyraoss/protocol";
 import { detectCodex } from "./native-installation.js";
 import { initializeNativeProject } from "./project-init.js";
 
-async function options() {
-  const executable = await detectCodex(process.env);
+async function options(env: NodeJS.ProcessEnv) {
+  const executable = await detectCodex(env);
   if (!executable) throw new Error("Native Codex was not found. Run ve setup once.");
-  return { executable, env: process.env };
+  return { executable, env };
 }
 export const nativeConversations = {
-  async list(query: { cursor?: string; search?: string }) {
-    return listCodexConversations(await options(), query);
+  async list(query: { cursor?: string; search?: string }, env = process.env) {
+    return listCodexConversations(await options(env), query);
   },
-  async select(selected: NativeConversation, registryRoot: string) {
-    const actual = await readCodexConversation(await options(), selected.id);
+  async select(selected: NativeConversation, registryRoot: string, env = process.env) {
+    const actual = await readCodexConversation(await options(env), selected.id);
     const root = await realpath(actual.root);
     if (root !== (await realpath(selected.root)) || actual.title !== selected.title)
       throw new Error("The selected Codex task changed. Select it again.");
@@ -39,11 +39,16 @@ export const nativeConversations = {
     const { project } = await initializeNativeProject(root, { registryRoot });
     return { project, conversation: { ...actual, root } };
   },
-  async check(selected: NativeConversation, projectId: ProjectId, registryRoot: string) {
+  async check(
+    selected: NativeConversation,
+    projectId: ProjectId,
+    registryRoot: string,
+    env = process.env,
+  ) {
     const entry = await new ProjectRegistry({ root: registryRoot }).get(projectId);
     if (entry?.status !== "available" || entry.project.root !== (await realpath(selected.root)))
       throw new Error("The selected Codex task does not belong to this available Project.");
-    await checkCodexConversation(await options(), selected);
+    await checkCodexConversation(await options(env), selected);
     return { ready: true, conversation: selected };
   },
 };

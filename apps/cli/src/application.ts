@@ -100,6 +100,7 @@ export async function runCli(argv: string[], services: CliServices = {}): Promis
         env,
         runProcess: services.runProcess,
         revoke: values.revoke,
+        codexSocket: values["codex-stdio"] ? null : values["codex-socket"],
       });
       await (await ensureCoordinator(result.statePath)).call("health", undefined);
       write(

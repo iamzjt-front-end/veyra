@@ -17,7 +17,7 @@ On the installed `0.154.0-alpha.6.1` binary, the desktop can retain a native wri
 - Native grants retain up to 20 explicitly selected IDs per Project, are rooted, expire and can be revoked with the existing local authorization. Ordinary Project authorization renewal preserves the selected IDs. HTTP pairing cannot dispatch into existing native conversations.
 - A binding saves only task ID/title/root, current ChatGPT URL, tab lease and existing receipts. New Veyra Run IDs retain the selected Codex ID; untrusted handoff text cannot change it.
 - The daemon checks the target's current native directory. The native writer is acquired before appending one turn. Missing IDs, moved folders, writer conflicts, protocol failures and human-input requests never switch to a fresh session.
-- Accepted execution and native session references are persisted with existing Project handoff/result/Verifier evidence. Ambiguous admission is not resent. Cancellation terminates only Veyra's owned app-server/process group.
+- Accepted execution and native session references are persisted with existing Project handoff/result/Verifier evidence. Ambiguous admission is not resent. Stdio cancellation terminates only Veyra's owned app-server/process group. The opt-in shared transport interrupts only a confirmed Veyra turn and never terminates the shared server.
 
 ## Verification on 2026-09-11
 
@@ -67,3 +67,50 @@ Verification for this follow-up:
 - Current build identity: `456eed251dc4dd9f313cc56e469b0506853b078f4d43bd9750cb6efe265eb828`. The installed `apps/chatgpt-extension/dist` and CLI-packaged extension match, including all eleven artifact hashes. Reload the extension to activate the updated selector.
 
 Logs: `output/playwright/acceptance/task-first-binding-2026-09-12/`. Native writer ownership limits and the outstanding real ChatGPT acceptance gate are unchanged.
+
+## Shared local native service — experimental, September 12
+
+The selected desktop task was confirmed idle/completed, while its writer lock was still held by the desktop's native process. Therefore a second stdio server cannot implement the intended simultaneous desktop + Veyra experience. Rebinding or clearing extension errors cannot release that ownership.
+
+Veyra now supports an **explicitly configured private Unix WebSocket** using the public [app-server protocol](https://learn.chatgpt.com/docs/app-server). Both clients must connect to the **same** native service. This is a local experimental transport, not desktop private IPC, an MCP migration, an API-key provider or a public tunnel. The existing owned stdio path remains the default until the desktop migration is verified.
+
+- `ve setup --codex-socket /absolute/private/codex.sock` persists the local choice in the existing private installation file. `ve setup --codex-stdio` reverses that choice. Normal setup/grant renewal preserves it. Setting a socket does not itself prove the desktop has joined it or a selected task is ready.
+- Browser requests and handoffs cannot select a socket. The host reads trusted installation state on each request; the lazy coordinator re-reads it at execution admission. Active executions retain their original connection.
+- Only a current-user-owned socket and private parent directory are accepted. TCP URLs, relative paths, symlink endpoints and unsafe permissions fail closed. No fallback process starts if this connection fails.
+- Metadata/root and idle status are checked before resume and immediately before submission. A missing/unknown status is unavailable. A running task is not intentionally steered.
+- Ownership is confirmed by the native turn ID and first user message's `clientId`, matching the Veyra Run ID. Other-client input or ambiguous admission stops observation without replay or takeover. Cancellation/timeout sends `turn/interrupt` only for that confirmed turn, then requires its terminal event; an interrupt response alone is insufficient. Unconfirmed stopping is reported explicitly and may require inspection in Codex.
+- The native API's `turn/start` can steer an already-active turn and has no atomic “start only if idle” option on this verified version. The idle check does **not** guarantee an atomic exclusion of a simultaneous desktop send. Detected races fail closed; simultaneous manual desktop input and automatic Veyra dispatch into one task remain unsupported. Do not claim safe concurrent editing from the two-client proof.
+- Resume does not overwrite shared task settings. A Veyra turn explicitly requests workspace-write sandboxing for the bound directory, disabled network access and on-request approval. Native approval requests are never answered automatically. Those native turn policies can remain sticky for subsequent desktop turns.
+- There is no reconnection loop or idle polling. Connections exist for a bounded request/active execution, with an operation deadline and bounded cancellation confirmation; otherwise they close. Browser scanning/timers and shared execution protocols are unchanged.
+
+### Verified native evidence
+
+Native `0.154.0-alpha.6.1`, existing login, no `OPENAI_API_KEY`; durable fixture `~/Projects/veyra-proofs/shared-adapter-TiAQyj`:
+
+| Check                                                                                                          | Evidence                                                                                                                                                                                           |
+| -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Same task with two independent clients; Veyra reconnects between turns                                         | Native task `01a093b7-d3bb-7e52-8641-9e2f6b9f8762`; Runs `e192cac8-7eaf-4229-8849-5960cf0c6f63`, `579ffad3-cc46-49be-a680-aebe68db8be6`; both completed and the other client received both results |
+| Actual Veyra cancellation                                                                                      | Run `90fb4887-44e6-4a37-8774-f8f224cfd19d`; native idle confirmed, other client still connected                                                                                                    |
+| Already-running task                                                                                           | Dispatch refused; only the fixture owner interrupted its own task                                                                                                                                  |
+| NativeService authorization → coordinator → exact shared native task → independent Verifier → persisted Result | Run `8c4dc237-4e25-48e3-a2a4-817f23616478`; Verifier evidence persisted; duplicate dispatch refused; observer connection remained usable                                                           |
+
+`shared-adapter-evidence.json`, `round-0.json`, `round-1.json`, `cancel.json`, `shared-dispatch-evidence.json` and `shared-dispatch-result.json` record the outcomes. `.veyra/` contains the normal handoff, execution/session and verifier evidence. The fixture owns an isolated Registry, socket and server; its processes were stopped. No turn was submitted to `etf-quant-monitor` and no user project source was changed. An earlier standalone transport probe also completed two native turns in `shared-native-bx6nND`; these are native proofs, **not** real ChatGPT acceptance.
+
+Reproduce with explicit development commands:
+
+```sh
+pnpm exec tsx plugins/codex/test/manual-shared-conversation.ts /durable/proof-parent /absolute/path/to/codex
+pnpm exec tsx apps/cli/test/manual-shared-dispatch.ts /passed/shared-adapter-fixture /absolute/path/to/codex
+```
+
+### Remaining desktop migration gate
+
+Static inspection of the installed desktop `26.908.31457` found a `CODEX_APP_SERVER_USE_LOCAL_DAEMON=1` launch path to `~/.codex/app-server-control/app-server-control.sock`. Its companion native CLI provides `app-server daemon start/version/stop`. The desktop launch switch has **not** been found in published configuration documentation and has **not** been activated on the user's desktop. It is version-specific experimental evidence, not a promise of supported desktop configuration.
+
+Activation requires checking other active tasks, starting the local native service with remote control disabled, verifying the private socket, configuring Veyra to that same socket, then restarting the desktop with the switch. Restart affects other desktop tasks and must be explicitly approved. Never remove native writer locks or kill another task to force attachment. After restart, verify shared-service identity and the exact selected task with metadata-only checks before attempting a controlled run. Rollback removes the desktop launch switch and uses `ve setup --codex-stdio`; stop the shared service only after confirming it has no active work.
+
+The current desktop has **not** been restarted or migrated. The actual ChatGPT → selected desktop task → same ChatGPT return remains **unverified**, and P0.13–P0.15 remain frozen.
+
+Completed implementation gates: all five repository checks (2,234 tests), 199 extension tests, `smoke:browser` and `smoke:conversation-browser`. The 19 shared-transport regressions cover busy/unknown/moved targets, frame limits, response identity, ownership races, cancellation, timeout, unresolved approval and terminal-event confirmation. On Chromium `153.0.8010.12`, both browser fixtures performed exactly two executions/two returns with persisted pass/fail reviews; the Native Messaging fixture also preserved the selected task and review across extension reload, cold worker, page refresh and actual coordinator idle shutdown. Each 3,000-turn/60-second idle test made **zero DOM queries**; page task time was 0.0525 / 0.053 seconds, with one mutation-burst inspection and all 14 normalization/safety cases passing.
+
+Logs are in `~/Projects/veyra-proofs/shared-native-research-20260912/`. The first browser attempt lacked the installed Playwright browser binary; installing that test-only dependency resolved the environment blocker. User Chrome profiles were not used. Both extension distributions retain build `456eed251dc4dd9f313cc56e469b0506853b078f4d43bd9750cb6efe265eb828`, with all eleven artifact hashes verified. CLI/native adapter builds were updated; the existing installation's socket setting was not changed. The migration must establish a fresh native host/coordinator connection to load those builds; clearing Chrome's error list is not a verification step.

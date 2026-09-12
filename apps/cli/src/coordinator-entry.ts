@@ -9,6 +9,7 @@ try {
     registryRoot: installation.registryRoot,
     signal: controller.signal,
     idleTimeoutMs: 60000,
+    nativeInstallationPath: process.argv[2],
   });
   await daemon.closed;
 } catch {

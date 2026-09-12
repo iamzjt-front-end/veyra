@@ -8,6 +8,7 @@ import { loadWorkflow } from "@veyraoss/workflow";
 import type { ProcessRunner } from "@veyraoss/runtime";
 import { nativeExecution } from "./native-executor.js";
 import { nativeProjectReadiness } from "./native-project-readiness.js";
+import { nativeCodexEnvironment, readInstallation } from "./native-installation.js";
 import { adaptersFor, configuredAdapters, secretValues, type AgentFactory } from "./providers.js";
 
 /** Shared trusted composition for foreground diagnostics and the lazy native launcher. */
@@ -16,20 +17,26 @@ export function startCoordinator(
     runProcess?: ProcessRunner;
     createAgent?: AgentFactory;
     allowPlugins?: string[];
+    nativeInstallationPath?: string;
   },
 ) {
-  const env = options.env ?? process.env;
+  const baseEnv = options.env ?? process.env;
   return startDaemon({
     ...options,
     ...(options.http
       ? {
           http: {
             ...options.http,
-            inspectProject: (project) => nativeProjectReadiness(project, env, options.runProcess),
+            inspectProject: (project) =>
+              nativeProjectReadiness(project, baseEnv, options.runProcess),
           },
         }
       : {}),
     resolveExecution: async (project, handoff, nativeConversationId) => {
+      // Reload trusted local routing at admission; a sleeping coordinator must not use an old socket.
+      const env = options.nativeInstallationPath
+        ? nativeCodexEnvironment(await readInstallation(options.nativeInstallationPath), baseEnv)
+        : baseEnv;
       const binding = (await loadProjectBindings(project))?.roles.executor;
       if (binding) {
         const conversation = nativeConversationId

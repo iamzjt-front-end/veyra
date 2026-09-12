@@ -13,7 +13,11 @@ import { createSecretRedactor, type ProcessRunner } from "@veyraoss/runtime";
 import { CodexAdapter, buildPrompt } from "./index.js";
 import { CodexOutput, resultSchema } from "./output.js";
 import { NativeApprovalRequired, record, withAppServer } from "./app-server.js";
-import { checkCodexConversation, requireConversationRoot } from "./conversations.js";
+import {
+  checkCodexConversation,
+  requireConversationRoot,
+  requireIdleConversation,
+} from "./conversations.js";
 
 /** Append exactly one turn to the explicitly selected task. Never creates a thread or forks. */
 export class CodexConversationAdapter implements AgentAdapter {
@@ -91,17 +95,27 @@ export class CodexConversationAdapter implements AgentAdapter {
             record(metadata) ? metadata.thread : undefined,
             this.selected,
           );
+          if (rpc.shared)
+            requireIdleConversation(record(metadata) ? metadata.thread : undefined, true);
           const response = await rpc.call("thread/resume", {
             threadId: this.selected.id,
             excludeTurns: true,
-            sandbox: "workspace-write",
-            approvalPolicy: "on-request",
+            ...(!rpc.shared ? { sandbox: "workspace-write", approvalPolicy: "on-request" } : {}),
           });
           await requireConversationRoot(
             record(response) ? response.thread : undefined,
             this.selected,
           );
+          if (rpc.shared) requireIdleConversation(record(response) ? response.thread : undefined);
           resumed = true;
+          let submitted = false;
+          let owned = !rpc.shared;
+          let terminal = false;
+          let firstUser: string | null | undefined;
+          let stopped!: () => void;
+          const stopConfirmed = new Promise<void>((resolve) => {
+            stopped = resolve;
+          });
           let settle!: (result: AgentResult) => void;
           let reject!: (error: Error) => void;
           const completion = new Promise<AgentResult>((resolve, fail) => {
@@ -120,6 +134,28 @@ export class CodexConversationAdapter implements AgentAdapter {
               return;
             }
             if (
+              rpc.shared &&
+              (method === "item/started" || method === "item/completed") &&
+              params.turnId === turnId &&
+              record(params.item) &&
+              params.item.type === "userMessage"
+            ) {
+              if (firstUser === undefined) {
+                firstUser = typeof params.item.clientId === "string" ? params.item.clientId : null;
+                owned = firstUser === input.runId;
+              }
+              if (!owned || params.item.clientId !== input.runId) {
+                // Another client started or steered this turn. Its execution is not ours to cancel.
+                owned = false;
+                reject(
+                  new Error(
+                    "Codex received input from another client. Inspect this task; Veyra will not replay or interrupt it.",
+                  ),
+                );
+                return;
+              }
+            }
+            if (
               method === "item/completed" &&
               params.turnId === turnId &&
               record(params.item) &&
@@ -130,6 +166,24 @@ export class CodexConversationAdapter implements AgentAdapter {
               );
             if (method !== "turn/completed" || !record(params.turn) || params.turn.id !== turnId)
               return;
+            if (!["completed", "failed", "interrupted"].includes(String(params.turn.status))) {
+              reject(
+                new Error(
+                  "Codex did not provide a valid terminal state. Inspect this task before continuing.",
+                ),
+              );
+              return;
+            }
+            terminal = true;
+            stopped();
+            if (!owned) {
+              reject(
+                new Error(
+                  "Codex turn ownership was not confirmed. Inspect this task; do not replay.",
+                ),
+              );
+              return;
+            }
             if (params.turn.status !== "completed") {
               reject(
                 new Error(
@@ -147,16 +201,67 @@ export class CodexConversationAdapter implements AgentAdapter {
             else settle(parsed);
           };
           subscribe(receive);
+          rpc.onClose?.(async () => {
+            if (!submitted || terminal) return;
+            if (!turnId || !owned) throw new Error("Codex turn ownership is uncertain.");
+            await rpc.call("turn/interrupt", { threadId: this.selected.id, turnId });
+            let timer!: ReturnType<typeof setTimeout>;
+            try {
+              await Promise.race([
+                stopConfirmed,
+                new Promise<never>((_, fail) => {
+                  timer = setTimeout(
+                    () => fail(new Error("Codex interruption was not confirmed.")),
+                    3000,
+                  );
+                }),
+              ]);
+            } finally {
+              clearTimeout(timer);
+            }
+          });
+          if (rpc.shared) {
+            // Recheck immediately before sending: never intentionally steer a desktop turn.
+            const current = await rpc.call("thread/read", {
+              threadId: this.selected.id,
+              includeTurns: false,
+            });
+            await requireConversationRoot(
+              record(current) ? current.thread : undefined,
+              this.selected,
+            );
+            requireIdleConversation(record(current) ? current.thread : undefined);
+          }
           // No cwd, model, history or alternative thread ID supplied by the planner.
+          submitted = true;
           const started = await rpc.call("turn/start", {
             threadId: this.selected.id,
             clientUserMessageId: input.runId,
             input: [{ type: "text", text: prompt, text_elements: [] }],
             outputSchema: resultSchema,
+            ...(rpc.shared
+              ? {
+                  approvalPolicy: "on-request",
+                  sandboxPolicy: {
+                    type: "workspaceWrite",
+                    writableRoots: [this.project.root],
+                    networkAccess: false,
+                    excludeTmpdirEnvVar: true,
+                    excludeSlashTmp: true,
+                  },
+                }
+              : {}),
           });
-          if (!record(started) || !record(started.turn) || typeof started.turn.id !== "string")
+          if (!record(started) || !record(started.turn) || !isSessionId(started.turn.id))
             throw new Error("Codex turn admission was not confirmed; do not replay.");
           turnId = started.turn.id;
+          if (rpc.shared && Array.isArray(started.turn.items)) {
+            const first = started.turn.items.find(
+              (item) => record(item) && item.type === "userMessage",
+            );
+            if (record(first))
+              receive("item/started", { threadId: this.selected.id, turnId, item: first });
+          }
           for (const event of notifications) receive(event.method, event.params);
           return completion;
         },

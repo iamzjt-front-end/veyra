@@ -360,7 +360,13 @@ importers:
       '@veyraoss/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
+      ws:
+        specifier: 8.21.3
+        version: 8.21.3
     devDependencies:
+      '@types/ws':
+        specifier: 8.18.1
+        version: 8.18.1
       '@veyraoss/project':
         specifier: workspace:*
         version: link:../../packages/project
@@ -384,7 +390,7 @@ importers:
         version: link:../../packages/runtime
       openai:
         specifier: 6.49.0
-        version: 6.49.0(zod@4.5.4)
+        version: 6.49.0(ws@8.21.3)(zod@4.5.4)
 
   plugins/opencode:
     dependencies:
@@ -1055,6 +1061,9 @@ packages:
 
   '@types/serve-static@2.2.0':
     resolution: {integrity: sha512-8mam4H1NHLtu7nmtalF7eyBH14QyOASmcxHhSfEoRyr0nP/YdoesEtU+uSRvMe96TW/HPTtkoKqQLl53N7UXMQ==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@vitest/expect@3.2.7':
     resolution: {integrity: sha512-E8eBXaKibuvH2pSZErOjdVb5vF4PbKYcrnluBTYxEk1l/VhhwZg1kZQsdtjq+CsF5CFydf2Rdkz7jDHKSisi3w==}
@@ -2150,6 +2159,18 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
+  ws@8.21.3:
+    resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
+    engines: {node: '>=10.0.0'}
+    peerDependencies:
+      bufferutil: ^4.0.1
+      utf-8-validate: '>=5.0.2'
+    peerDependenciesMeta:
+      bufferutil:
+        optional: true
+      utf-8-validate:
+        optional: true
+
   yaml@2.9.0:
     resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
     engines: {node: '>= 14.6'}
@@ -2724,6 +2745,10 @@ snapshots:
   '@types/serve-static@2.2.0':
     dependencies:
       '@types/http-errors': 2.0.5
+      '@types/node': 22.20.1
+
+  '@types/ws@8.18.1':
+    dependencies:
       '@types/node': 22.20.1
 
   '@vitest/expect@3.2.7':
@@ -3333,8 +3358,9 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  openai@6.49.0(zod@4.5.4):
+  openai@6.49.0(ws@8.21.3)(zod@4.5.4):
     optionalDependencies:
+      ws: 8.21.3
       zod: 4.5.4
 
   outdent@0.5.0: {}
@@ -3777,6 +3803,8 @@ snapshots:
       stackback: 0.0.2
 
   wrappy@1.0.2: {}
+
+  ws@8.21.3: {}
 
   yaml@2.9.0: {}
 

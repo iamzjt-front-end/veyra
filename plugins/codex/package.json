@@ -11,9 +11,11 @@
   "types": "./dist/index.d.ts",
   "dependencies": {
     "@veyraoss/protocol": "workspace:*",
-    "@veyraoss/runtime": "workspace:*"
+    "@veyraoss/runtime": "workspace:*",
+    "ws": "8.21.3"
   },
   "devDependencies": {
+    "@types/ws": "8.18.1",
     "@veyraoss/project": "workspace:*"
   },
   "scripts": {

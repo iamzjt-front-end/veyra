@@ -7,6 +7,8 @@ const options = {
   "http-origin": { type: "string" },
   "http-project": { type: "string", multiple: true },
   "codex-executable": { type: "string" },
+  "codex-socket": { type: "string" },
+  "codex-stdio": { type: "boolean" },
   executor: { type: "string" },
   "session-run": { type: "string" },
   workflow: { type: "string" },
@@ -29,7 +31,7 @@ const options = {
   version: { type: "boolean", short: "v" },
 } as const;
 const allowed: Record<string, string[]> = {
-  setup: ["registry", "revoke"],
+  setup: ["registry", "revoke", "codex-socket", "codex-stdio"],
   open: ["registry"],
   init: ["registry", "config", "workflow", "model", "force"],
   projects: ["registry"],
@@ -79,6 +81,8 @@ export function argumentsFor(argv: string[]) {
     throw new CliError("unknown_command", `Unknown command: ${command}`, 1);
   if (parsed.values.registry !== undefined && !parsed.values.registry.trim())
     throw new CliError("invalid_registry", "--registry must name a directory.");
+  if (parsed.values["codex-socket"] !== undefined && parsed.values["codex-stdio"])
+    throw new CliError("conflicting_transport", "Choose --codex-socket or --codex-stdio.");
   if (
     parsed.values["codex-executable"] !== undefined &&
     (!parsed.values["codex-executable"].trim() || parsed.values["codex-executable"].includes("\0"))
@@ -230,6 +234,8 @@ Options:
   --http-origin <origin> exact chrome-extension://<id> allowed by that transport
   --http-project <id>  allow a Project on loopback; repeat for at most eight Projects
   --codex-executable <path> select the native Codex executable for doctor
+  --codex-socket <path> experimental shared local Codex socket (setup; desktop must share it)
+  --codex-stdio         restore the separate native process transport (setup)
   --config <file>       select configuration (default: ./veyra.yaml)
   --workflow <name/path> override workflow for run/doctor, or select it during init
   --allow-plugin <name> trust a configured local plugin for run/resume/doctor; repeat per provider

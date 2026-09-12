@@ -15,6 +15,8 @@ export interface Installation {
   id: string;
   registryRoot: string;
   executable?: string;
+  /** Explicit local experimental shared app-server. Never supplied by browser requests. */
+  codexSocket?: string;
   grants: Record<string, { root: string; expiresAt: number; nativeConversationIds?: string[] }>;
   extensionSeenAt?: number;
 }
@@ -79,6 +81,7 @@ export async function readInstallation(path: string): Promise<Installation> {
     value.version !== 1 ||
     !/^[a-f0-9-]{36}$/.test(value.id) ||
     !isAbsolute(value.registryRoot) ||
+    (value.codexSocket !== undefined && !validCodexSocket(value.codexSocket)) ||
     !value.grants ||
     typeof value.grants !== "object" ||
     Array.isArray(value.grants) ||
@@ -99,6 +102,20 @@ export async function readInstallation(path: string): Promise<Installation> {
   )
     throw new Error("Invalid Veyra installation; run ve setup after inspecting its diagnostics.");
   return value;
+}
+export function validCodexSocket(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    isAbsolute(value) &&
+    Buffer.byteLength(value) < 104 &&
+    ![...value].some((character) => character.charCodeAt(0) < 32)
+  );
+}
+export function nativeCodexEnvironment(state: Installation, base: NodeJS.ProcessEnv) {
+  const env = { ...base };
+  delete env.VEYRA_CODEX_SOCKET;
+  if (state.codexSocket !== undefined) env.VEYRA_CODEX_SOCKET = state.codexSocket;
+  return env;
 }
 export async function detectCodex(env: NodeJS.ProcessEnv = process.env) {
   const candidates = [
@@ -149,8 +166,17 @@ export async function setupNative(
     manifestDirs?: string[];
     entry?: string;
     revoke?: boolean;
+    codexSocket?: string | null;
   } = {},
 ) {
+  if (
+    options.codexSocket !== undefined &&
+    options.codexSocket !== null &&
+    !validCodexSocket(options.codexSocket)
+  )
+    throw new Error(
+      "Shared Codex requires an absolute local Unix socket path shorter than 104 bytes.",
+    );
   const registryRoot = new ProjectRegistry(
     options.registryRoot ? { root: options.registryRoot } : {},
   ).root;
@@ -188,6 +214,9 @@ export async function setupNative(
     id: options.revoke ? randomUUID() : (previous?.id ?? randomUUID()),
     registryRoot,
     executable,
+    ...((options.codexSocket === undefined ? previous?.codexSocket : options.codexSocket)
+      ? { codexSocket: options.codexSocket ?? previous?.codexSocket }
+      : {}),
     grants: options.revoke ? {} : (previous?.grants ?? {}),
     ...(!options.revoke && previous?.extensionSeenAt
       ? { extensionSeenAt: previous.extensionSeenAt }
@@ -254,6 +283,7 @@ export async function setupNative(
       state.grants = latest.grants;
       state.extensionSeenAt = latest.extensionSeenAt;
     }
+    if (options.codexSocket === undefined) state.codexSocket = latest?.codexSocket;
     await privateWrite(statePath, JSON.stringify(state));
     await privateWrite(launcher, launcherText);
     await chmod(launcher, 0o700);
@@ -269,5 +299,6 @@ export async function setupNative(
     manifests,
     installationId: state.id,
     statePath,
+    codexTransport: state.codexSocket ? "shared-unix-experimental" : "owned-stdio",
   };
 }

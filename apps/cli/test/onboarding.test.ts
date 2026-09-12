@@ -12,6 +12,7 @@ import {
   readInstallation,
   privateWrite,
   BROWSER_ORIGIN,
+  nativeCodexEnvironment,
 } from "../src/native-installation.js";
 import { NativeService, ensureCoordinator } from "../src/native-service.js";
 import { frame, serveNative, MAX_NATIVE_BYTES } from "../src/native-framing.js";
@@ -37,6 +38,39 @@ async function install(root: string) {
   });
 }
 describe("one-time local onboarding", () => {
+  it("persists an explicitly configured shared transport across setup and revocation, with an explicit rollback", async () => {
+    await withFixtureWorkspace(async ({ path }) => {
+      const options = {
+        registryRoot: join(path, "registry"),
+        manifestDirs: [join(path, "manifests")],
+        entry: import.meta.filename,
+        runProcess: fakeRunner,
+        env: { PATH: "" },
+      };
+      const first = await setupNative({ ...options, codexSocket: "/tmp/private-codex/codex.sock" });
+      expect(first.codexTransport).toBe("shared-unix-experimental");
+      for (const extra of [{}, { revoke: true }]) {
+        await setupNative({ ...options, ...extra });
+        const state = await readInstallation(first.statePath);
+        expect(
+          nativeCodexEnvironment(state, { PATH: "/bin", VEYRA_CODEX_SOCKET: "stale" }),
+        ).toEqual({ PATH: "/bin", VEYRA_CODEX_SOCKET: "/tmp/private-codex/codex.sock" });
+      }
+      const before = await readFile(first.statePath, "utf8");
+      await expect(setupNative({ ...options, codexSocket: "ws://127.0.0.1:9000" })).rejects.toThrow(
+        /absolute local/,
+      );
+      expect(await readFile(first.statePath, "utf8")).toBe(before);
+      const reset = await setupNative({ ...options, codexSocket: null });
+      expect(reset.codexTransport).toBe("owned-stdio");
+      expect(
+        nativeCodexEnvironment(await readInstallation(first.statePath), {
+          PATH: "/bin",
+          VEYRA_CODEX_SOCKET: "stale",
+        }),
+      ).toEqual({ PATH: "/bin" });
+    });
+  });
   it("requires native installation identity for task discovery and grants only the explicitly selected Project", async () => {
     await withFixtureWorkspace(async ({ path }) => {
       const installed = await install(path);

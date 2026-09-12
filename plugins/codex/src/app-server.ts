@@ -1,4 +1,5 @@
 import { runProcess, type ProcessRequest, type ProcessRunner } from "@veyraoss/runtime";
+import { withSharedAppServer } from "./shared-app-server.js";
 
 export const record = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
@@ -10,9 +11,11 @@ export interface AppServerOptions {
   timeoutMs?: number;
   runner?: ProcessRunner;
 }
-interface Rpc {
+export interface Rpc {
+  readonly shared?: boolean;
   call(method: string, params: unknown): Promise<unknown>;
   notify(method: string, params?: unknown): void;
+  onClose?(cleanup: () => Promise<void>): void;
 }
 export class NativeApprovalRequired extends Error {
   constructor() {
@@ -29,6 +32,9 @@ export async function withAppServer<T>(
     subscribe: (listener: (method: string, params: unknown) => void) => void,
   ) => Promise<T>,
 ): Promise<T> {
+  // Only a locally configured transport can select a socket. A handoff cannot set this value.
+  const socketPath = options.env?.VEYRA_CODEX_SOCKET;
+  if (socketPath !== undefined) return withSharedAppServer(socketPath, options, action);
   const controller = new AbortController();
   const abort = () => controller.abort();
   options.signal?.addEventListener("abort", abort, { once: true });
