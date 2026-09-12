@@ -103,6 +103,41 @@ try {
     }
     await page.setViewportSize({ width: 400, height: 820 });
   }
+  for (const language of ["zh-CN", "en"]) {
+    for (const phase of [
+      "waiting_for_send",
+      "waiting_for_reply",
+      "streaming",
+      "waiting_for_completion",
+      "no_protocol",
+      "unsupported",
+      "invalid",
+      "native-task-unavailable",
+    ]) {
+      const fixture = phase === "native-task-unavailable" ? phase : `observation-${phase}`;
+      await page.goto(`http://127.0.0.1:${address.port}/side-panel/${fixture}?lang=${language}`);
+      await page.locator(".v-panel-header").waitFor();
+      assert.doesNotMatch(
+        await page.locator(".v-panel-main").innerText(),
+        /Ready to work|准备就绪/,
+      );
+      for (const width of [320, 460]) {
+        await page.setViewportSize({ width, height: 820 });
+        assert.equal(
+          await page
+            .locator(".v-panel-header")
+            .evaluate((header) => header.scrollWidth <= innerWidth),
+          true,
+          `${phase}/${language} fits ${width}px`,
+        );
+      }
+      await page.screenshot({
+        path: resolve(directory, `side-panel-${fixture}-${language}.png`),
+        fullPage: true,
+      });
+    }
+  }
+  await page.setViewportSize({ width: 400, height: 820 });
   await page.goto(`http://127.0.0.1:${address.port}/side-panel/no-projects?lang=en`);
   await page.getByRole("button", { name: "Choose an existing Codex task" }).click();
   await page.getByRole("button", { name: /确认旧代码已删除/ }).click();

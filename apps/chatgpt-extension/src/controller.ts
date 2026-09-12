@@ -13,6 +13,7 @@ import { exchangePairing, LocalClient } from "./client.js";
 import { PAGE_CONNECTION_CHANGED } from "./page-connection.js";
 import { BUILD_ID } from "./build-info.js";
 import { checkpoint, handoffFingerprint } from "./checkpoints.js";
+import { parseObservation, type PageObservation } from "./observation.js";
 import {
   conversationUrl,
   object,
@@ -46,10 +47,21 @@ export interface ExtensionHost {
 }
 export interface BridgeReadiness {
   ready: boolean;
-  reason: "ready" | "unbound" | "paused" | "connecting" | "project" | "page" | "bootstrap";
+  reason:
+    | "ready"
+    | "unbound"
+    | "paused"
+    | "connecting"
+    | "project"
+    | "page"
+    | "bootstrap"
+    | "observation"
+    | "native_task";
   receiver: "unknown" | "confirmed" | "unavailable" | "different_build";
   buildId: string;
   pageBuildId?: string;
+  observation?: PageObservation;
+  nativeTask?: { ready: boolean; checkedAt: number; message?: string };
 }
 
 /** Session-local bridge coordination only; all execution stays in the daemon. */
@@ -57,11 +69,18 @@ export class BridgeController {
   private connectivity?: { status: string; message: string };
   private actionEpoch = 0;
   private readiness?: { projectId: string; at: number; view: ProjectView };
+  private nativeTask?: {
+    key: string;
+    ready: boolean;
+    checkedAt: number;
+    message?: string;
+  };
   private receiver?: {
     bindingId: string;
     epoch: string;
     status: BridgeReadiness["receiver"];
     buildId?: string;
+    observation?: PageObservation;
   };
   constructor(
     private readonly host: ExtensionHost,
@@ -361,6 +380,15 @@ export class BridgeController {
           value.projectId = selection.project.id;
           value.nativeConversation = selection.conversation;
           await this.native.checkConversation(selection.conversation, selection.project.id);
+          this.nativeTask = {
+            key: JSON.stringify([
+              selection.project.id,
+              selection.conversation.id,
+              selection.conversation.root,
+            ]),
+            ready: true,
+            checkedAt: Date.now(),
+          };
           const current = await this.host.activeTab();
           if (
             actionEpoch !== this.actionEpoch ||
@@ -454,6 +482,7 @@ export class BridgeController {
                 ? response.error
                 : "输入框必须为空且 ChatGPT 已完成生成；绑定消息未确认发送。",
             );
+          binding.observation = parseObservation(response.observation);
         } catch (error) {
           const latest = (await this.host.read()).binding;
           if (actionEpoch !== this.actionEpoch || latest?.id !== binding.id) throw error;
@@ -470,6 +499,7 @@ export class BridgeController {
           epoch: binding.epoch,
           status: "confirmed",
           buildId: BUILD_ID,
+          observation: binding.observation,
         };
         await this.host.save(state);
         return { binding };
@@ -494,7 +524,18 @@ export class BridgeController {
       throw new Error("会话已切换；不会派发或回传。");
     if (actionEpoch !== this.actionEpoch) throw new Error("页面操作已暂停或解绑。");
     if (["paused", "stopped"].includes(binding.phase)) return { binding };
-    if (value.type === "error") {
+    if (value.type === "observe") {
+      const observation = parseObservation(value.observation);
+      if (value.buildId !== BUILD_ID || !observation) throw new Error("页面观察状态无效。");
+      binding.observation = observation;
+      this.receiver = {
+        bindingId: binding.id,
+        epoch: binding.epoch,
+        status: "confirmed",
+        buildId: BUILD_ID,
+        observation,
+      };
+    } else if (value.type === "error") {
       binding.resumePhase = binding.phase === "running" ? "running" : undefined;
       binding.phase = "paused";
       binding.message =
@@ -846,6 +887,37 @@ export class BridgeController {
       }
     }
     let binding = currentBound ? state.binding : undefined;
+    // Login readiness does not prove that this specific desktop task accepts a writer.
+    // Check only on a requested refresh/cold snapshot while idle, never on a timer or
+    // during Veyra's own run. The native boundary still rechecks before turn/start.
+    const target = binding?.phase === "armed" ? binding.nativeConversation : undefined;
+    const targetKey = target && JSON.stringify([binding?.projectId, target.id, target.root]);
+    if (
+      inspect &&
+      target &&
+      targetKey &&
+      binding &&
+      connectivity.status === "connected" &&
+      selected?.readiness.ready &&
+      (!this.nativeTask ||
+        this.nativeTask.key !== targetKey ||
+        Date.now() - this.nativeTask.checkedAt > 30000)
+    ) {
+      try {
+        if (!this.native?.checkConversation)
+          throw new Error("Codex task readiness was not confirmed.");
+        await this.native.checkConversation(target, binding.projectId);
+        this.nativeTask = { key: targetKey, ready: true, checkedAt: Date.now() };
+      } catch (error) {
+        this.nativeTask = {
+          key: targetKey,
+          ready: false,
+          checkedAt: Date.now(),
+          message:
+            error instanceof Error ? error.message : "Codex task readiness was not confirmed.",
+        };
+      }
+    }
     if (inspect && binding && tab.id !== undefined) {
       try {
         let page: unknown;
@@ -899,7 +971,10 @@ export class BridgeController {
               ? "confirmed"
               : "different_build",
           ...(object(page) && typeof page.buildId === "string" ? { buildId: page.buildId } : {}),
+          observation: matches && object(page) ? parseObservation(page.observation) : undefined,
         };
+        binding.observation =
+          matches && object(page) ? parseObservation(page.observation) : undefined;
       } catch {
         if (binding)
           this.receiver = { bindingId: binding.id, epoch: binding.epoch, status: "unavailable" };
@@ -915,6 +990,10 @@ export class BridgeController {
       this.receiver?.bindingId === binding?.id && this.receiver?.epoch === binding?.epoch
         ? this.receiver
         : undefined;
+    // A current probe with an unknown state must supersede an older session value.
+    const observation = receiver ? receiver.observation : binding?.observation;
+    const nativeTask =
+      targetKey && this.nativeTask?.key === targetKey ? this.nativeTask : undefined;
     const reason: BridgeReadiness["reason"] = !binding
       ? "unbound"
       : ["paused", "stopped"].includes(binding.phase)
@@ -925,15 +1004,31 @@ export class BridgeController {
             ? "bootstrap"
             : !selected?.readiness.ready || selected.project.root !== binding.projectRoot
               ? "project"
-              : binding.attached !== true || receiver?.status !== "confirmed"
-                ? "page"
-                : "ready";
+              : binding.nativeConversation &&
+                  binding.phase === "armed" &&
+                  nativeTask?.ready !== true
+                ? "native_task"
+                : binding.attached !== true || receiver?.status !== "confirmed"
+                  ? "page"
+                  : !observation || ["unsupported", "invalid"].includes(observation.phase)
+                    ? "observation"
+                    : "ready";
     const readiness: BridgeReadiness = {
       ready: reason === "ready",
       reason,
       receiver: receiver?.status ?? "unknown",
       buildId: BUILD_ID,
       ...(receiver?.buildId ? { pageBuildId: receiver.buildId } : {}),
+      ...(observation ? { observation } : {}),
+      ...(binding && nativeTask
+        ? {
+            nativeTask: {
+              ready: nativeTask.ready,
+              checkedAt: nativeTask.checkedAt,
+              ...(nativeTask.message ? { message: nativeTask.message } : {}),
+            },
+          }
+        : {}),
     };
     return {
       readiness,

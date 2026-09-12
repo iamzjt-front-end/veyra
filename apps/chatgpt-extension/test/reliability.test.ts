@@ -57,8 +57,14 @@ function fixture() {
     send: vi.fn(async (_id, value) => {
       if (!page) throw new Error("page unavailable");
       return object(value) && ["prepare", "probe"].includes(String(value.type))
-        ? { epoch: "epoch", conversation: url, buildId: pageBuild, bindingId: state.binding?.id }
-        : { ok: true };
+        ? {
+            epoch: "epoch",
+            conversation: url,
+            buildId: pageBuild,
+            bindingId: state.binding?.id,
+            observation: { phase: "waiting_for_send" },
+          }
+        : { ok: true, observation: { phase: "waiting_for_reply" } };
     }),
   };
   let controller = new BridgeController(host, vi.fn(), native);
@@ -82,6 +88,7 @@ function fixture() {
       );
     },
     status: () => controller.handle({ type: "status" }, surface),
+    snapshot: () => controller.handle({ type: "snapshot" }, surface),
     restore: () =>
       controller.handle(
         { type: "hello", epoch: "epoch", buildId: "development" },
@@ -178,6 +185,42 @@ it("does not call an unbound or receiver-missing conversation ready", async () =
   expect(await f.status()).toMatchObject({ readiness: { ready: true, receiver: "confirmed" } });
   f.pageMissing();
   expect(await f.status()).toMatchObject({ readiness: { ready: false, receiver: "unavailable" } });
+  expect(vi.mocked(f.native.call).mock.calls.some(([m]) => m === "runs.dispatch")).toBe(false);
+});
+it("reports unknown or unsupported observation without dispatching or persisting reply bodies", async () => {
+  const f = fixture();
+  await f.bind();
+  const send = f.host.send;
+  f.host.send = async (id, message) => {
+    const result = await send(id, message);
+    if (object(message) && message.type === "probe" && object(result))
+      return { ...result, observation: undefined };
+    return result;
+  };
+  expect(await f.status()).toMatchObject({ readiness: { ready: false, reason: "observation" } });
+  expect(await f.snapshot()).toMatchObject({ readiness: { ready: false, reason: "observation" } });
+  f.host.send = async (id, message) => {
+    const result = await send(id, message);
+    return object(result)
+      ? {
+          ...result,
+          observation: { phase: "unsupported", assistantId: "reply-id", text: "DO NOT STORE" },
+        }
+      : result;
+  };
+  const status = await f.status();
+  expect(status).toMatchObject({
+    readiness: {
+      ready: false,
+      reason: "observation",
+      observation: { phase: "unsupported", assistantId: "reply-id" },
+    },
+  });
+  expect(JSON.stringify(status)).not.toContain("DO NOT STORE");
+  expect(await f.snapshot()).toMatchObject({
+    readiness: { observation: { phase: "unsupported" } },
+  });
+  expect(JSON.stringify(durableBindings(f.state()))).not.toContain("observation");
   expect(vi.mocked(f.native.call).mock.calls.some(([m]) => m === "runs.dispatch")).toBe(false);
 });
 it("recovers an interrupted run read without dispatch replay or renewing authorization", async () => {

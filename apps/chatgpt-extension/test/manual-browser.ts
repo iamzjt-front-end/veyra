@@ -48,6 +48,8 @@ document.querySelector('button').onclick=()=>{
  if(sectionLayout){turn.dataset.testid='conversation-turn-'+turns;turn.dataset.turn='assistant';turn.innerHTML=${JSON.stringify(sectionTurnMarkup)};}
  const assistant=sectionLayout?turn.querySelector('[data-message-author-role="assistant"]'):document.createElement('div');assistant.dataset.messageAuthorRole='assistant';assistant.dataset.messageId=crypto.randomUUID();
  const body=document.createElement(sectionLayout?'p':'code');body.textContent='Preparing the structured response…';if(sectionLayout)assistant.append(body);else{const pre=document.createElement('pre');body.className='language-veyra-handoff';pre.append(body);assistant.append(pre);turn.append(assistant);}main.append(turn);
+ // Keep stale styling in previous replies through dispatch, result insertion and review.
+ for(const previous of main.querySelectorAll('[data-message-author-role="assistant"]'))if(previous!==assistant)previous.classList.add('result-streaming');
  const actions=sectionLayout?turn.querySelector('[role="group"]'):turn;
  const copy=document.createElement('button');copy.dataset.testid='copy-turn-action-button';actions.append(copy);
  // Complete-looking prose must not consume this identity before the final body commit.
@@ -589,7 +591,8 @@ try {
       0,
       "Recovery cannot resend bootstrap",
     );
-    assert.match(await panel.locator(".v-panel-header").innerText(), /Ready/);
+    await panel.getByRole("heading", { name: "Waiting for your next message" }).waitFor();
+    assert.doesNotMatch(await panel.locator(".v-panel-header").innerText(), /Needs attention/);
     // Now test an incoming handoff itself waking a cold worker/coordinator, with no panel refresh.
     await stopDaemon({ registryRoot });
     // Only the simulated ChatGPT app keeps its own fixture plan, as a real planner would.
@@ -855,6 +858,8 @@ try {
       browser: context.browser()?.version(),
       executions: executed,
       sameConversationReturns: 2,
+      historicalStreamingFlags:
+        "ignored only in earlier turns; full dispatch/return/review completed",
       persistedReviews: ["pass", "fail"],
       reviewRestoredAfterRefresh: native,
       existingConversationSelected: existingConversation,

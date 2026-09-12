@@ -4,6 +4,7 @@ import { translate, type Parameters as MessageParameters, LocaleStore } from "@v
 import { startExtensionUI } from "./ui-locale.js";
 import { diagnosticText, stateLabel } from "./diagnostic-copy.js";
 import { BUILD_ID } from "./build-info.js";
+import { parseObservation, observationCopy } from "./observation.js";
 let language = new LocaleStore();
 const t = (source: string, values?: MessageParameters) =>
   translate(language.snapshot().locale, source, values);
@@ -180,6 +181,20 @@ function renderStatus(data: Record<string, unknown>) {
   const last = binding && object(binding.lastResult) ? binding.lastResult : undefined;
   const connectivity = object(data.connectivity) ? data.connectivity : undefined;
   const ready = object(data.readiness) ? data.readiness : undefined;
+  const nativeTask = ready && object(ready.nativeTask) ? ready.nativeTask : undefined;
+  field(
+    "native-task",
+    nativeTask
+      ? `${nativeTask.ready ? t("Ready") : t("Not ready")}\n${diagnostic(nativeTask.message ?? "")}\n${t("Checked at {time}", { time: date(Number(nativeTask.checkedAt), true) })}`
+      : t("Not captured"),
+  );
+  const observation = parseObservation(ready?.observation);
+  field(
+    "observation",
+    observation
+      ? `${t(observationCopy[observation.phase].title)}\n${t(observationCopy[observation.phase].description)}${observation.assistantId ? `\n${observation.assistantId}` : ""}`
+      : t("Not captured"),
+  );
   field("build", `${BUILD_ID}\n${chrome.runtime.getURL("manifest.json")}`);
   field(
     "receiver",

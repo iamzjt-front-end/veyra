@@ -28,6 +28,7 @@ import type { PanelSnapshot } from "./panel-store.js";
 import type { NativeConversation } from "@veyraoss/protocol";
 import { ConversationPicker } from "./conversation-picker.js";
 import { PAGE_CONNECTION_CHANGED, PAGE_CONNECTION_UNAVAILABLE } from "./page-connection.js";
+import { observationCopy } from "./observation.js";
 
 export interface PanelActions {
   select: (id: string) => void;
@@ -47,6 +48,8 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
   const [details, setDetails] = useState(false);
   const [advanced, setAdvanced] = useState(false);
   const { binding, evidence, currentBound } = state;
+  const observation = state.readiness?.observation;
+  const observationText = observation && observationCopy[observation.phase];
   const nativePicker =
     state.transport !== "http" && !!actions.discoverConversations && !!actions.chooseConversation;
   const projectOnly = !nativePicker || advanced;
@@ -91,7 +94,9 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
       : attention
         ? t("Needs attention")
         : currentBound && state.readiness?.ready === true
-          ? t("Ready")
+          ? !binding?.runId && observationText
+            ? t(observationText.title)
+            : t("Ready")
           : t("Awaiting binding");
   const steps = runSteps(evidence, locale);
   const goal = evidence.handoff?.context.goal;
@@ -299,6 +304,21 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
               </ErrorState>
             )}
           </div>
+        ) : !working && !paused && state.readiness?.reason === "native_task" ? (
+          <ErrorState title={t("Selected Codex task unavailable")}>
+            {t(
+              "The connection is active, but this Codex task has not passed its availability check. No new task has been sent.",
+            )}
+            <Button onClick={actions.diagnostics}>{t("Diagnostics")}</Button>
+          </ErrorState>
+        ) : !binding?.runId &&
+          !paused &&
+          observationText &&
+          state.readiness?.reason === "observation" ? (
+          <ErrorState title={t(observationText.title)}>
+            {t(observationText.description)}
+            <Button onClick={actions.diagnostics}>{t("Diagnostics")}</Button>
+          </ErrorState>
         ) : !binding?.runId && !paused && state.readiness?.ready !== true ? (
           <ErrorState title={t("Connection checks incomplete")}>
             {t(
@@ -314,13 +334,23 @@ export function PanelView({ state, actions }: { state: PanelSnapshot; actions: P
             <span className="v-idle-mark">
               <Icon name={paused ? "pause" : "check"} />
             </span>
-            <h2>{paused ? t("Paused, on your terms") : t("Ready to work")}</h2>
+            <h2>
+              {paused
+                ? t("Paused, on your terms")
+                : observationText
+                  ? t(observationText.title)
+                  : t("Ready to work")}
+            </h2>
             <p className="v-secondary">
               {paused
                 ? t("Resume when you’re ready. Your Project stays connected.")
-                : t("ChatGPT plans. Codex builds.")}
+                : observationText
+                  ? t(observationText.description)
+                  : t("ChatGPT plans. Codex builds.")}
             </p>
-            {!paused && <p className="v-caption">{t("Tell ChatGPT what you want to build.")}</p>}
+            {!paused && (!observation || observation.phase === "waiting_for_send") && (
+              <p className="v-caption">{t("Tell ChatGPT what you want to build.")}</p>
+            )}
           </div>
         ) : (
           <section className="v-run-section">

@@ -1,6 +1,7 @@
 import { parseHTML } from "linkedom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { sendToConversation } from "../src/page.js";
+import { sectionTurn } from "./fixtures/chatgpt-turn.js";
 
 const conversation = "https://chatgpt.com/c/62bf60b0-5646-4195-9f47-a4ea70140859";
 const marker = "delivery-8e7dc509-d7f1-4d0a-958c-8c98ff011e64";
@@ -75,6 +76,47 @@ const settle = async () => {
   await vi.advanceTimersByTimeAsync(11000);
 };
 describe("marker and echoed-message send confirmation", () => {
+  it("returns a result despite old reply styling while retaining real generation guards", async () => {
+    const f = fixture(({ editor }, value) => {
+      editor.textContent = value;
+    });
+    const old = sectionTurn(f.document, "old", "Historical body");
+    old.classList.add("result-streaming");
+    const current = sectionTurn(f.document, "current", "Current completed task");
+    f.document.querySelector("main")?.append(old, current);
+    f.button.addEventListener("click", () => f.echo());
+    const body = old.querySelector('[data-message-author-role="assistant"]');
+    if (!body) throw new Error("Missing historical fixture message");
+    const read = vi.spyOn(body, "textContent", "get");
+    for (const flag of [
+      () => {
+        const n = f.document.createElement("button");
+        n.dataset.testid = "stop-button";
+        return n;
+      },
+      () => {
+        const n = f.document.createElement("div");
+        n.className = "result-streaming";
+        return n;
+      },
+      () => {
+        const n = sectionTurn(f.document, "newer", "Generating");
+        n.setAttribute("data-is-streaming", "true");
+        return n;
+      },
+    ]) {
+      const element = flag();
+      f.document.body.append(element);
+      expect(await f.send()).toBe("deferred");
+      element.remove();
+    }
+    current.setAttribute("data-is-streaming", "true");
+    expect(await f.send()).toBe("deferred");
+    current.removeAttribute("data-is-streaming");
+    expect(await f.send()).toBe("sent");
+    expect(f.click).toHaveBeenCalledTimes(1);
+    expect(read).not.toHaveBeenCalled();
+  });
   it.each(["p", "div"])(
     "accepts %s paragraphs, NBSP, repeated newlines, large JSON and bilingual blocks",
     async (tag) => {

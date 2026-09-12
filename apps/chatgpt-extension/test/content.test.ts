@@ -114,7 +114,7 @@ it.each(["article", "section"])(
       armed,
     );
     await vi.advanceTimersByTimeAsync(1000);
-    expect(armed).toHaveBeenCalledWith({ ok: true });
+    expect(armed).toHaveBeenCalledWith(expect.objectContaining({ ok: true }));
     expect(call.mock.calls.filter(([message]) => message.type === "hello")).toHaveLength(1);
     call.mockClear();
     await vi.advanceTimersByTimeAsync(60000);
@@ -130,7 +130,9 @@ it.each(["article", "section"])(
     );
     document.querySelector("main")?.append(historicalReview);
     await vi.advanceTimersByTimeAsync(1000);
-    expect(call.mock.calls.map(([message]) => message.type)).toEqual(["review"]);
+    const actions = () =>
+      call.mock.calls.map(([message]) => message.type).filter((type) => type !== "observe");
+    expect(actions()).toEqual(["review"]);
     expect(historicalReview.textContent).toContain("VEYRA_REVIEW_BEGIN");
     expect(historicalReview.querySelector('[data-veyra-folded="true"]')).toBeNull();
     call.mockClear();
@@ -146,28 +148,31 @@ it.each(["article", "section"])(
         '<div data-message-author-role="assistant" data-message-id="fresh"></div><button data-testid="copy-turn-action-button"></button>';
       (turn.firstElementChild as Element).textContent = source;
     }
+    const toolbar = turn.querySelector('[data-testid="copy-turn-action-button"]');
+    if (!toolbar) throw new Error("Missing completion toolbar");
+    toolbar.remove();
     document.querySelector("main")?.append(turn);
+    await vi.advanceTimersByTimeAsync(0);
+    // Coordinator reconnection during a long reply must retain the existing watcher.
+    // Restarting it would snapshot this unfinished message as old history forever.
+    const restored = vi.fn();
+    listener({ type: "arm", binding, restore: true }, { id: "extension" }, restored);
+    expect(restored).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ok: true,
+        observation: { phase: "waiting_for_completion", assistantId: "fresh" },
+      }),
+    );
+    turn.append(toolbar);
     await vi.advanceTimersByTimeAsync(1500);
-    expect(call.mock.calls.map(([message]) => message.type)).toEqual([
-      "dispatch",
-      "poll",
-      "claim",
-      "defer",
-    ]);
+    expect(actions()).toEqual(["dispatch", "poll", "claim", "defer"]);
     // The old 1.5s interval would mask this lost-wakeup race. No periodic retry exists now.
     editor.textContent = "";
     editor.dispatchEvent(new window.Event("input", { bubbles: true }) as unknown as Event);
     await vi.advanceTimersByTimeAsync(0);
     release?.();
     await vi.advanceTimersByTimeAsync(1000);
-    expect(call.mock.calls.map(([message]) => message.type)).toEqual([
-      "dispatch",
-      "poll",
-      "claim",
-      "defer",
-      "claim",
-      "ack",
-    ]);
+    expect(actions()).toEqual(["dispatch", "poll", "claim", "defer", "claim", "ack"]);
     expect(document.querySelectorAll('[data-message-author-role="user"]')).toHaveLength(2);
     const count = call.mock.calls.length;
     await vi.advanceTimersByTimeAsync(60000);

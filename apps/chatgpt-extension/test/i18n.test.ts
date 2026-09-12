@@ -10,9 +10,83 @@ import { I18nProvider, LocaleStore } from "@veyraoss/ui";
 import { PanelView, type PanelActions } from "../src/panel-view.js";
 import { panelFixture } from "../dev/fixtures.js";
 import { PAGE_CONNECTION_CHANGED, PAGE_CONNECTION_UNAVAILABLE } from "../src/page-connection.js";
+import { observationCopy, type PageObservation } from "../src/observation.js";
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+});
+it.each([
+  "waiting_for_send",
+  "waiting_for_reply",
+  "streaming",
+  "waiting_for_completion",
+  "no_protocol",
+  "unsupported",
+] as const)(
+  "explains the actual page observation in both languages: %s",
+  (phase: PageObservation["phase"]) => {
+    const state = panelFixture("idle");
+    state.readiness = {
+      ready: phase !== "unsupported",
+      reason: phase === "unsupported" ? "observation" : "ready",
+      receiver: "confirmed",
+      buildId: "development",
+      observation: { phase },
+    };
+    const actions: PanelActions = {
+      select() {},
+      bind() {},
+      pause() {},
+      unbind() {},
+      cancel() {},
+      reconnect() {},
+      diagnostics() {},
+      theme() {},
+    };
+    for (const locale of ["zh-CN", "en"] as const) {
+      const store = new LocaleStore(undefined, locale);
+      const html = renderToStaticMarkup(
+        createElement(I18nProvider, { store }, createElement(PanelView, { state, actions })),
+      );
+      expect(html).not.toContain("Ready to work");
+      expect(html).not.toContain("准备就绪");
+      if (locale === "en") expect(html).toContain(observationCopy[phase].description);
+      else expect(html).not.toContain(observationCopy[phase].title);
+    }
+  },
+);
+it("distinguishes unavailable native-task ownership from connectivity or login failure", () => {
+  const state = panelFixture("idle");
+  state.readiness = {
+    ready: false,
+    reason: "native_task",
+    receiver: "confirmed",
+    buildId: "development",
+  };
+  const actions: PanelActions = {
+    select() {},
+    bind() {},
+    pause() {},
+    unbind() {},
+    cancel() {},
+    reconnect() {},
+    diagnostics() {},
+    theme() {},
+  };
+  for (const locale of ["zh-CN", "en"] as const) {
+    const html = renderToStaticMarkup(
+      createElement(
+        I18nProvider,
+        { store: new LocaleStore(undefined, locale) },
+        createElement(PanelView, { state, actions }),
+      ),
+    );
+    expect(html).toContain(
+      locale === "en" ? "Selected Codex task unavailable" : "所选 Codex 对话暂不可用",
+    );
+    expect(html).not.toContain("sign in");
+    expect(html).not.toContain("已断开");
+  }
 });
 it("changes only owned machine labels, preserves framed evidence and never scans the conversation", () => {
   const { document } = parseHTML(

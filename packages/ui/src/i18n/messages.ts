@@ -77,6 +77,33 @@ export const chinese: Readonly<Record<string, string>> = {
   "Open a saved ChatGPT conversation to bind.": "请先打开一段已保存的 ChatGPT 对话。",
   "Paused, on your terms": "已暂停，随时继续",
   "Ready to work": "准备就绪",
+  "Waiting for your next message": "等待你的下一条消息",
+  "Binding restored. Earlier replies will not be replayed.":
+    "绑定已恢复，之前的回复不会自动重新派发。",
+  "Your task has not been sent to Codex yet.": "任务尚未发送到 Codex。",
+  "ChatGPT is responding": "ChatGPT 正在回复",
+  "Veyra will validate the completed reply before sending it to Codex.":
+    "回复完成后，Veyra 会校验任务，再发送给 Codex。",
+  "Waiting for reply confirmation": "等待回复完成确认",
+  "Veyra has not confirmed that this reply is complete. Nothing has been sent to Codex.":
+    "尚未确认这条回复已完成，因此还没有向 Codex 发送任务。",
+  "Reply received": "已收到回复",
+  "This reply contains no executable handoff. No task was sent to Codex.":
+    "这条回复没有可执行的任务交接单，未向 Codex 发送任务。",
+  "Checking the task": "正在校验任务",
+  "Veyra detected a structured task and is checking it before dispatch.":
+    "已识别任务交接单，正在校验，尚未确认派发。",
+  "Page layout needs attention": "页面结构需要检查",
+  "The current reply could not be identified safely. No task was sent to Codex.":
+    "无法可靠识别当前回复，未向 Codex 发送任务。",
+  "Task format needs attention": "任务格式需要检查",
+  "Veyra could not validate this reply. No task was sent to Codex.":
+    "这条回复未通过校验，未向 Codex 发送任务。",
+  "Page observation": "页面任务识别",
+  "Selected Codex task check": "所选 Codex 对话检查",
+  "Selected Codex task unavailable": "所选 Codex 对话暂不可用",
+  "The connection is active, but this Codex task has not passed its availability check. No new task has been sent.":
+    "本机连接正常，但所选 Codex 对话尚未通过可用性检查。没有发送新任务。",
   "Resume when you’re ready. Your Project stays connected.": "准备好后即可继续，项目绑定会保留。",
   "Tell ChatGPT what you want to build.": "告诉 ChatGPT，你想实现什么。",
   "Automation paused": "自动执行已暂停",

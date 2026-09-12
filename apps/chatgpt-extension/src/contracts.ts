@@ -8,6 +8,7 @@ import {
   type NativeConversation,
 } from "@veyraoss/protocol";
 import type { BridgeCheckpoint } from "./checkpoints.js";
+import type { PageObservation } from "./observation.js";
 
 export const EXTENSION_ORIGIN = "chrome-extension://meibodpmcjcjdpfaaejdpiclijnpcclh";
 export interface Pairing {
@@ -55,6 +56,8 @@ export interface Binding {
   pausedByUser?: boolean;
   resumePhase?: Binding["phase"];
   attached?: boolean;
+  /** Live document metadata only; deliberately excluded from durable bindings. */
+  observation?: PageObservation;
   /** Admission intent fingerprint; the actual handoff remains in Project state. */
   admission?: { handoffId: string; fingerprint: string; confirmed: boolean };
   checkpoints?: BridgeCheckpoint[];

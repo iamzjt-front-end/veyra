@@ -9,6 +9,106 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllGlobals();
 });
+it("does not let a historical streaming flag block a new completed task", async () => {
+  const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const old = sectionTurn(document, "old-research", "Historical research");
+  old
+    .querySelector('[data-message-author-role="assistant"]')
+    ?.setAttribute("class", "result-streaming");
+  document.querySelector("main")?.append(old);
+  const candidate = vi.fn(),
+    error = vi.fn();
+  const stop = watchConversation(document, candidate, vi.fn(), error);
+  const source = 'VEYRA_HANDOFF_BEGIN\n{"goal":"new task"}\nVEYRA_HANDOFF_END';
+  document.querySelector("main")?.append(sectionTurn(document, "new-task", source));
+  await vi.advanceTimersByTimeAsync(500);
+  expect(candidate).toHaveBeenCalledExactlyOnceWith({ id: "new-task", source });
+  expect(error).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(candidate).toHaveBeenCalledTimes(1);
+  expect(vi.getTimerCount()).toBe(0);
+  stop();
+});
+it("reports bounded observation transitions without reading streaming or historical text", async () => {
+  const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const observed = vi.fn(),
+    candidate = vi.fn();
+  const stop = watchConversation(document, candidate, vi.fn(), vi.fn(), () => true, true, observed);
+  expect(stop.snapshot()).toEqual({ phase: "waiting_for_send" });
+  stop.expectReply();
+  const turn = sectionTurn(document, "current-reply", "Still thinking");
+  turn.setAttribute("data-is-streaming", "true");
+  document.querySelector("main")?.append(turn);
+  await vi.advanceTimersByTimeAsync(0);
+  for (let n = 0; n < 1000; n++) turn.setAttribute("class", `token-${n}`);
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(observed.mock.calls).toEqual([
+    [{ phase: "waiting_for_reply" }],
+    [{ phase: "streaming", assistantId: "current-reply" }],
+  ]);
+  expect(candidate).not.toHaveBeenCalled();
+  expect(vi.getTimerCount()).toBe(0);
+  turn.setAttribute("data-is-streaming", "false");
+  await vi.advanceTimersByTimeAsync(500);
+  expect(stop.snapshot()).toEqual({ phase: "no_protocol", assistantId: "current-reply" });
+  const reads = vi.spyOn(document, "querySelectorAll");
+  const count = observed.mock.calls.length;
+  await vi.advanceTimersByTimeAsync(60000);
+  expect(reads).not.toHaveBeenCalled();
+  expect(observed).toHaveBeenCalledTimes(count);
+  expect(vi.getTimerCount()).toBe(0);
+  stop();
+});
+it("wakes when the final streaming flag is on an ancestor of the message", async () => {
+  const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const candidate = vi.fn(),
+    error = vi.fn();
+  const stop = watchConversation(document, candidate, vi.fn(), error);
+  const source = 'VEYRA_HANDOFF_BEGIN\n{"goal":"new task"}\nVEYRA_HANDOFF_END';
+  const turn = sectionTurn(document, "new-task", source);
+  turn.setAttribute("data-is-streaming", "true");
+  document.querySelector("main")?.append(turn);
+  await vi.advanceTimersByTimeAsync(500);
+  expect(candidate).not.toHaveBeenCalled();
+  turn.setAttribute("data-is-streaming", "false");
+  await vi.advanceTimersByTimeAsync(500);
+  expect(candidate).toHaveBeenCalledTimes(1);
+  expect(error).not.toHaveBeenCalled();
+  stop();
+});
+it("opens a restored observation only for a trusted submit of the current composer form", async () => {
+  const { document: doc, window } = parseHTML(
+    '<html><body><main></main><form id="composer"><div id="prompt-textarea" contenteditable="true"></div><button type="submit"></button></form><form id="other"></form></body></html>',
+  );
+  vi.stubGlobal("MutationObserver", window.MutationObserver);
+  const document = doc as unknown as Document;
+  const candidate = vi.fn(),
+    error = vi.fn();
+  const stop = watchConversation(document, candidate, vi.fn(), error, () => true, true);
+  const source = 'VEYRA_HANDOFF_BEGIN\n{"goal":"new task"}\nVEYRA_HANDOFF_END';
+  const submit = (id: string, trusted: boolean) => {
+    const event = new window.Event("submit", { bubbles: true });
+    Object.defineProperty(event, "isTrusted", { value: trusted });
+    document.getElementById(id)?.dispatchEvent(event as unknown as Event);
+  };
+  submit("composer", false);
+  submit("other", true);
+  document.querySelector("main")?.append(sectionTurn(document, "late-history", source));
+  await vi.advanceTimersByTimeAsync(500);
+  expect(candidate).not.toHaveBeenCalled();
+  submit("composer", true);
+  document.querySelector("main")?.append(sectionTurn(document, "new-task", source));
+  await vi.advanceTimersByTimeAsync(500);
+  expect(candidate).toHaveBeenCalledExactlyOnceWith({ id: "new-task", source });
+  expect(error).not.toHaveBeenCalled();
+  stop();
+});
 it("does not read historical turns mounted after restoration until a fresh send boundary", async () => {
   const { document: doc, window } = parseHTML("<html><body><main></main></body></html>");
   vi.stubGlobal("MutationObserver", window.MutationObserver);

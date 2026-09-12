@@ -548,6 +548,10 @@ Keep direct Project selection and recent Projects under **高级：直接绑定�
 
 Bind checks the page, Project, native login and native writer availability before sending its bootstrap message. An occupied Codex task is a known unavailable state, not an uncertain delivery or a login failure. Explain that no task was dispatched; current desktop versions may retain ownership even while idle. User work and writer locks must never be forcibly interrupted to make the UI appear Ready. The persistent grant names the Project root and explicitly selected native IDs; the conversation binding pins the chosen ID across new Veyra runs. See [support limits](CODEX-CONVERSATION-BINDING.md).
 
+Idle status refresh and cold-worker recovery must also check that selected task, with bounded caching and no idle polling; never probe a writer during an accepted run. Unknown or unavailable task status must not appear Ready solely because native login succeeded.
+
+Before a Run exists, show the actual page stage: waiting for the user's next send, waiting for ChatGPT, ChatGPT responding, waiting for completion confirmation, or reply received without an executable handoff. Unsupported layout and invalid protocol need explicit attention. Diagnostics may show a current message ID but never stores the reply body. These transient observations are not durable engineering state. Same-document reconnect preserves the in-progress watcher; a genuine page refresh waits for a fresh send and never replays old replies. See [repair evidence](HANDOFF-OBSERVATION-REPAIR.md).
+
 ### Interface language
 
 The GUI defaults to Simplified Chinese and supports explicit English selection through the **语言 / Language** control. Side Panel, popup, Diagnostics and current-conversation machine status labels share the extension's trusted local preference. The Local Control Center stores its own UI preference in the machine registry, surviving a server restart or port change. Both surfaces restore the last selected language; no polling is used for language changes.

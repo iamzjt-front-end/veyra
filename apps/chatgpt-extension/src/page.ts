@@ -1,6 +1,8 @@
 import { conversationUrl, extractHandoffBlock } from "./contracts.js";
 
 const assistantSelector = '[data-message-author-role="assistant"]';
+export const generationSelector =
+  '[data-testid="stop-button"], [data-testid="stop-generation-button"], .result-streaming, [data-is-streaming="true"]';
 /** Completion belongs to this explicit turn, never an adjacent turn or the whole page. */
 export function conversationTurn(message: Element): Element | null {
   // Current ChatGPT uses SECTION; its toolbar is outside the message's direct parent.
@@ -22,9 +24,28 @@ export function assistantIds(document: Document): Set<string> {
   );
 }
 export function generating(document: Document): boolean {
-  return !!document.querySelector(
-    '[data-testid="stop-button"], [data-testid="stop-generation-button"], .result-streaming, [data-is-streaming="true"]',
-  );
+  const flags = document.querySelectorAll(generationSelector);
+  if (!flags.length) return false;
+  const messages = document.querySelectorAll(assistantSelector);
+  const latest = messages[messages.length - 1];
+  return hasGenerationSignal(flags, latest ? conversationTurn(latest) : null);
+}
+/** Ignore styling only when it belongs to a provably earlier turn. Stop controls,
+ * unknown wrappers and a newer turn still block observation and composer insertion. */
+export function hasGenerationSignal(flags: Iterable<Element>, turn: Element | null): boolean {
+  return [...flags].some((element) => {
+    if (!element.isConnected) return false;
+    if (element.matches('[data-testid="stop-button"], [data-testid="stop-generation-button"]'))
+      return true;
+    const owner = conversationTurn(element);
+    return (
+      !owner ||
+      !turn ||
+      owner === turn ||
+      owner.contains(turn) ||
+      (owner.compareDocumentPosition(turn) & 4) === 0
+    );
+  });
 }
 export function latestHandoff(
   document: Document,

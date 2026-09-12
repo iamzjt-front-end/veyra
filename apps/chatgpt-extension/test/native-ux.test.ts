@@ -61,8 +61,9 @@ function fixture() {
             conversation: url,
             buildId: "development",
             bindingId: state.binding?.id,
+            observation: { phase: "waiting_for_send" },
           }
-        : { ok: true },
+        : { ok: true, observation: { phase: "waiting_for_reply" } },
     ),
   };
   let controller = new BridgeController(host, vi.fn(), native);
@@ -156,6 +157,71 @@ it("refuses occupied task binding before bootstrap or dispatch and does not subs
   expect(f.state().binding).toBeUndefined();
   expect(f.host.send).not.toHaveBeenCalled();
   expect(f.native.call).not.toHaveBeenCalled();
+});
+it("rechecks the bound native task after worker eviction without a polling loop or dispatch", async () => {
+  vi.useFakeTimers();
+  const f = fixture();
+  const conversation = { id: randomUUID(), title: "Existing task", root: "/project" };
+  f.native.selectConversation = vi.fn(async () => ({
+    conversation,
+    project: { id: f.projectId, root: "/project" },
+  }));
+  const check = vi.fn(async () => {});
+  f.native.checkConversation = check;
+  await f
+    .controller()
+    .handle({ type: "bind", maxRuns: 3, nativeConversation: conversation }, popup);
+  expect(await f.controller().handle({ type: "status" }, popup)).toMatchObject({
+    readiness: { ready: true, nativeTask: { ready: true } },
+  });
+  expect(check).toHaveBeenCalledTimes(1);
+  check.mockRejectedValue(new Error("already has an active writer"));
+  f.restartWorker();
+  const status = await f.controller().handle({ type: "snapshot" }, popup);
+  expect(status).toMatchObject({
+    connectivity: { status: "connected" },
+    readiness: {
+      ready: false,
+      reason: "native_task",
+      nativeTask: { ready: false, message: "already has an active writer" },
+    },
+  });
+  expect(check).toHaveBeenCalledTimes(2);
+  await vi.advanceTimersByTimeAsync(60000);
+  for (let i = 0; i < 20; i++)
+    expect(await f.controller().handle({ type: "snapshot" }, popup)).toMatchObject({
+      readiness: { ready: false, reason: "native_task" },
+    });
+  expect(check).toHaveBeenCalledTimes(2);
+  expect(vi.getTimerCount()).toBe(0);
+  check.mockResolvedValue(undefined);
+  expect(await f.controller().handle({ type: "status" }, popup)).toMatchObject({
+    readiness: { ready: true, nativeTask: { ready: true } },
+  });
+  expect(check).toHaveBeenCalledTimes(3);
+  expect(f.state().binding?.nativeConversation).toEqual(conversation);
+  expect(vi.mocked(f.native.call).mock.calls.some(([method]) => method === "runs.dispatch")).toBe(
+    false,
+  );
+});
+it("does not probe native writer ownership during an already accepted Veyra run", async () => {
+  const f = fixture();
+  await f.bind();
+  f.mutate((binding) => {
+    binding.nativeConversation = { id: randomUUID(), title: "Existing", root: "/project" };
+    binding.phase = "running";
+    binding.runId = binding.nextRunId;
+    binding.runStatus = "running";
+  });
+  f.native.checkConversation = vi.fn(async () => {
+    throw new Error("Own run holds writer");
+  });
+  f.restartWorker();
+  expect(await f.controller().handle({ type: "snapshot" }, popup)).toMatchObject({
+    readiness: { ready: true },
+    binding: { phase: "running" },
+  });
+  expect(f.native.checkConversation).not.toHaveBeenCalled();
 });
 it("denies page scripts native conversation discovery and binding authority", async () => {
   const f = fixture();

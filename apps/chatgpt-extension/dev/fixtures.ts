@@ -1,5 +1,6 @@
 import type { PanelSnapshot } from "../src/panel-store.js";
 import type { ProjectId } from "@veyraoss/protocol";
+import { parseObservation } from "../src/observation.js";
 
 export const fixtureTime = "2026-09-09T10:29:14.000Z";
 const id = "62bf60b0-5646-4195-9f47-a4ea70140859" as ProjectId;
@@ -12,6 +13,23 @@ const provenance = {
   contentTrust: "untrusted",
 } as const;
 export function panelFixture(name: string): PanelSnapshot {
+  if (name.startsWith("observation-")) {
+    const state = panelFixture("idle");
+    const observation = parseObservation({ phase: name.slice("observation-".length) });
+    if (!observation || !state.readiness) throw new Error("Invalid observation fixture");
+    state.readiness.observation = observation;
+    state.readiness.ready = !["unsupported", "invalid"].includes(observation.phase);
+    state.readiness.reason = state.readiness.ready ? "ready" : "observation";
+    return state;
+  }
+  if (name === "native-task-unavailable") {
+    const state = panelFixture("idle");
+    if (state.readiness) {
+      state.readiness.ready = false;
+      state.readiness.reason = "native_task";
+    }
+    return state;
+  }
   if (name === "http-unbound") return { ...panelFixture("unbound"), transport: "http" };
   if (["review-approved", "review-changes", "review-human"].includes(name)) {
     const state = panelFixture(name === "review-changes" ? "completed" : "failed");
@@ -75,6 +93,7 @@ export function panelFixture(name: string): PanelSnapshot {
       reason: name === "unbound" ? "unbound" : "ready",
       receiver: "confirmed",
       buildId: "fixture",
+      observation: { phase: "waiting_for_send" },
     },
     selected: {
       project: first.project,

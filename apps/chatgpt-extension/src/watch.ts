@@ -1,12 +1,26 @@
-import { assistantId, assistantIds, conversationTurn, generating, turnText } from "./page.js";
+import {
+  assistantId,
+  assistantIds,
+  conversationTurn,
+  turnText,
+  generationSelector,
+  hasGenerationSignal,
+} from "./page.js";
 import { extractHandoffBlock, extractMachineBlock } from "./contracts.js";
+import type { PageObservation } from "./observation.js";
 
 const assistant = '[data-message-author-role="assistant"]';
 const composer =
   '#prompt-textarea, [data-testid="composer-attachment"], [data-testid="file-thumbnail"], [data-testid="composer-file"]';
 const completion = '[data-testid="copy-turn-action-button"]';
-const streaming =
-  '[data-testid="stop-button"], [data-testid="stop-generation-button"], .result-streaming, [data-is-streaming="true"]';
+const streaming = generationSelector;
+
+/** A historical reply's styling is not a generation signal for the current turn.
+ * Stop controls still block globally; unknown wrappers fail closed. No text is read. */
+function generatingTurn(flags: Set<Element>, turn: Element): boolean {
+  for (const element of flags) if (!element.isConnected) flags.delete(element);
+  return hasGenerationSignal(flags, turn);
+}
 
 function wasStreaming(record: MutationRecord): boolean {
   if (record.type !== "attributes") return false;
@@ -30,8 +44,19 @@ export function watchConversation(
   onError: (error: unknown) => void,
   active: () => boolean = () => true,
   restored = false,
-): (() => void) & { expectReply(): void } {
-  const ignored = assistantIds(document);
+  onObservation: (state: PageObservation) => void = () => {},
+): (() => void) & { expectReply(): void; snapshot(): PageObservation } {
+  const ignored = new Set<string>();
+  const flags = new Set<Element>();
+  // One metadata-only snapshot; generation signals are maintained from mutations,
+  // never by rescanning the document for every token or on an idle interval.
+  for (const element of document.querySelectorAll(`${assistant}, ${streaming}`)) {
+    if (element.matches(assistant)) {
+      const id = assistantId(element);
+      if (id) ignored.add(id);
+    }
+    if (element.matches(streaming)) flags.add(element);
+  }
   // Restored React history may mount after our first identity snapshot. It is not
   // a new planner/reviewer turn. Only a fresh user send or our own result delivery
   // opens the boundary; no historical message body is read to establish it.
@@ -39,9 +64,19 @@ export function watchConversation(
   let newest: Element | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let stopped = false;
+  let observation: PageObservation = { phase: restored ? "waiting_for_send" : "waiting_for_reply" };
+  const publish = (phase: PageObservation["phase"], id?: string) => {
+    if (observation.phase === phase && observation.assistantId === id) return;
+    observation = { phase, ...(id ? { assistantId: id } : {}) };
+    onObservation({ ...observation });
+  };
   const consider = (element: Element) => {
     const id = assistantId(element);
-    if (!id || ignored.has(id)) return;
+    if (!id) {
+      if (accepting) publish("unsupported");
+      return;
+    }
+    if (ignored.has(id)) return;
     if (!accepting) {
       ignored.add(id);
       return;
@@ -63,27 +98,45 @@ export function watchConversation(
     timer = undefined;
     if (!newest?.isConnected) return;
     const turn = conversationTurn(newest);
-    if (!turn?.querySelector(completion) || generating(document)) return;
+    const id = assistantId(newest);
+    if (!turn) {
+      publish("unsupported", id);
+      return;
+    }
+    if (generatingTurn(flags, turn)) {
+      publish("streaming", id);
+      return;
+    }
+    if (!turn.querySelector(completion)) {
+      publish("waiting_for_completion", id);
+      return;
+    }
     // One bounded quiet-period debounce after the completion toolbar appears. Streaming
     // text never gets read; a mutation burst only resets this one pending check.
     timer = setTimeout(() => {
       timer = undefined;
-      if (stopped || !active() || !newest?.isConnected || generating(document)) return;
+      if (stopped || !active() || !newest?.isConnected) return;
       const current = newest;
       const id = assistantId(current);
       const turn = conversationTurn(current);
-      if (!id || ignored.has(id) || !turn?.querySelector(completion)) return;
+      if (!id || ignored.has(id) || !turn?.querySelector(completion) || generatingTurn(flags, turn))
+        return;
       try {
         const text = turnText(current);
         const source = extractHandoffBlock(text);
         const review = extractMachineBlock(text, "REVIEW");
         // The toolbar and body can commit separately. Plain text is not a consumed
         // task: keep this new turn eligible for a later mutation, with no idle timer.
-        if (source === undefined && review === undefined) return;
+        if (source === undefined && review === undefined) {
+          publish("no_protocol", id);
+          return;
+        }
         ignored.add(id);
         newest = undefined;
+        publish("protocol_ready", id);
         onHandoff({ id, source: source ?? "", ...(review ? { review } : {}) });
       } catch (error) {
+        publish("invalid", id);
         onError(error);
       }
     }, 400);
@@ -96,11 +149,26 @@ export function watchConversation(
       const target =
         record.target.nodeType === 1 ? (record.target as Element) : record.target.parentElement;
       if (!target) continue;
+      if (target.matches(streaming)) flags.add(target);
+      else flags.delete(target);
+      const owner = target.closest(assistant);
+      // Inspect flags only in newly inserted subtrees of this live turn or its UI.
+      if (!owner || !ignored.has(assistantId(owner) ?? "")) {
+        for (const node of record.addedNodes) {
+          if (node.nodeType !== 1) continue;
+          const element = node as Element;
+          if (element.matches(streaming)) flags.add(element);
+          for (const flag of element.querySelectorAll(streaming)) flags.add(flag);
+        }
+      }
+      if (target.matches(streaming) || wasStreaming(record)) {
+        changed = true;
+        composerChanged = true;
+      }
       if (target.closest(composer)) {
         composerChanged = true;
         continue;
       }
-      const owner = target.closest(assistant);
       if (owner) {
         consider(owner);
         if (owner === newest) changed = true;
@@ -110,10 +178,6 @@ export function watchConversation(
       if (newest && conversationTurn(newest)?.contains(target)) changed = true;
       // React can turn the existing Stop control into Send/Voice without removing it.
       // Its old streaming attribute is the completion event; there may be no later DOM change.
-      if (target.matches(streaming) || wasStreaming(record)) {
-        changed = true;
-        composerChanged = true;
-      }
       for (const node of [...record.addedNodes, ...record.removedNodes]) {
         if (node.nodeType !== 1) continue;
         const element = node as Element;
@@ -162,22 +226,29 @@ export function watchConversation(
     for (const id of assistantIds(document)) ignored.add(id);
     newest = undefined;
     accepting = true;
+    publish("waiting_for_reply");
   };
   const submit = (event: Event) => {
     if (!event.isTrusted || !active()) return;
     const target = event.target as Element | null;
+    const form = document.querySelector("#prompt-textarea")?.closest("form");
     if (
-      (event.type === "click" && target?.closest('[data-testid="send-button"]')) ||
-      (event instanceof KeyboardEvent &&
-        event.key === "Enter" &&
-        !event.shiftKey &&
-        !event.isComposing &&
+      (event.type === "submit" && target === form) ||
+      (event.type === "click" &&
+        (target?.closest('[data-testid="send-button"]') ||
+          (form && target?.closest('button[type="submit"]')?.closest("form") === form))) ||
+      (event.type === "keydown" &&
+        "key" in event &&
+        (event as KeyboardEvent).key === "Enter" &&
+        !(event as KeyboardEvent).shiftKey &&
+        !(event as KeyboardEvent).isComposing &&
         target?.closest("#prompt-textarea"))
     )
       expectReply();
   };
   document.addEventListener("click", submit, true);
   document.addEventListener("keydown", submit, true);
+  document.addEventListener("submit", submit, true);
   const stop = () => {
     stopped = true;
     clearTimeout(timer);
@@ -185,8 +256,9 @@ export function watchConversation(
     document.removeEventListener("input", input, true);
     document.removeEventListener("click", submit, true);
     document.removeEventListener("keydown", submit, true);
+    document.removeEventListener("submit", submit, true);
   };
-  return Object.assign(stop, { expectReply });
+  return Object.assign(stop, { expectReply, snapshot: () => ({ ...observation }) });
 }
 
 /** Only active runs schedule reads: 1, 2, 4, 8, 15 seconds, reset on a status change. */

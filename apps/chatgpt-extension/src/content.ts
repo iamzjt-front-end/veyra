@@ -90,6 +90,7 @@ installContentOnce((restoreOnLoad) => {
         conversation: conversationUrl(location.href),
         buildId: BUILD_ID,
         bindingId: binding?.id,
+        observation: unwatch?.snapshot(),
       });
       return false;
     }
@@ -110,6 +111,24 @@ installContentOnce((restoreOnLoad) => {
   };
   runtime.onMessage.addListener(onMessage);
   function activate(message: Record<string, unknown>, reply: (value: unknown) => void) {
+    if (
+      message.restore === true &&
+      binding &&
+      unwatch &&
+      object(message.binding) &&
+      message.binding.id === binding.id &&
+      message.binding.epoch === binding.epoch &&
+      bound(binding.id)
+    ) {
+      // A coordinator/worker reconnect is not a document reload. Resetting the
+      // observer here would mark the currently streaming answer as old history.
+      if (message.binding.nextRunId !== binding.nextRunId) candidate = undefined;
+      binding = message.binding as unknown as Binding;
+      reply({ ok: true, observation: unwatch.snapshot() });
+      if (binding.phase === "running") runs.start();
+      void work();
+      return;
+    }
     disarm();
     binding = message.binding as unknown as Binding;
     const selected = binding;
@@ -131,7 +150,13 @@ installContentOnce((restoreOnLoad) => {
       },
       () => bound(selected.id),
       message.restore === true,
+      (observation) => {
+        // State transitions only, never tokens, bodies, timers or historical snapshots.
+        // A later probe also reads this local state if the worker was sleeping.
+        void send("observe", { observation }).catch(() => {});
+      },
     );
+    void send("observe", { observation: unwatch.snapshot() }).catch(() => {});
     void (
       message.restore === true
         ? Promise.resolve("sent" as const)
@@ -147,7 +172,7 @@ installContentOnce((restoreOnLoad) => {
     )
       .then((result) => {
         if (result !== "sent" && binding?.id === selected.id) disarm();
-        reply({ ok: result === "sent" });
+        reply({ ok: result === "sent", observation: unwatch?.snapshot() });
       })
       .catch((error: unknown) => {
         if (binding?.id === selected.id) disarm();
